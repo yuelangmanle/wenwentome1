@@ -12,6 +12,7 @@ androidxTestCore = "1.6.1"
 room = "2.8.4"
 datastore = "1.1.5"
 coroutinesTest = "1.10.2"
+epublib = "3.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCoreKtx" }
@@ -32,6 +33,7 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+epublib-core = { group = "nl.siegmann.epublib", name = "epublib-core", version.ref = "epublib" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
