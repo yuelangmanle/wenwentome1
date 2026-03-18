@@ -3,14 +3,16 @@ package com.wenwentome.reader.navigation
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.wenwentome.reader.di.AppContainer
+import com.wenwentome.reader.feature.library.LibraryScreen
+import com.wenwentome.reader.feature.library.LibraryViewModel
+import com.wenwentome.reader.feature.library.ObserveBookshelfUseCase
 
 @Composable
 fun AppNavHost(
@@ -26,22 +28,19 @@ fun AppNavHost(
             .padding(paddingValues),
     ) {
         composable(TopLevelDestination.BOOKSHELF.route) {
-            Text(
-                text = TopLevelDestination.BOOKSHELF.label,
-                modifier = Modifier.testTag("screen"),
-            )
+            val viewModel: LibraryViewModel = remember(appContainer) {
+                LibraryViewModel(
+                    observeBookshelf = ObserveBookshelfUseCase.from(appContainer.database.bookRecordDao()),
+                    importLocalBook = { uri -> appContainer.importLocalBook(uri) },
+                )
+            }
+            LibraryScreen(viewModel = viewModel)
         }
         composable(TopLevelDestination.DISCOVER.route) {
-            Text(
-                text = TopLevelDestination.DISCOVER.label,
-                modifier = Modifier.testTag("screen"),
-            )
+            androidx.compose.material3.Text(text = TopLevelDestination.DISCOVER.label)
         }
         composable(TopLevelDestination.SETTINGS.route) {
-            Text(
-                text = TopLevelDestination.SETTINGS.label,
-                modifier = Modifier.testTag("screen"),
-            )
+            androidx.compose.material3.Text(text = TopLevelDestination.SETTINGS.label)
         }
     }
 }

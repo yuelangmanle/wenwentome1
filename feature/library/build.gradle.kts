@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.wenwentome.feature.library"
+    namespace = "com.wenwentome.reader.feature.library"
     compileSdk = 35
 
     defaultConfig {
@@ -31,6 +31,9 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:model"))
+    implementation(project(":core:database"))
+
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -39,6 +42,7 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
 

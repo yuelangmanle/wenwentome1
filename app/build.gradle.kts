@@ -55,6 +55,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
 
+    implementation(libs.androidx.room.runtime)
+    implementation(project(":core:database"))
+    implementation(project(":data:localbooks"))
+
     implementation(project(":feature:library"))
     implementation(project(":feature:discover"))
     implementation(project(":feature:reader"))
