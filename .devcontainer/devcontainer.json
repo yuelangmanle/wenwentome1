@@ -1,0 +1,18 @@
+{
+  "name": "wenwentome-reader",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "fwcd.kotlin",
+        "ms-androidtools.vscode-android"
+      ]
+    }
+  },
+  "postCreateCommand": "java -version && ./gradlew --version"
+}
