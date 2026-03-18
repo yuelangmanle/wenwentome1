@@ -16,5 +16,8 @@ class LocalBookFileStore(
 
     fun open(storageUri: String): InputStream =
         File(URI(storageUri)).inputStream()
-}
 
+    fun deleteBook(bookId: String) {
+        File(filesDir, "books/$bookId").deleteRecursively()
+    }
+}

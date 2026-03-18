@@ -15,19 +15,23 @@ class LocalBookContentRepository(
         val asset = requireNotNull(bookAssetDao.findPrimaryAsset(bookId)) {
             "Primary asset missing for $bookId"
         }
-        return when (asset.mime) {
-            "text/plain" -> renderTxt(fileStore.open(asset.storageUri), locator)
-            "application/epub+zip" -> renderEpub(fileStore.open(asset.storageUri), locator)
-            else -> error("Unsupported asset mime: ${asset.mime}")
+        return fileStore.open(asset.storageUri).use { inputStream ->
+            when (asset.mime) {
+                "text/plain" -> renderTxt(inputStream, locator)
+                "application/epub+zip" -> renderEpub(inputStream, locator)
+                else -> error("Unsupported asset mime: ${asset.mime}")
+            }
         }
     }
 
     private fun renderTxt(inputStream: InputStream, locator: String?): ReaderContent {
-        val paragraphs = inputStream.bufferedReader(Charsets.UTF_8).readText()
-            .lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .toList()
+        val paragraphs = inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+            reader.readText()
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toList()
+        }
         val startIndex = locator?.toIntOrNull()?.coerceAtLeast(0) ?: 0
         return ReaderContent(
             chapterTitle = "正文",
@@ -47,7 +51,9 @@ class LocalBookContentRepository(
             ?: error("EPUB spine is empty or spine index out of bounds: $spineIndex")
 
         // 不引入 jsoup，用极简 HTML 清洗，满足 MVP 读取能力即可。
-        val html = resource.inputStream.readBytes().decodeToString()
+        val html = resource.inputStream.use { resourceStream ->
+            resourceStream.readBytes().decodeToString()
+        }
         val allParagraphs = extractParagraphsFromHtml(html)
 
         return ReaderContent(

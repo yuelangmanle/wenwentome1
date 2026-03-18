@@ -8,33 +8,72 @@ import com.wenwentome.reader.core.database.entity.BookRecordEntity
 import com.wenwentome.reader.core.database.entity.ReadingStateEntity
 import com.wenwentome.reader.core.model.AssetRole
 import com.wenwentome.reader.core.model.BookFormat
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
+import java.io.File
 import java.io.InputStream
+import java.net.URI
 
 class LocalBookImportRepositoryTest {
     @Test
     fun importEpub_createsBookRecordAssetAndInitialReadingState() = runTest {
-        val repository = LocalBookImportRepository(
-            txtParser = TxtBookParser(),
-            epubParser = EpubBookParser(),
-            fileStore = fakeLocalBookFileStore(),
-            bookRecordDao = fakeBookRecordDao(),
-            readingStateDao = fakeReadingStateDao(),
-            bookAssetDao = fakeBookAssetDao(),
-        )
+        val context = createRepositoryContext()
 
-        val result = repository.import(fileName = "sample.epub", inputStream = fixture("sample.epub"))
+        val result = context.repository.import(fileName = "sample.epub", inputStream = fixture("sample.epub"))
 
         assertEquals(BookFormat.EPUB, result.book.primaryFormat)
         assertTrue(result.assets.isNotEmpty())
         assertEquals(0f, result.readingState.progressPercent)
+        assertEquals(listOf(result.book.id), context.bookRecordDao.getAll().map { it.id })
+        assertEquals(listOf(result.book.id), context.readingStateDao.getAll().map { it.bookId })
+        assertEquals(listOf(result.book.id), context.bookAssetDao.getAll().map { it.bookId })
+
+        val persistedAsset = context.bookAssetDao.getAll().single()
+        val persistedBytes = context.fileStore.open(persistedAsset.storageUri).use { it.readBytes() }
+        assertArrayEquals(fixtureBytes("sample.epub"), persistedBytes)
+    }
+
+    @Test
+    fun import_whenDaoWriteFails_cleansPersistedFiles() = runTest {
+        val context = createRepositoryContext(
+            readingStateDao = FakeReadingStateDao(failOnUpsert = true),
+        )
+
+        try {
+            context.repository.import(fileName = "sample.epub", inputStream = fixture("sample.epub"))
+            fail("Expected import to fail when readingStateDao.upsert throws")
+        } catch (_: IllegalStateException) {
+            // expected
+        }
+
+        val persistedAsset = context.bookAssetDao.getAll().single()
+        assertFalse(File(URI(persistedAsset.storageUri)).exists())
+        assertTrue(context.filesDir.walkTopDown().filter(File::isFile).toList().isEmpty())
+        assertTrue(context.readingStateDao.getAll().isEmpty())
+    }
+
+    @Test
+    fun loadTxt_returnsParagraphsStartingFromLocator() = runTest {
+        val context = createRepositoryContext()
+        val imported = context.repository.import(fileName = "sample.txt", inputStream = fixture("sample.txt"))
+        val contentRepository = LocalBookContentRepository(
+            bookAssetDao = context.bookAssetDao,
+            fileStore = context.fileStore,
+        )
+
+        val content = contentRepository.load(bookId = imported.book.id, locator = "1")
+
+        assertEquals("正文", content.chapterTitle)
+        assertEquals(listOf("第二段。", "第三段。"), content.paragraphs)
     }
 
     private fun fixture(name: String): InputStream =
@@ -42,10 +81,42 @@ class LocalBookImportRepositoryTest {
             "Missing fixture: fixtures/$name"
         }
 
-    private fun fakeLocalBookFileStore(): LocalBookFileStore =
-        LocalBookFileStore(filesDir = createTempDir(prefix = "localbooks-test-"))
+    private fun fixtureBytes(name: String): ByteArray = fixture(name).use { it.readBytes() }
 
-    private fun fakeBookRecordDao(): BookRecordDao = object : BookRecordDao {
+    private fun createRepositoryContext(
+        bookRecordDao: FakeBookRecordDao = FakeBookRecordDao(),
+        readingStateDao: FakeReadingStateDao = FakeReadingStateDao(),
+        bookAssetDao: FakeBookAssetDao = FakeBookAssetDao(),
+    ): RepositoryContext {
+        val filesDir = createTempDir(prefix = "localbooks-test-")
+        val fileStore = LocalBookFileStore(filesDir = filesDir)
+        return RepositoryContext(
+            filesDir = filesDir,
+            fileStore = fileStore,
+            bookRecordDao = bookRecordDao,
+            readingStateDao = readingStateDao,
+            bookAssetDao = bookAssetDao,
+            repository = LocalBookImportRepository(
+                txtParser = TxtBookParser(),
+                epubParser = EpubBookParser(),
+                fileStore = fileStore,
+                bookRecordDao = bookRecordDao,
+                readingStateDao = readingStateDao,
+                bookAssetDao = bookAssetDao,
+            ),
+        )
+    }
+
+    private data class RepositoryContext(
+        val filesDir: File,
+        val fileStore: LocalBookFileStore,
+        val bookRecordDao: FakeBookRecordDao,
+        val readingStateDao: FakeReadingStateDao,
+        val bookAssetDao: FakeBookAssetDao,
+        val repository: LocalBookImportRepository,
+    )
+
+    private class FakeBookRecordDao : BookRecordDao {
         private val items = MutableStateFlow<Map<String, BookRecordEntity>>(emptyMap())
 
         override suspend fun upsert(entity: BookRecordEntity) {
@@ -74,10 +145,15 @@ class LocalBookImportRepositoryTest {
         }
     }
 
-    private fun fakeReadingStateDao(): ReadingStateDao = object : ReadingStateDao {
+    private class FakeReadingStateDao(
+        private val failOnUpsert: Boolean = false,
+    ) : ReadingStateDao {
         private val items = MutableStateFlow<Map<String, ReadingStateEntity>>(emptyMap())
 
         override suspend fun upsert(entity: ReadingStateEntity) {
+            if (failOnUpsert) {
+                throw IllegalStateException("Injected reading state failure")
+            }
             items.value = items.value + (entity.bookId to entity)
         }
 
@@ -100,7 +176,7 @@ class LocalBookImportRepositoryTest {
         }
     }
 
-    private fun fakeBookAssetDao(): BookAssetDao = object : BookAssetDao {
+    private class FakeBookAssetDao : BookAssetDao {
         private val items = MutableStateFlow<List<BookAssetEntity>>(emptyList())
 
         override suspend fun upsert(entity: BookAssetEntity) {
