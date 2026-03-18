@@ -18,6 +18,9 @@ interface RemoteBindingDao {
     @Query("SELECT * FROM remote_bindings WHERE bookId = :bookId LIMIT 1")
     fun observeByBookId(bookId: String): Flow<RemoteBindingEntity?>
 
+    @Query("SELECT * FROM remote_bindings")
+    suspend fun getAll(): List<RemoteBindingEntity>
+
     @Query("DELETE FROM remote_bindings")
     suspend fun clearAll()
 
@@ -27,4 +30,3 @@ interface RemoteBindingDao {
         upsertAll(entities)
     }
 }
-

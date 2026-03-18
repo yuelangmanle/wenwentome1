@@ -15,6 +15,12 @@ interface BookAssetDao {
     @Upsert
     suspend fun upsertAll(entities: List<BookAssetEntity>)
 
+    @Query("SELECT * FROM book_assets WHERE bookId = :bookId AND assetRole = 'PRIMARY_TEXT' LIMIT 1")
+    suspend fun findPrimaryAsset(bookId: String): BookAssetEntity?
+
+    @Query("SELECT * FROM book_assets")
+    suspend fun getAll(): List<BookAssetEntity>
+
     @Query("SELECT * FROM book_assets WHERE bookId = :bookId")
     fun observeByBookId(bookId: String): Flow<List<BookAssetEntity>>
 
@@ -27,4 +33,3 @@ interface BookAssetDao {
         upsertAll(entities)
     }
 }
-

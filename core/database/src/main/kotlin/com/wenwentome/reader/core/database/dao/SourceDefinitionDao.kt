@@ -18,8 +18,14 @@ interface SourceDefinitionDao {
     @Query("SELECT * FROM source_definitions WHERE sourceId = :sourceId LIMIT 1")
     fun observeById(sourceId: String): Flow<SourceDefinitionEntity?>
 
-    @Query("SELECT * FROM source_definitions")
+    @Query("SELECT * FROM source_definitions ORDER BY sourceName")
     fun observeAll(): Flow<List<SourceDefinitionEntity>>
+
+    @Query("SELECT * FROM source_definitions")
+    suspend fun getAll(): List<SourceDefinitionEntity>
+
+    @Query("UPDATE source_definitions SET enabled = NOT enabled WHERE sourceId = :sourceId")
+    suspend fun toggleEnabled(sourceId: String)
 
     @Query("DELETE FROM source_definitions")
     suspend fun clearAll()
@@ -30,4 +36,3 @@ interface SourceDefinitionDao {
         upsertAll(entities)
     }
 }
-

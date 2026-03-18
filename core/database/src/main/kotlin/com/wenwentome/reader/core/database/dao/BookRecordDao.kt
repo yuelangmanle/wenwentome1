@@ -21,6 +21,9 @@ interface BookRecordDao {
     @Query("SELECT * FROM book_records ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<BookRecordEntity>>
 
+    @Query("SELECT * FROM book_records ORDER BY updatedAt DESC")
+    suspend fun getAll(): List<BookRecordEntity>
+
     @Query("DELETE FROM book_records")
     suspend fun clearAll()
 
@@ -30,4 +33,3 @@ interface BookRecordDao {
         upsertAll(entities)
     }
 }
-

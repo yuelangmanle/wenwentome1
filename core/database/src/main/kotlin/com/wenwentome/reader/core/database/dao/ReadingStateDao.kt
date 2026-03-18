@@ -18,6 +18,9 @@ interface ReadingStateDao {
     @Query("SELECT * FROM reading_states WHERE bookId = :bookId LIMIT 1")
     fun observeByBookId(bookId: String): Flow<ReadingStateEntity?>
 
+    @Query("SELECT * FROM reading_states")
+    suspend fun getAll(): List<ReadingStateEntity>
+
     @Query("DELETE FROM reading_states")
     suspend fun clearAll()
 
@@ -27,4 +30,3 @@ interface ReadingStateDao {
         upsertAll(entities)
     }
 }
-
