@@ -17,6 +17,8 @@ import com.wenwentome.reader.di.AppContainer
 import com.wenwentome.reader.navigation.AppNavHost
 import com.wenwentome.reader.navigation.TopLevelDestination
 
+private val bookshelfChildRoutes = setOf("book/{bookId}", "reader/{bookId}")
+
 @Composable
 fun ReaderApp(
     appContainer: AppContainer,
@@ -28,10 +30,18 @@ fun ReaderApp(
         bottomBar = {
             NavigationBar {
                 TopLevelDestination.entries.forEach { destination ->
-                    val selected =
-                        currentDestination
-                            ?.hierarchy
-                            ?.any { it.route == destination.route } == true
+                    val selected = when (destination) {
+                        TopLevelDestination.BOOKSHELF ->
+                            currentDestination
+                                ?.hierarchy
+                                ?.any { it.route == destination.route } == true ||
+                                currentDestination?.route in bookshelfChildRoutes
+
+                        else ->
+                            currentDestination
+                                ?.hierarchy
+                                ?.any { it.route == destination.route } == true
+                    }
                     NavigationBarItem(
                         selected = selected,
                         onClick = {

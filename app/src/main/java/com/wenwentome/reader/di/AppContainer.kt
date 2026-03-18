@@ -6,6 +6,7 @@ import androidx.room.Room
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.data.localbooks.EpubBookParser
 import com.wenwentome.reader.data.localbooks.ImportLocalBookUseCase
+import com.wenwentome.reader.data.localbooks.LocalBookContentRepository
 import com.wenwentome.reader.data.localbooks.LocalBookFileStore
 import com.wenwentome.reader.data.localbooks.LocalBookImportRepository
 import com.wenwentome.reader.data.localbooks.TxtBookParser
@@ -23,6 +24,13 @@ class AppContainer(private val application: Application) {
 
     val fileStore: LocalBookFileStore by lazy {
         LocalBookFileStore(filesDir = appContext.filesDir)
+    }
+
+    val localBookContentRepository: LocalBookContentRepository by lazy {
+        LocalBookContentRepository(
+            bookAssetDao = database.bookAssetDao(),
+            fileStore = fileStore,
+        )
     }
 
     private val localBookImportRepository: LocalBookImportRepository by lazy {
