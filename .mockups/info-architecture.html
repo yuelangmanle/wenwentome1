@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>阅读器信息架构草图</title>
+  <style>
+    :root {
+      --bg: #f3efe5;
+      --panel: #fffaf0;
+      --ink: #1f2a1f;
+      --muted: #6f756f;
+      --line: #d7cfbf;
+      --accent: #20513c;
+      --accent-soft: #dce9df;
+      --warn: #8a5a1f;
+      --tag-local: #d8ead8;
+      --tag-web: #f5e2c8;
+      --tag-sync: #dce7f6;
+      --shadow: 0 20px 40px rgba(39, 40, 31, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(32, 81, 60, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8f4eb 0%, var(--bg) 100%);
+      color: var(--ink);
+    }
+
+    .page {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      align-items: start;
+      margin-bottom: 32px;
+    }
+
+    .hero-card,
+    .panel {
+      background: rgba(255, 250, 240, 0.88);
+      border: 1px solid rgba(215, 207, 191, 0.9);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-card {
+      padding: 28px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    h1 {
+      margin: 18px 0 10px;
+      font-size: 38px;
+      line-height: 1.08;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .summary {
+      display: grid;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .summary-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fffdf8;
+    }
+
+    .summary-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 15px;
+    }
+
+    .summary-item span {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      margin-top: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .compare {
+      padding: 24px;
+    }
+
+    .compare h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+    }
+
+    .compare-box {
+      display: grid;
+      gap: 12px;
+    }
+
+    .compare-row {
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fffdf8;
+    }
+
+    .compare-row strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .compare-row p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .phones {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(260px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+      align-items: start;
+    }
+
+    .phone {
+      background: #1d1f1d;
+      padding: 14px;
+      border-radius: 34px;
+      box-shadow: var(--shadow);
+      align-self: start;
+    }
+
+    .phone-screen {
+      background: linear-gradient(180deg, #fdf9f1 0%, #f6f2e7 100%);
+      min-height: 650px;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.25);
+      position: relative;
+    }
+
+    .status {
+      padding: 14px 18px 4px;
+      font-size: 12px;
+      color: #777160;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .screen-body {
+      padding: 0 18px 90px;
+    }
+
+    .screen-title {
+      margin: 8px 0 8px;
+      font-size: 28px;
+    }
+
+    .screen-copy {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.8);
+    }
+
+    .pill.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .shelf-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .book-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 10px;
+    }
+
+    .cover {
+      aspect-ratio: 0.72;
+      border-radius: 12px;
+      background: linear-gradient(160deg, #355f55, #7aa191);
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover.alt {
+      background: linear-gradient(160deg, #8d6137, #d9b38a);
+    }
+
+    .cover::after {
+      content: "";
+      position: absolute;
+      inset: auto 10px 10px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.65);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .tag.local {
+      background: var(--tag-local);
+      color: #315c31;
+    }
+
+    .tag.web {
+      background: var(--tag-web);
+      color: #8a5a1f;
+    }
+
+    .tag.sync {
+      background: var(--tag-sync);
+      color: #395f8b;
+    }
+
+    .book-name {
+      margin: 0 0 4px;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .module-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .module {
+      padding: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+
+    .module strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 15px;
+    }
+
+    .module p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .fab {
+      position: absolute;
+      right: 18px;
+      bottom: 86px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      box-shadow: 0 14px 26px rgba(32, 81, 60, 0.28);
+    }
+
+    .tabbar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 12px 16px 20px;
+      background: rgba(255, 250, 240, 0.95);
+      border-top: 1px solid rgba(215, 207, 191, 0.95);
+      backdrop-filter: blur(8px);
+    }
+
+    .tab {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .tab strong {
+      display: block;
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .tab.active strong,
+    .tab.active {
+      color: var(--accent);
+    }
+
+    .flow {
+      padding: 28px;
+    }
+
+    .flow h2 {
+      margin: 0 0 10px;
+      font-size: 24px;
+    }
+
+    .flow p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .flow-card {
+      background: #fffdf8;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 16px;
+      min-height: 150px;
+    }
+
+    .flow-card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .flow-card p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-size: 34px;
+      font-weight: 700;
+    }
+
+    .section-block {
+      margin-top: 32px;
+      padding: 28px;
+    }
+
+    .section-block h2 {
+      margin: 0 0 10px;
+      font-size: 24px;
+    }
+
+    .section-block > p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .architecture-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .architecture-card {
+      background: #fffdf8;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 18px;
+    }
+
+    .architecture-card h3 {
+      margin: 0 0 8px;
+      font-size: 19px;
+    }
+
+    .architecture-card p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .badge.owned {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: rgba(32, 81, 60, 0.18);
+    }
+
+    .badge.bridge {
+      background: #f5eee0;
+      color: #7b5426;
+      border-color: rgba(123, 84, 38, 0.15);
+    }
+
+    .badge.borrowed {
+      background: #eef1f7;
+      color: #4b6186;
+      border-color: rgba(75, 97, 134, 0.14);
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .mini-item {
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .mini-item strong {
+      color: var(--ink);
+    }
+
+    .boundary-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 6px;
+    }
+
+    .boundary-box {
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .boundary-box strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .boundary-box p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .entity {
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      padding: 18px;
+    }
+
+    .entity h3 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+
+    .entity p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .field-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field {
+      padding: 9px 11px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .field strong {
+      color: var(--ink);
+    }
+
+    .next-box {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: #f8f3e8;
+      border: 1px solid var(--line);
+    }
+
+    .next-box strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .next-box p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .journey-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .journey {
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      padding: 18px;
+    }
+
+    .journey h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .journey p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .steps {
+      display: grid;
+      gap: 8px;
+    }
+
+    .step {
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .step strong {
+      color: var(--ink);
+    }
+
+    .risk-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .risk-card {
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      padding: 18px;
+    }
+
+    .risk-card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .risk-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .test-card {
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 16px;
+    }
+
+    .test-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .test-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1120px) {
+      .hero,
+      .phones,
+      .flow-grid,
+      .architecture-grid,
+      .boundary-strip,
+      .data-grid,
+      .journey-grid,
+      .risk-grid,
+      .test-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        transform: rotate(90deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-card">
+        <span class="eyebrow">第一部分设计 / 信息架构</span>
+        <h1>书库中台型阅读器</h1>
+        <p class="subtitle">
+          你的 app 不把“本地书”和“网文”做成两套系统，而是让它们先汇入统一书目模型，
+          再进入同一个书库、同一个详情页、同一个阅读器。
+        </p>
+        <div class="summary">
+          <div class="summary-item">
+            <span class="dot"></span>
+            <div>
+              <strong>书库是首页，不是发现页</strong>
+              <span>因为你第一阶段最重视的是书库管理，所以用户打开 app 应该先看到自己的书，而不是推荐流。</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <span class="dot"></span>
+            <div>
+              <strong>发现页只负责“入库”</strong>
+              <span>网文搜索、内置源、规则导入都放在发现里，但找到书之后动作是加入书库，而不是长期停留在发现页消费。</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <span class="dot"></span>
+            <div>
+              <strong>统一对象，来源只做徽标</strong>
+              <span>用户看到的是一本书，不是一个来源类型。来源差异只在卡片徽标和详情能力里轻量表达。</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel compare">
+        <h2>为什么不是“双系统拼合”</h2>
+        <div class="compare-box">
+          <div class="compare-row">
+            <strong>你最重视的是书库管理</strong>
+            <p>如果本地书和网文底层是两套模型，筛选、排序、同步、书签恢复会越来越割裂。</p>
+          </div>
+          <div class="compare-row">
+            <strong>你要的是二合一整合感</strong>
+            <p>统一书库能让“导入 EPUB”和“加入网文”都变成同一种用户动作：把一本书放进自己的书架。</p>
+          </div>
+          <div class="compare-row">
+            <strong>旧项目只参考，不决定主架构</strong>
+            <p>搜书大师和旧阅读系可以借鉴交互和规则引擎，但不该把你的主工程拖回旧式安卓大应用结构。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="phones">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="status"><span>9:41</span><span>5G 82%</span></div>
+          <div class="screen-body">
+            <h2 class="screen-title">书库</h2>
+            <p class="screen-copy">默认首页。重点做导入、筛选、分组、搜索、最近阅读和批量管理。</p>
+            <div class="toolbar">
+              <span class="pill active">全部</span>
+              <span class="pill">最近阅读</span>
+              <span class="pill">未读</span>
+              <span class="pill">已完结</span>
+            </div>
+            <div class="shelf-grid">
+              <div class="book-card">
+                <div class="cover"></div>
+                <span class="tag local">EPUB</span>
+                <p class="book-name">悉达多</p>
+                <p class="meta">本地导入 · 昨天阅读到 43%</p>
+              </div>
+              <div class="book-card">
+                <div class="cover alt"></div>
+                <span class="tag web">网文</span>
+                <p class="book-name">雪中悍刀行</p>
+                <p class="meta">已追更 · 最新到第 182 章</p>
+              </div>
+              <div class="book-card">
+                <div class="cover"></div>
+                <span class="tag sync">已同步</span>
+                <p class="book-name">三体</p>
+                <p class="meta">TXT · GitHub 私有仓库</p>
+              </div>
+            </div>
+            <div class="module-list">
+              <div class="module">
+                <strong>导入入口放在这里</strong>
+                <p>支持文件导入、目录扫描、从发现页加入、从同步仓库恢复。</p>
+              </div>
+              <div class="module">
+                <strong>书籍统一展示</strong>
+                <p>来源只做小徽标，不拆成“本地书架”和“网文书架”两个系统。</p>
+              </div>
+            </div>
+          </div>
+          <div class="fab">+</div>
+          <div class="tabbar">
+            <div class="tab active"><strong>书库</strong>我的书</div>
+            <div class="tab"><strong>发现</strong>找书与书源</div>
+            <div class="tab"><strong>我的</strong>同步与设置</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="status"><span>9:41</span><span>5G 82%</span></div>
+          <div class="screen-body">
+            <h2 class="screen-title">发现</h2>
+            <p class="screen-copy">只负责找书、加书和管源，不承担主消费场景。</p>
+            <div class="module-list">
+              <div class="module">
+                <strong>网文搜索</strong>
+                <p>内置源搜索、规则导入源搜索、聚合结果筛选。</p>
+              </div>
+              <div class="module">
+                <strong>书源管理</strong>
+                <p>启用/禁用、分组、导入、导出、源测试、规则调试。</p>
+              </div>
+              <div class="module">
+                <strong>发现浏览</strong>
+                <p>支持内置发现页和兼容后续规则发现页，但目标仍然是把书加入书库。</p>
+              </div>
+              <div class="module">
+                <strong>加入书库</strong>
+                <p>用户看到书后，不是在发现里“收藏”，而是正式加入统一书库。</p>
+              </div>
+            </div>
+          </div>
+          <div class="tabbar">
+            <div class="tab"><strong>书库</strong>我的书</div>
+            <div class="tab active"><strong>发现</strong>找书与书源</div>
+            <div class="tab"><strong>我的</strong>同步与设置</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="status"><span>9:41</span><span>5G 82%</span></div>
+          <div class="screen-body">
+            <h2 class="screen-title">我的</h2>
+            <p class="screen-copy">低频但关键。同步、恢复、阅读设置、实验功能都在这里。</p>
+            <div class="module-list">
+              <div class="module">
+                <strong>GitHub 私有仓库同步</strong>
+                <p>同步书文件、书签、进度、书库元数据、设置。</p>
+              </div>
+              <div class="module">
+                <strong>备份与恢复</strong>
+                <p>手动导出、冲突处理、重新拉取、设备迁移。</p>
+              </div>
+              <div class="module">
+                <strong>阅读设置</strong>
+                <p>主题、字体、翻页、段距、状态栏、缓存策略。</p>
+              </div>
+              <div class="module">
+                <strong>高级能力</strong>
+                <p>规则调试、日志导出、实验功能开关。</p>
+              </div>
+            </div>
+          </div>
+          <div class="tabbar">
+            <div class="tab"><strong>书库</strong>我的书</div>
+            <div class="tab"><strong>发现</strong>找书与书源</div>
+            <div class="tab active"><strong>我的</strong>同步与设置</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel flow">
+      <h2>统一流向</h2>
+      <p>不管书来自哪里，最后都汇进同一条主链路：进入统一书目模型，再落到统一书库和统一阅读器。</p>
+      <div class="flow-grid">
+        <div class="flow-card">
+          <h3>本地导入</h3>
+          <p>TXT / EPUB 文件导入、扫描目录、从同步仓库恢复。</p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="flow-card">
+          <h3>统一书目模型</h3>
+          <p>来源、格式、封面、作者、进度、同步状态在同一套数据模型里表达。</p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="flow-card">
+          <h3>统一书库与阅读器</h3>
+          <p>展示和阅读体验优先统一，来源差异只在扩展菜单和能力里处理。</p>
+        </div>
+      </div>
+      <div class="flow-grid" style="margin-top:14px;">
+        <div class="flow-card">
+          <h3>发现页加入</h3>
+          <p>网文搜索、书源发现、规则导入后，书籍加入书库，而不是停留在单独“网文收藏夹”。</p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="flow-card">
+          <h3>统一详情页</h3>
+          <p>展示书籍信息、来源能力、同步状态、缓存和加入方式。</p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="flow-card">
+          <h3>统一同步模型</h3>
+          <p>GitHub 私有仓库统一保存元数据和书文件，不分本地书/网文两套同步逻辑。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel section-block">
+      <span class="eyebrow">第二部分设计 / 模块边界</span>
+      <h2>哪些自己做，哪些借力</h2>
+      <p>
+        按我们前面定的 `混合路线`，主工程和产品层必须是你自己的，网文规则引擎则做成单独桥接层。
+        这样既能保住 `书库管理优先` 和 `Compose 架构`，也不会把“阅读系书源兼容”从零重写一遍。
+      </p>
+
+      <div class="architecture-grid">
+        <div class="architecture-card">
+          <div class="badge-row">
+            <span class="badge owned">自己做</span>
+            <span class="badge">App Shell</span>
+          </div>
+          <h3>应用壳层</h3>
+          <p>负责导航、权限申请、导入入口、页面状态恢复、全局主题和错误提示，是整个产品体验的门面层。</p>
+          <div class="mini-list">
+            <div class="mini-item"><strong>负责：</strong>底部导航、详情页跳转、导入动作、全局设置入口</div>
+            <div class="mini-item"><strong>原因：</strong>这是你产品感最强的一层，不能被旧项目结构绑架</div>
+          </div>
+        </div>
+
+        <div class="architecture-card">
+          <div class="badge-row">
+            <span class="badge owned">自己做</span>
+            <span class="badge">Library Core</span>
+          </div>
+          <h3>书库中台</h3>
+          <p>这是第一阶段的核心。所有书都要先落进这里，再谈阅读、同步和来源差异。</p>
+          <div class="mini-list">
+            <div class="mini-item"><strong>负责：</strong>统一书目、分组筛选、搜索、最近阅读、批量操作</div>
+            <div class="mini-item"><strong>原因：</strong>你最重视的是书库管理，这层必须按你的产品目标来设计</div>
+          </div>
+        </div>
+
+        <div class="architecture-card">
+          <div class="badge-row">
+            <span class="badge owned">自己做</span>
+            <span class="badge">Reader UX</span>
+          </div>
+          <h3>阅读体验层</h3>
+          <p>统一详情页、统一阅读页、统一书签和进度体验。第一阶段先围绕 TXT / EPUB 做可重排阅读。</p>
+          <div class="mini-list">
+            <div class="mini-item"><strong>负责：</strong>阅读页、目录、书签、主题、翻页、进度恢复</div>
+            <div class="mini-item"><strong>原因：</strong>用户感知最强，后期也最需要持续迭代</div>
+          </div>
+        </div>
+
+        <div class="architecture-card">
+          <div class="badge-row">
+            <span class="badge owned">自己做</span>
+            <span class="badge">Sync Engine</span>
+          </div>
+          <h3>GitHub 同步层</h3>
+          <p>用私有仓库同步书文件和元数据，这属于你产品的独特约束，旧阅读项目不会天然帮你做好。</p>
+          <div class="mini-list">
+            <div class="mini-item"><strong>负责：</strong>同步清单、文件上传下载、冲突策略、恢复与重建</div>
+            <div class="mini-item"><strong>原因：</strong>这是你明确提出的核心能力，而且会影响数据模型</div>
+          </div>
+        </div>
+
+        <div class="architecture-card">
+          <div class="badge-row">
+            <span class="badge bridge">桥接层</span>
+            <span class="badge">Source Bridge</span>
+          </div>
+          <h3>网文规则桥</h3>
+          <p>单独做成 `source-engine` 或 `source-bridge` 模块，向上暴露统一接口，向下适配阅读系规则能力。</p>
+          <div class="mini-list">
+            <div class="mini-item"><strong>负责：</strong>搜索、详情、目录、正文、Cookie、规则执行、源导入</div>
+            <div class="mini-item"><strong>原因：</strong>这层变化最大，隔离开后才不会污染主工程</div>
+          </div>
+        </div>
+
+        <div class="architecture-card">
+          <div class="badge-row">
+            <span class="badge borrowed">借鉴/复用思路</span>
+            <span class="badge">Legacy Engine</span>
+          </div>
+          <h3>旧阅读系能力参考</h3>
+          <p>这里优先参考 `Legado / BookshelfLib / 搜书大师` 的规则边界和旧模型，不直接把整个 app 搬进来。</p>
+          <div class="mini-list">
+            <div class="mini-item"><strong>借：</strong>规则能力、字段语义、旧源兼容经验</div>
+            <div class="mini-item"><strong>不借：</strong>旧 UI 架构、商业化壳层、社区和广告模块</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="boundary-strip">
+        <div class="boundary-box">
+          <strong>主工程边界</strong>
+          <p>主工程只认识“书”和“阅读状态”，不直接依赖某一种书源格式。</p>
+        </div>
+        <div class="boundary-box">
+          <strong>桥接层边界</strong>
+          <p>桥接层负责把规则世界翻译成统一书目对象，向上屏蔽旧源差异。</p>
+        </div>
+        <div class="boundary-box">
+          <strong>同步边界</strong>
+          <p>同步层只同步标准化后的数据和文件，不关心书来自本地还是网文。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel section-block">
+      <span class="eyebrow">第二部分设计 / 数据模型骨架</span>
+      <h2>先统一“书”，再统一“来源”</h2>
+      <p>
+        第一阶段的数据模型不应该先从书源规则出发，而应该先定义统一书目。
+        这样本地 TXT / EPUB 和网文都能进同一个书库；来源能力是挂在书上的扩展信息，不是顶层对象本身。
+      </p>
+
+      <div class="data-grid">
+        <article class="entity">
+          <div class="badge-row">
+            <span class="badge owned">核心实体</span>
+          </div>
+          <h3>BookRecord</h3>
+          <p>书库里的一本书，不区分本地书还是网文，是用户真正能看到和管理的对象。</p>
+          <div class="field-list">
+            <div class="field"><strong>id：</strong>统一书 ID</div>
+            <div class="field"><strong>title / author：</strong>标准书目字段</div>
+            <div class="field"><strong>originType：</strong>local / web / mixed</div>
+            <div class="field"><strong>primaryFormat：</strong>txt / epub / web</div>
+            <div class="field"><strong>bookshelfState：</strong>在架、归档、收藏、最近阅读</div>
+          </div>
+        </article>
+
+        <article class="entity">
+          <div class="badge-row">
+            <span class="badge owned">核心实体</span>
+          </div>
+          <h3>BookAsset</h3>
+          <p>书对应的实体文件或缓存对象，方便同步、恢复和多来源挂接。</p>
+          <div class="field-list">
+            <div class="field"><strong>bookId：</strong>归属哪本书</div>
+            <div class="field"><strong>storageUri：</strong>本地文件位置</div>
+            <div class="field"><strong>mime / size / hash：</strong>文件校验信息</div>
+            <div class="field"><strong>syncPath：</strong>GitHub 仓库中的存放路径</div>
+            <div class="field"><strong>assetRole：</strong>正文文件 / 封面 / 缓存包</div>
+          </div>
+        </article>
+
+        <article class="entity">
+          <div class="badge-row">
+            <span class="badge owned">核心实体</span>
+          </div>
+          <h3>ReadingState</h3>
+          <p>不管来源如何，阅读进度、书签、最近章节、主题偏好都在这里统一表达。</p>
+          <div class="field-list">
+            <div class="field"><strong>bookId：</strong>归属哪本书</div>
+            <div class="field"><strong>locator：</strong>本地页码 / EPUB CFI / 章节锚点</div>
+            <div class="field"><strong>chapterRef：</strong>当前章节引用</div>
+            <div class="field"><strong>bookmarks：</strong>书签和批注</div>
+            <div class="field"><strong>updatedAt：</strong>冲突比较基准</div>
+          </div>
+        </article>
+
+        <article class="entity">
+          <div class="badge-row">
+            <span class="badge bridge">桥接实体</span>
+          </div>
+          <h3>SourceDefinition</h3>
+          <p>书源本身。属于桥接层管理对象，不应该直接污染书库主模型。</p>
+          <div class="field-list">
+            <div class="field"><strong>sourceId：</strong>源唯一标识</div>
+            <div class="field"><strong>sourceType：</strong>内置 / 导入 / 兼容源</div>
+            <div class="field"><strong>ruleFormat：</strong>legacy / legado3 / custom</div>
+            <div class="field"><strong>authState：</strong>Cookie / 登录状态</div>
+            <div class="field"><strong>enabled：</strong>是否参与搜索与抓取</div>
+          </div>
+        </article>
+
+        <article class="entity">
+          <div class="badge-row">
+            <span class="badge bridge">桥接实体</span>
+          </div>
+          <h3>RemoteBinding</h3>
+          <p>一本书和某个网文源的绑定关系。用来表示它在来源世界里的身份，不等于书本身。</p>
+          <div class="field-list">
+            <div class="field"><strong>bookId：</strong>归属哪本书</div>
+            <div class="field"><strong>sourceId：</strong>来自哪个书源</div>
+            <div class="field"><strong>remoteBookId：</strong>源站内 ID / URL</div>
+            <div class="field"><strong>tocRef：</strong>目录入口</div>
+            <div class="field"><strong>syncMode：</strong>追更 / 手动刷新 / 只读缓存</div>
+          </div>
+        </article>
+
+        <article class="entity">
+          <div class="badge-row">
+            <span class="badge owned">同步实体</span>
+          </div>
+          <h3>SyncSnapshot</h3>
+          <p>GitHub 私有仓库中的标准化同步单元，服务于恢复、冲突处理和跨设备一致性。</p>
+          <div class="field-list">
+            <div class="field"><strong>snapshotId：</strong>一次同步快照</div>
+            <div class="field"><strong>manifest：</strong>书目与资产索引</div>
+            <div class="field"><strong>revision：</strong>仓库提交或版本号</div>
+            <div class="field"><strong>deviceId：</strong>来源设备</div>
+            <div class="field"><strong>mergedAt：</strong>最后一次合并时间</div>
+          </div>
+        </article>
+      </div>
+
+      <div class="next-box">
+        <strong>这套骨架的关键含义</strong>
+        <p>
+          `BookRecord` 是第一公民；`SourceDefinition` 和 `RemoteBinding` 只是让网文能力接进来。
+          这样本地书不会沦为“兼容项”，网文也不会被排除在统一书库之外。
+        </p>
+      </div>
+    </section>
+
+    <section class="panel section-block">
+      <span class="eyebrow">第三部分设计 / 用户流程与验证</span>
+      <h2>先把主链路做稳，再让复杂能力渐进出现</h2>
+      <p>
+        第一阶段虽然是二合一，但真正要打穿的是三条清晰旅程：`本地导入入库`、`网文加入书库`、`GitHub 同步恢复`。
+        只要这三条稳住，后续再加 PDF、复杂书源、重登录流程都不会把主架构推倒。
+      </p>
+
+      <div class="journey-grid">
+        <article class="journey">
+          <div class="badge-row">
+            <span class="badge owned">主链路 A</span>
+          </div>
+          <h3>本地导入入库</h3>
+          <p>这是第一阶段最核心的体验，必须做到“导入后立刻能管理、能读、能同步”。</p>
+          <div class="steps">
+            <div class="step"><strong>1.</strong> 用户从书库页点击导入，选择文件或扫描目录</div>
+            <div class="step"><strong>2.</strong> 解析 TXT / EPUB 元数据，生成 `BookRecord + BookAsset`</div>
+            <div class="step"><strong>3.</strong> 自动进入统一书库，可立即分组、搜索、开始阅读</div>
+            <div class="step"><strong>4.</strong> 后台按同步策略把文件和元数据推到 GitHub 私有仓库</div>
+          </div>
+        </article>
+
+        <article class="journey">
+          <div class="badge-row">
+            <span class="badge bridge">主链路 B</span>
+          </div>
+          <h3>网文加入书库</h3>
+          <p>发现页不是消费终点，而是“把远端书目绑定进我的书库”的入口。</p>
+          <div class="steps">
+            <div class="step"><strong>1.</strong> 用户在发现页搜索或浏览来源</div>
+            <div class="step"><strong>2.</strong> 规则桥获取详情、目录和可读性信息</div>
+            <div class="step"><strong>3.</strong> 点击加入书库，生成 `BookRecord + RemoteBinding`</div>
+            <div class="step"><strong>4.</strong> 用户回到书库后，看到它和本地书处在同一套管理体系里</div>
+          </div>
+        </article>
+
+        <article class="journey">
+          <div class="badge-row">
+            <span class="badge owned">主链路 C</span>
+          </div>
+          <h3>GitHub 恢复与换机</h3>
+          <p>这是你要“少装东西、轻运维”的关键补偿，必须让换设备后继续读变成自然动作。</p>
+          <div class="steps">
+            <div class="step"><strong>1.</strong> 新设备登录或配置 GitHub 私有仓库</div>
+            <div class="step"><strong>2.</strong> 拉取 `SyncSnapshot` 清单并重建书库索引</div>
+            <div class="step"><strong>3.</strong> 按需下载书文件和封面，恢复书签、进度、设置</div>
+            <div class="step"><strong>4.</strong> 用户打开任一本书，直接从上次位置继续</div>
+          </div>
+        </article>
+      </div>
+
+      <div class="risk-grid">
+        <div class="risk-card">
+          <div class="badge-row">
+            <span class="badge">错误处理</span>
+          </div>
+          <h3>异常设计原则</h3>
+          <p>错误不能直接暴露为“失败了”，而要明确告诉用户是导入问题、源问题、同步问题，还是权限问题。</p>
+          <div class="mini-list">
+            <div class="mini-item"><strong>导入失败：</strong>告诉用户是格式不支持、文件损坏，还是编码识别失败</div>
+            <div class="mini-item"><strong>书源失败：</strong>区分“源失效 / 登录失效 / 规则不兼容 / 网络异常”</div>
+            <div class="mini-item"><strong>同步失败：</strong>区分“认证失败 / 冲突 / 仓库不可达 / 文件过大”</div>
+          </div>
+        </div>
+
+        <div class="risk-card">
+          <div class="badge-row">
+            <span class="badge">渐进策略</span>
+          </div>
+          <h3>复杂能力延后出现</h3>
+          <p>第一阶段不要一上来就追求把所有复杂源和所有同步边界都吃满，而是先保证主链路稳定。</p>
+          <div class="mini-list">
+            <div class="mini-item"><strong>先做：</strong>TXT / EPUB、本地导入、书库管理、可用同步、常见规则子能力</div>
+            <div class="mini-item"><strong>后补：</strong>PDF、复杂聚合源、深登录态、发现页花样玩法、重缓存策略</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="test-grid">
+        <article class="test-card">
+          <h3>解析测试</h3>
+          <p>验证 TXT / EPUB 解析、封面提取、章节切分、元数据标准化。</p>
+        </article>
+        <article class="test-card">
+          <h3>规则契约测试</h3>
+          <p>用代表性书源样本验证搜索、详情、目录、正文四类规则是否还能跑通。</p>
+        </article>
+        <article class="test-card">
+          <h3>同步回归测试</h3>
+          <p>验证文件上传下载、断点恢复、冲突合并、换机恢复和弱网重试。</p>
+        </article>
+        <article class="test-card">
+          <h3>UI 冒烟测试</h3>
+          <p>验证书库、详情、阅读页、发现页、设置页的核心跳转和状态保持。</p>
+        </article>
+      </div>
+
+      <div class="next-box">
+        <strong>第三部分的核心判断</strong>
+        <p>
+          如果你认可这三条主链路和这个测试边界，设计阶段其实就基本闭合了。
+          下一步就不是继续发散，而是进入 `write design doc`，把已经确认的内容固化成正式规格文档。
+        </p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
