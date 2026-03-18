@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,19 +20,28 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = TopLevelDestination.BOOKSHELF.name,
+        startDestination = TopLevelDestination.BOOKSHELF.route,
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues),
     ) {
-        composable(TopLevelDestination.BOOKSHELF.name) {
-            Text(text = TopLevelDestination.BOOKSHELF.label)
+        composable(TopLevelDestination.BOOKSHELF.route) {
+            Text(
+                text = TopLevelDestination.BOOKSHELF.label,
+                modifier = Modifier.testTag("screen"),
+            )
         }
-        composable(TopLevelDestination.DISCOVER.name) {
-            Text(text = TopLevelDestination.DISCOVER.label)
+        composable(TopLevelDestination.DISCOVER.route) {
+            Text(
+                text = TopLevelDestination.DISCOVER.label,
+                modifier = Modifier.testTag("screen"),
+            )
         }
-        composable(TopLevelDestination.SETTINGS.name) {
-            Text(text = TopLevelDestination.SETTINGS.label)
+        composable(TopLevelDestination.SETTINGS.route) {
+            Text(
+                text = TopLevelDestination.SETTINGS.label,
+                modifier = Modifier.testTag("screen"),
+            )
         }
     }
 }

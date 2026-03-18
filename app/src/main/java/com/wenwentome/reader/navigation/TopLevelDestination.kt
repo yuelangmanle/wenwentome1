@@ -1,7 +1,10 @@
 package com.wenwentome.reader.navigation
 
-enum class TopLevelDestination(val label: String) {
-    BOOKSHELF("书库"),
-    DISCOVER("发现"),
-    SETTINGS("我的"),
+enum class TopLevelDestination(
+    val route: String,
+    val label: String,
+) {
+    BOOKSHELF(route = "bookshelf", label = "书库"),
+    DISCOVER(route = "discover", label = "发现"),
+    SETTINGS(route = "settings", label = "我的"),
 }
