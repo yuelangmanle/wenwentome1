@@ -10,7 +10,7 @@ RUN apt-get update \
         ca-certificates \
         curl \
         git \
-        openjdk-17-jdk \
+        openjdk-21-jdk \
         unzip \
         wget \
     && rm -rf /var/lib/apt/lists/*

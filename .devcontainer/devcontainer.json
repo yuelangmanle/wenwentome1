@@ -5,7 +5,19 @@
     "context": ".."
   },
   "remoteUser": "vscode",
+  "remoteEnv": {
+    "ANDROID_SDK_ROOT": "/opt/android-sdk"
+  },
+  "mounts": [
+    "source=gradle-cache,target=/home/vscode/.gradle,type=volume"
+  ],
   "customizations": {
+    "codespaces": {
+      "openFiles": [
+        "docs/superpowers/specs/2026-03-18-android-reader-design.md",
+        "docs/superpowers/plans/2026-03-18-task1-scaffold-plan.md"
+      ]
+    },
     "vscode": {
       "extensions": [
         "vscjava.vscode-java-pack",
