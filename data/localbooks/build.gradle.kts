@@ -39,14 +39,3 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
 }
-
-// 计划文档里用的是 `:data:localbooks:test`；Android library 默认是 `testDebugUnitTest`。
-// 这里做一个轻量别名，避免后续指令跑不起来。
-val testTask = tasks.findByName("test")
-if (testTask == null) {
-    tasks.register("test") {
-        dependsOn("testDebugUnitTest")
-    }
-} else {
-    testTask.dependsOn("testDebugUnitTest")
-}
