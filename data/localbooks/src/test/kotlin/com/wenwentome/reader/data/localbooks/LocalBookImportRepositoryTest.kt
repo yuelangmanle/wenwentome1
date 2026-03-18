@@ -58,6 +58,8 @@ class LocalBookImportRepositoryTest {
         val persistedAsset = context.bookAssetDao.getAll().single()
         assertFalse(File(URI(persistedAsset.storageUri)).exists())
         assertTrue(context.filesDir.walkTopDown().filter(File::isFile).toList().isEmpty())
+        assertTrue(context.bookRecordDao.getAll().isEmpty())
+        assertTrue(context.bookAssetDao.getAll().isEmpty())
         assertTrue(context.readingStateDao.getAll().isEmpty())
     }
 
@@ -139,6 +141,10 @@ class LocalBookImportRepositoryTest {
             items.value = emptyMap()
         }
 
+        override suspend fun deleteById(id: String) {
+            items.value = items.value - id
+        }
+
         override suspend fun replaceAll(entities: List<BookRecordEntity>) {
             clearAll()
             upsertAll(entities)
@@ -170,6 +176,10 @@ class LocalBookImportRepositoryTest {
             items.value = emptyMap()
         }
 
+        override suspend fun deleteByBookId(bookId: String) {
+            items.value = items.value - bookId
+        }
+
         override suspend fun replaceAll(entities: List<ReadingStateEntity>) {
             clearAll()
             upsertAll(entities)
@@ -197,6 +207,10 @@ class LocalBookImportRepositoryTest {
 
         override suspend fun clearAll() {
             items.value = emptyList()
+        }
+
+        override suspend fun deleteByBookId(bookId: String) {
+            items.value = items.value.filterNot { it.bookId == bookId }
         }
 
         override suspend fun replaceAll(entities: List<BookAssetEntity>) {

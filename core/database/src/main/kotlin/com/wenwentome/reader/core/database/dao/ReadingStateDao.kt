@@ -21,6 +21,9 @@ interface ReadingStateDao {
     @Query("SELECT * FROM reading_states")
     suspend fun getAll(): List<ReadingStateEntity>
 
+    @Query("DELETE FROM reading_states WHERE bookId = :bookId")
+    suspend fun deleteByBookId(bookId: String)
+
     @Query("DELETE FROM reading_states")
     suspend fun clearAll()
 

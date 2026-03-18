@@ -24,6 +24,9 @@ interface BookRecordDao {
     @Query("SELECT * FROM book_records ORDER BY updatedAt DESC")
     suspend fun getAll(): List<BookRecordEntity>
 
+    @Query("DELETE FROM book_records WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM book_records")
     suspend fun clearAll()
 

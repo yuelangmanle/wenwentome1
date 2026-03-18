@@ -59,7 +59,10 @@ class LocalBookImportRepository(
                 readingState = readingState,
             )
         } catch (error: Throwable) {
-            // 当前模块没有可复用的数据库事务边界；至少保证 DAO 写入失败时不会留下孤儿文件。
+            // 当前仓库层没有跨 DAO 的事务封装时，至少清理同一本书的半成品记录与落盘文件。
+            runCatching { readingStateDao.deleteByBookId(book.id) }
+            runCatching { bookAssetDao.deleteByBookId(book.id) }
+            runCatching { bookRecordDao.deleteById(book.id) }
             runCatching { fileStore.deleteBook(book.id) }
             throw error
         }

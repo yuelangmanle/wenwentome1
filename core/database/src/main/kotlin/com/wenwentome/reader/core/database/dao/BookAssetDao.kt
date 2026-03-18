@@ -24,6 +24,9 @@ interface BookAssetDao {
     @Query("SELECT * FROM book_assets WHERE bookId = :bookId")
     fun observeByBookId(bookId: String): Flow<List<BookAssetEntity>>
 
+    @Query("DELETE FROM book_assets WHERE bookId = :bookId")
+    suspend fun deleteByBookId(bookId: String)
+
     @Query("DELETE FROM book_assets")
     suspend fun clearAll()
 
