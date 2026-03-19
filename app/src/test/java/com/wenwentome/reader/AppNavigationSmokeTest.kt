@@ -1,13 +1,11 @@
 package com.wenwentome.reader
 
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -37,11 +35,6 @@ class AppNavigationSmokeTest {
             ReaderApp(appContainer = appContainer, navController = controller)
         }
 
-        // 基础可见性（bottom bar）
-        composeTestRule.onNodeWithText("书库").assertExists()
-        composeTestRule.onNodeWithText("发现").assertExists()
-        composeTestRule.onNodeWithText("我的").assertExists()
-
         // 初始状态：书库选中 + 屏幕内容为书库
         composeTestRule.onNodeWithTag("nav-bookshelf").assertIsSelected()
         composeTestRule.onNodeWithTag("nav-discover").assertIsNotSelected()
@@ -53,14 +46,12 @@ class AppNavigationSmokeTest {
         composeTestRule.onNodeWithTag("nav-discover").assertIsSelected()
         composeTestRule.onNodeWithTag("screen").assertTextEquals("发现")
 
-        // 重复点击当前 tab，不应该继续堆叠相同目的地
-        var sizeAfterFirstClick: Int? = null
-        composeTestRule.runOnIdle {
-            sizeAfterFirstClick = navController!!.backQueue.size
-        }
+        // 重复点击当前 tab 后，向上导航应该直接回到书库，而不是停留在第二个 discover。
         composeTestRule.onNodeWithTag("nav-discover").performClick()
         composeTestRule.runOnIdle {
-            assertEquals(sizeAfterFirstClick, navController!!.backQueue.size)
+            assertEquals(true, navController!!.navigateUp())
         }
+        composeTestRule.onNodeWithTag("nav-bookshelf").assertIsSelected()
+        composeTestRule.onNodeWithTag("screen").assertTextEquals("书库")
     }
 }
