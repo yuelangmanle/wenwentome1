@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
 
     implementation(libs.androidx.room.runtime)
+    implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":data:localbooks"))
     implementation(project(":sync:github"))
