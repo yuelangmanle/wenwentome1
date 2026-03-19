@@ -21,7 +21,6 @@ import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import java.io.InputStream
-import java.net.URI
 
 class LocalBookImportRepositoryTest {
     @Test
@@ -55,8 +54,7 @@ class LocalBookImportRepositoryTest {
             // expected
         }
 
-        val persistedAsset = context.bookAssetDao.getAll().single()
-        assertFalse(File(URI(persistedAsset.storageUri)).exists())
+        assertFalse(context.filesDir.resolve("books").exists())
         assertTrue(context.filesDir.walkTopDown().filter(File::isFile).toList().isEmpty())
         assertTrue(context.bookRecordDao.getAll().isEmpty())
         assertTrue(context.bookAssetDao.getAll().isEmpty())
