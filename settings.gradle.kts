@@ -11,6 +11,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://raw.githubusercontent.com/psiegman/mvn-repo/master/releases") {
+            content {
+                includeGroup("nl.siegmann.epublib")
+            }
+        }
     }
 }
 
