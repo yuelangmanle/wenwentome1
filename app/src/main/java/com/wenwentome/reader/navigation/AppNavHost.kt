@@ -11,10 +11,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.material3.Text
+import com.wenwentome.reader.appProjectInfo
 import com.wenwentome.reader.di.AppContainer
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
@@ -38,6 +40,9 @@ import com.wenwentome.reader.feature.reader.ReaderScreen
 import com.wenwentome.reader.feature.reader.ReaderUiState
 import com.wenwentome.reader.feature.reader.ReaderViewModel
 import com.wenwentome.reader.feature.settings.SettingsScreen
+import com.wenwentome.reader.feature.settings.ChangelogScreen
+import com.wenwentome.reader.feature.settings.ChangelogUiState
+import com.wenwentome.reader.feature.settings.ChangelogViewModel
 import com.wenwentome.reader.feature.settings.SyncSettingsUiState
 import com.wenwentome.reader.feature.settings.SyncSettingsViewModel
 import kotlinx.coroutines.flow.flow
@@ -49,6 +54,7 @@ import kotlinx.coroutines.launch
 private const val BookDetailRoute = "book/{bookId}"
 private const val ReaderRoute = "reader/{bookId}"
 private const val DiscoverSourcesRoute = "discover/sources"
+private const val SettingsChangelogRoute = "settings/changelog"
 
 @Composable
 fun AppNavHost(
@@ -56,6 +62,7 @@ fun AppNavHost(
     paddingValues: PaddingValues,
     appContainer: AppContainer,
 ) {
+    val uriHandler = LocalUriHandler.current
     val libraryViewModel: LibraryViewModel = remember(appContainer) {
         LibraryViewModel(
             observeBookshelf = ObserveBookshelfUseCase.from(appContainer.database.bookRecordDao()),
@@ -77,6 +84,7 @@ fun AppNavHost(
         )
     }
     val settingsState by settingsViewModel.uiState.collectAsState(initial = SyncSettingsUiState())
+    val projectInfo = remember { appProjectInfo() }
     val sourceDefinitionDao = appContainer.database.sourceDefinitionDao()
     val discoverViewModel: DiscoverViewModel = remember(appContainer) {
         DiscoverViewModel(
@@ -152,11 +160,21 @@ fun AppNavHost(
         composable(TopLevelDestination.SETTINGS.route) {
             SettingsScreen(
                 state = settingsState,
+                projectInfo = projectInfo,
                 onStateChange = settingsViewModel::setDraft,
                 onSaveConfig = settingsViewModel::saveConfig,
                 onPush = settingsViewModel::pushNow,
                 onPull = settingsViewModel::pullNow,
+                onOpenProject = { uriHandler.openUri(projectInfo.projectUrl) },
+                onOpenChangelog = { navController.navigate(SettingsChangelogRoute) },
             )
+        }
+        composable(SettingsChangelogRoute) {
+            val viewModel = remember(appContainer) {
+                ChangelogViewModel(repository = appContainer.changelogRepository)
+            }
+            val state by viewModel.uiState.collectAsState(initial = ChangelogUiState())
+            ChangelogScreen(state = state)
         }
         composable(BookDetailRoute) { backStackEntry ->
             val bookId = requireNotNull(backStackEntry.arguments?.getString("bookId"))

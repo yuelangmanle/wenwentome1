@@ -18,6 +18,7 @@ import com.wenwentome.reader.data.localbooks.LocalBookFileStore
 import com.wenwentome.reader.data.localbooks.LocalBookImportRepository
 import com.wenwentome.reader.data.localbooks.TxtBookParser
 import com.wenwentome.reader.feature.settings.StoredSyncConfig
+import com.wenwentome.reader.feature.settings.ChangelogRepository
 import com.wenwentome.reader.feature.settings.SyncSettingsConfigStore
 import com.wenwentome.reader.sync.github.BookAssetSyncStore
 import com.wenwentome.reader.sync.github.BookRecordSyncStore
@@ -126,6 +127,16 @@ class AppContainer(private val application: Application) {
                 )
             }
         }
+    }
+
+    val changelogRepository: ChangelogRepository by lazy {
+        ChangelogRepository(
+            loadJson = {
+                appContext.assets.open("changelog.json")
+                    .bufferedReader()
+                    .use { it.readText() }
+            },
+        )
     }
 
     val gitHubSyncRepository: GitHubSyncRepository by lazy {
