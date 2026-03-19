@@ -13,6 +13,8 @@
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
+当前 `1.0` 发版使用 PKCS12 签名文件（`.p12`）。建议将本地留档放在 `.local-secrets/android-release/`，不要提交到仓库。
+
 ## 发版前检查
 
 1. 更新 `app/build.gradle.kts` 中的 `versionCode` 与 `versionName`
@@ -41,4 +43,4 @@
 - 缺 Secret：workflow 会直接失败并提示缺失项
 - tag 与版本不一致：`scripts/release_metadata.py check-tag` 失败
 - changelog 缺对应版本：`scripts/release_metadata.py notes` 失败
-- 签名失败：检查 keystore、alias 和密码
+- 签名失败：检查 PKCS12 签名文件、alias 和密码
