@@ -23,16 +23,13 @@ class ChangelogRepository(
                     details = root.requiredStringList("details"),
                 )
             }
-            .sortedByDescending { entry -> versionKey(entry) }
+            .sortedByDescending { entry: ChangelogEntry -> versionKey(entry.version) }
 
-    private fun versionKey(entry: ChangelogEntry): Pair<Int, Int> =
-        versionKey(entry.version)
-
-    private fun versionKey(version: String): Pair<Int, Int> {
+    private fun versionKey(version: String): Int {
         val parts = version.split('.')
         val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
         val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
-        return major to minor
+        return major * 100 + minor
     }
 }
 
