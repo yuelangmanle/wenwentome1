@@ -38,6 +38,7 @@ dependencies {
     kapt(libs.androidx.room.compiler)
 
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.datastore.preferences.core)
 
     testImplementation(libs.junit4)
     testImplementation(libs.androidx.test.core)
