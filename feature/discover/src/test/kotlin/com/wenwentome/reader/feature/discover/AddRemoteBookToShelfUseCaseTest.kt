@@ -71,7 +71,9 @@ private class FakeBookRecordDao : BookRecordDao {
     }
 
     override suspend fun upsertAll(entities: List<BookRecordEntity>) {
-        entities.forEach(::upsert)
+        for (entity in entities) {
+            upsert(entity)
+        }
     }
 
     override fun observeById(id: String): Flow<BookRecordEntity?> = emptyFlow()
@@ -97,7 +99,9 @@ private class FakeRemoteBindingDao : RemoteBindingDao {
     }
 
     override suspend fun upsertAll(entities: List<RemoteBindingEntity>) {
-        entities.forEach(::upsert)
+        for (entity in entities) {
+            upsert(entity)
+        }
     }
 
     override fun observeByBookId(bookId: String): Flow<RemoteBindingEntity?> = emptyFlow()

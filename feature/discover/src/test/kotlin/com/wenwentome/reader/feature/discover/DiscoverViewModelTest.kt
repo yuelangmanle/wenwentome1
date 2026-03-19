@@ -118,7 +118,7 @@ private fun sampleSearchResult(
         detailUrl = "https://example.com/book/1",
     )
 
-private class MainDispatcherRule(
+class MainDispatcherRule(
     private val dispatcher: TestDispatcher = UnconfinedTestDispatcher(),
 ) : TestWatcher() {
     override fun starting(description: Description) {

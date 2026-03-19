@@ -99,7 +99,7 @@ private class FakeGitHubSyncService : GitHubSyncService {
         )
 }
 
-private class MainDispatcherRule(
+class MainDispatcherRule(
     private val dispatcher: TestDispatcher = UnconfinedTestDispatcher(),
 ) : TestWatcher() {
     override fun starting(description: Description) {
