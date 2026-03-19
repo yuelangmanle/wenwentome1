@@ -42,7 +42,7 @@
 
 ## 开发与发版
 
-- 发版流程见 [release-process.md](/Users/yueliangmanle/Desktop/codex/wenwentome/.worktrees/android-reader-mvp/docs/release-process.md)
-- 开发规范见 [development-handbook.md](/Users/yueliangmanle/Desktop/codex/wenwentome/.worktrees/android-reader-mvp/docs/development-handbook.md)
-- 迭代规则见 [iteration-rules.md](/Users/yueliangmanle/Desktop/codex/wenwentome/.worktrees/android-reader-mvp/docs/iteration-rules.md)
-- 开发进度见 [development-progress.md](/Users/yueliangmanle/Desktop/codex/wenwentome/.worktrees/android-reader-mvp/docs/development-progress.md)
+- 发版流程见 [docs/release-process.md](docs/release-process.md)
+- 开发规范见 [docs/development-handbook.md](docs/development-handbook.md)
+- 迭代规则见 [docs/iteration-rules.md](docs/iteration-rules.md)
+- 开发进度见 [docs/development-progress.md](docs/development-progress.md)
