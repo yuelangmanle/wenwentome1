@@ -30,6 +30,9 @@ import com.wenwentome.reader.feature.reader.BookDetailScreen
 import com.wenwentome.reader.feature.reader.ReaderScreen
 import com.wenwentome.reader.feature.reader.ReaderUiState
 import com.wenwentome.reader.feature.reader.ReaderViewModel
+import com.wenwentome.reader.feature.settings.SettingsScreen
+import com.wenwentome.reader.feature.settings.SyncSettingsUiState
+import com.wenwentome.reader.feature.settings.SyncSettingsViewModel
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
@@ -59,6 +62,13 @@ fun AppNavHost(
             libraryViewModel.import(uri)
         }
     }
+    val settingsViewModel: SyncSettingsViewModel = remember(appContainer) {
+        SyncSettingsViewModel(
+            configStore = appContainer.syncSettingsConfigStore,
+            syncService = appContainer.gitHubSyncRepository,
+        )
+    }
+    val settingsState by settingsViewModel.uiState.collectAsState(initial = SyncSettingsUiState())
 
     NavHost(
         navController = navController,
@@ -85,9 +95,12 @@ fun AppNavHost(
             )
         }
         composable(TopLevelDestination.SETTINGS.route) {
-            Text(
-                text = TopLevelDestination.SETTINGS.label,
-                modifier = Modifier.testTag("screen"),
+            SettingsScreen(
+                state = settingsState,
+                onStateChange = settingsViewModel::setDraft,
+                onSaveConfig = settingsViewModel::saveConfig,
+                onPush = settingsViewModel::pushNow,
+                onPull = settingsViewModel::pullNow,
             )
         }
         composable(BookDetailRoute) { backStackEntry ->

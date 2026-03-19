@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(project(":core:database"))
     implementation(project(":data:localbooks"))
+    implementation(project(":sync:github"))
 
     implementation(project(":feature:library"))
     implementation(project(":feature:discover"))
