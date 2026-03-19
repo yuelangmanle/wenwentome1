@@ -1,6 +1,5 @@
 package com.wenwentome.reader
 
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -27,11 +26,11 @@ class AppAboutAndChangelogFlowTest {
         }
 
         composeTestRule.onNodeWithTag("nav-settings").performClick()
-        composeTestRule.onNodeWithText("关于与项目").assertExists()
-        composeTestRule.onNodeWithText("作者：月亮满了").assertExists()
-        composeTestRule.onNodeWithText("版本 1.0").assertExists()
+        composeTestRule.onNodeWithText("关于与项目").assertTextEquals("关于与项目")
+        composeTestRule.onNodeWithText("作者：月亮满了").assertTextEquals("作者：月亮满了")
+        composeTestRule.onNodeWithText("版本 1.0").assertTextEquals("版本 1.0")
         composeTestRule.onNodeWithText("查看完整更新日志").performClick()
         composeTestRule.onNodeWithTag("screen").assertTextEquals("更新日志")
-        composeTestRule.onNodeWithText("v1.0").assertExists()
+        composeTestRule.onNodeWithText("v1.0").assertTextEquals("v1.0")
     }
 }
