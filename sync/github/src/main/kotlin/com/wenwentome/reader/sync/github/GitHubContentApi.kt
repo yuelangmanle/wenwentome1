@@ -126,7 +126,9 @@ class GitHubContentApi(
             runCatching { element.jsonObject }.getOrNull()
         }
         return GitHubContentEnvelope(
-            content = root["content"]?.runCatching { jsonPrimitive.contentOrNull }.getOrNull()
+            content = root["content"]?.let { element ->
+                runCatching { element.jsonPrimitive.contentOrNull }.getOrNull()
+            }
                 ?: nestedContent?.get("content")?.jsonPrimitive?.contentOrNull,
             sha = root["sha"]?.jsonPrimitive?.contentOrNull
                 ?: nestedContent?.get("sha")?.jsonPrimitive?.contentOrNull,
