@@ -1,7 +1,8 @@
 package com.wenwentome.reader
 
-import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -24,9 +25,9 @@ class AppSmokeFlowTest {
             ReaderApp(appContainer = appContainer)
         }
 
-        composeTestRule.onNodeWithText("书库").assertExists()
+        composeTestRule.onNodeWithTag("screen").assertTextEquals("书库")
         composeTestRule.onNodeWithText("发现").performClick()
         composeTestRule.onNodeWithText("我的").performClick()
-        composeTestRule.onNodeWithText("立即备份").assertExists()
+        composeTestRule.onNodeWithText("立即备份").assertTextEquals("立即备份")
     }
 }
