@@ -1,0 +1,30 @@
+{
+  "bookSourceName": "测试源",
+  "bookSourceGroup": "测试分组",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://example.com",
+  "enabled": true,
+  "searchUrl": "https://example.com/search?title={{key}}",
+  "ruleSearch": {
+    "bookList": ".result-item",
+    "name": "h3@text",
+    "bookUrl": "a@href",
+    "author": ".author@text",
+    "coverUrl": "img@src"
+  },
+  "ruleBookInfo": {
+    "name": "h1@text",
+    "author": ".meta .author@text",
+    "intro": ".intro@text",
+    "coverUrl": ".cover img@src"
+  },
+  "ruleToc": {
+    "chapterList": ".chapter-item",
+    "chapterName": "a@text",
+    "chapterUrl": "a@href"
+  },
+  "ruleContent": {
+    "content": "#content@html",
+    "nextContentUrl": ".next@href"
+  }
+}

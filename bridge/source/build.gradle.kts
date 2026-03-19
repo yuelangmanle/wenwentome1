@@ -12,3 +12,15 @@ java {
 kotlin {
     jvmToolchain(17)
 }
+
+dependencies {
+    implementation(project(":core:model"))
+
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.okhttp)
+    implementation(libs.jsoup)
+    implementation(libs.json.path)
+    implementation(libs.rhino)
+
+    testImplementation(libs.junit4)
+}
