@@ -34,7 +34,9 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:database"))
 
-    implementation(libs.epublib.core)
+    implementation(libs.epublib.core) {
+        exclude(group = "xmlpull", module = "xmlpull")
+    }
 
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
