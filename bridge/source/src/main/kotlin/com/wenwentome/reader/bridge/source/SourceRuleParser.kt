@@ -7,7 +7,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.content
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -53,7 +52,7 @@ class SourceRuleParser(
         }
 
     private fun JsonObject.requiredString(key: String): String =
-        getValue(key).jsonPrimitive.content
+        requireNotNull(getValue(key).jsonPrimitive.contentOrNull) { "$key must be a string" }
 
     private fun JsonObject.optionalString(key: String): String? =
         this[key]?.jsonPrimitive?.contentOrNull
