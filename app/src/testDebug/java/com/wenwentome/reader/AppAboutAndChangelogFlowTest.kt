@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.core.app.ApplicationProvider
@@ -37,7 +38,7 @@ class AppAboutAndChangelogFlowTest {
         composeTestRule.onNodeWithText("关于与项目").assertTextEquals("关于与项目")
         composeTestRule.onNodeWithText("作者：月亮满了").assertTextEquals("作者：月亮满了")
         composeTestRule.onNodeWithText("版本 1.0").assertTextEquals("版本 1.0")
-        composeTestRule.onNodeWithText("查看完整更新日志").performClick()
+        composeTestRule.onNodeWithTag("open-changelog-button").performScrollTo().performClick()
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             navController?.currentDestination?.route == "settings/changelog"
         }

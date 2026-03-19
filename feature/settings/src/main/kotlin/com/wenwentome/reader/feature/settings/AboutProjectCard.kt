@@ -11,6 +11,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -37,7 +38,10 @@ fun AboutProjectCard(
             OutlinedButton(onClick = onOpenProject) {
                 Text("打开 GitHub 项目")
             }
-            Button(onClick = onOpenChangelog) {
+            Button(
+                onClick = onOpenChangelog,
+                modifier = Modifier.testTag("open-changelog-button"),
+            ) {
                 Text("查看完整更新日志")
             }
         }
