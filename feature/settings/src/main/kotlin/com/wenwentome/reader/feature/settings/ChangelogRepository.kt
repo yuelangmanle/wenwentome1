@@ -1,7 +1,7 @@
 package com.wenwentome.reader.feature.settings
 
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.content
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -23,7 +23,7 @@ class ChangelogRepository(
                     details = root.requiredStringList("details"),
                 )
             }
-            .sortedByDescending(::versionKey)
+            .sortedByDescending { entry -> versionKey(entry) }
 
     private fun versionKey(entry: ChangelogEntry): Pair<Int, Int> =
         versionKey(entry.version)
@@ -37,7 +37,9 @@ class ChangelogRepository(
 }
 
 private fun kotlinx.serialization.json.JsonObject.requiredString(key: String): String =
-    getValue(key).jsonPrimitive.content
+    requireNotNull(getValue(key).jsonPrimitive.contentOrNull) { "$key must be a string" }
 
 private fun kotlinx.serialization.json.JsonObject.requiredStringList(key: String): List<String> =
-    getValue(key).jsonArray.map { it.jsonPrimitive.content }
+    getValue(key).jsonArray.map { element ->
+        requireNotNull(element.jsonPrimitive.contentOrNull) { "$key entries must be strings" }
+    }
