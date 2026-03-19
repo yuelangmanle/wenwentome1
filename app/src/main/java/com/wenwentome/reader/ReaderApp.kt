@@ -17,6 +17,7 @@ import com.wenwentome.reader.di.AppContainer
 import com.wenwentome.reader.navigation.AppNavHost
 import com.wenwentome.reader.navigation.TopLevelDestination
 
+private val topLevelDestinations = TopLevelDestination.entries.toList()
 private val bookshelfChildRoutes = setOf("book/{bookId}", "reader/{bookId}")
 private val discoverChildRoutes = setOf("discover/sources")
 
@@ -30,7 +31,7 @@ fun ReaderApp(
     Scaffold(
         bottomBar = {
             NavigationBar {
-                TopLevelDestination.entries.forEach { destination ->
+                topLevelDestinations.forEach { destination ->
                     val selected = when (destination) {
                         TopLevelDestination.BOOKSHELF ->
                             currentDestination

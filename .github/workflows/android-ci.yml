@@ -25,13 +25,13 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
-      - name: Run checks and debug assemble
+      - name: Run unit tests and assemble debug APK
         run: ./gradlew test testDebugUnitTest assembleDebug --stacktrace
 
       - name: Upload debug APK artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: warn

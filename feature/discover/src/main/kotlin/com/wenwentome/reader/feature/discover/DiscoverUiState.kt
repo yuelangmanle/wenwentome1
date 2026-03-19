@@ -6,6 +6,7 @@ import com.wenwentome.reader.core.model.SourceDefinition
 data class DiscoverUiState(
     val query: String = "",
     val results: List<RemoteSearchResult> = emptyList(),
+    val addingResultIds: Set<String> = emptySet(),
     val lastAddedTitle: String? = null,
 )
 

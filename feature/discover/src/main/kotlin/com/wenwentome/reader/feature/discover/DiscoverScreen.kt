@@ -64,8 +64,12 @@ fun DiscoverScreen(
                     headlineContent = { Text(result.title) },
                     supportingContent = { Text(result.author ?: "未知作者") },
                     trailingContent = {
-                        Button(onClick = { onAddToShelf(result.id) }) {
-                            Text("加入书库")
+                        val isAdding = result.id in state.addingResultIds
+                        Button(
+                            onClick = { onAddToShelf(result.id) },
+                            enabled = !isAdding,
+                        ) {
+                            Text(if (isAdding) "加入中" else "加入书库")
                         }
                     },
                 )

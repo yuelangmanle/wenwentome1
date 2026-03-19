@@ -121,11 +121,15 @@ class GitHubSyncRepository(
         val sourceDefinitions = serializer.decodeSourceDefinitions(api.getJson(auth, manifest.sourceDefinitionsPath).first)
         val preferences = serializer.decodePreferences(api.getJson(auth, manifest.preferencesPath).first)
         val assetIndex = serializer.decodeAssets(api.getJson(auth, manifest.assetIndexPath).first)
+        val mergedSourceDefinitions = mergeSourceDefinitions(
+            existing = sourceDefinitionStore.getAll(),
+            incoming = sourceDefinitions,
+        )
 
         bookRecordStore.replaceAll(bookRecords)
         readingStateStore.replaceAll(readingStates)
         remoteBindingStore.replaceAll(remoteBindings)
-        sourceDefinitionStore.replaceAll(sourceDefinitions)
+        sourceDefinitionStore.replaceAll(mergedSourceDefinitions)
         preferencesStore.importSnapshot(preferences)
 
         val restoredAssets = assetIndex.map { asset ->
@@ -136,5 +140,19 @@ class GitHubSyncRepository(
         bookAssetStore.replaceAll(restoredAssets)
 
         return RestoredSnapshot(snapshot = snapshot, assets = restoredAssets)
+    }
+
+    private fun mergeSourceDefinitions(
+        existing: List<SourceDefinition>,
+        incoming: List<SourceDefinition>,
+    ): List<SourceDefinition> {
+        val existingById = existing.associateBy { it.sourceId }
+        return incoming.map { definition ->
+            val localDefinition = existingById[definition.sourceId] ?: return@map definition
+            definition.copy(
+                sourceUrl = definition.sourceUrl ?: localDefinition.sourceUrl,
+                rawDefinition = definition.rawDefinition ?: localDefinition.rawDefinition,
+            )
+        }
     }
 }

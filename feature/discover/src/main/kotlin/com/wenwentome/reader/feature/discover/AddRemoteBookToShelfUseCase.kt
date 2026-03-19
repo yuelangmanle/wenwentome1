@@ -21,6 +21,10 @@ class AddRemoteBookToShelfUseCase(
     private val remoteBindingDao: RemoteBindingDao,
 ) : AddRemoteBookToShelf {
     override suspend fun invoke(result: RemoteSearchResult) {
+        val existingBinding = remoteBindingDao.getByRemoteBook(result.sourceId, result.id)
+        if (existingBinding != null) {
+            return
+        }
         val detail = sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
         val toc = sourceBridgeRepository.fetchToc(result.sourceId, result.id)
         val bookId = UUID.randomUUID().toString()

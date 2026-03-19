@@ -57,6 +57,65 @@ class GitHubSyncRepositoryTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun pullLatestSnapshot_preservesLocalSourceDefinitionPayloadWhenRemoteSnapshotIsOlder() = runTest {
+        val server = MockWebServer()
+        server.dispatcher = FakeGitHubDispatcher()
+        server.start()
+        try {
+            val oldRepository = GitHubSyncRepository(
+                api = GitHubContentApi(server.url("/").toString()),
+                serializer = SyncManifestSerializer(),
+                bookRecordStore = FakeBookRecordStore(existing = listOf(sampleBookRecord())),
+                readingStateStore = FakeReadingStateStore(existing = listOf(sampleReadingState())),
+                remoteBindingStore = FakeRemoteBindingStore(existing = listOf(sampleRemoteBinding())),
+                sourceDefinitionStore = FakeSourceDefinitionStore(
+                    existing = listOf(
+                        sampleSourceDefinition().copy(
+                            sourceUrl = null,
+                            rawDefinition = null,
+                        ),
+                    ),
+                ),
+                bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
+                preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
+                fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
+                snapshotIdFactory = { "snapshot-old" },
+                revisionFactory = { "2026-03-19T00:00:00Z" },
+                mergedAtProvider = { 123456789L },
+            )
+            oldRepository.pushSnapshot(
+                auth = GitHubAuthConfig(owner = "me", repo = "books", branch = "main", token = "token"),
+            )
+
+            val localSourceDefinitionStore = FakeSourceDefinitionStore(existing = listOf(sampleSourceDefinition()))
+            val restoreRepository = GitHubSyncRepository(
+                api = GitHubContentApi(server.url("/").toString()),
+                serializer = SyncManifestSerializer(),
+                bookRecordStore = FakeBookRecordStore(existing = listOf(sampleBookRecord())),
+                readingStateStore = FakeReadingStateStore(existing = listOf(sampleReadingState())),
+                remoteBindingStore = FakeRemoteBindingStore(existing = listOf(sampleRemoteBinding())),
+                sourceDefinitionStore = localSourceDefinitionStore,
+                bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
+                preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
+                fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
+                snapshotIdFactory = { "snapshot-new" },
+                revisionFactory = { "2026-03-19T00:00:01Z" },
+                mergedAtProvider = { 123456790L },
+            )
+
+            restoreRepository.pullLatestSnapshot(
+                auth = GitHubAuthConfig(owner = "me", repo = "books", branch = "main", token = "token"),
+            )
+
+            val restoredSource = localSourceDefinitionStore.getAll().single()
+            assertEquals("https://example.com", restoredSource.sourceUrl)
+            assertEquals("{\"bookSourceName\":\"示例源\"}", restoredSource.rawDefinition)
+        } finally {
+            server.shutdown()
+        }
+    }
 }
 
 private class FakeBookRecordStore(existing: List<BookRecord>) : BookRecordSyncStore {
