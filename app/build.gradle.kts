@@ -59,6 +59,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":data:localbooks"))
     implementation(project(":sync:github"))
+    implementation(project(":bridge:source"))
 
     implementation(project(":feature:library"))
     implementation(project(":feature:discover"))

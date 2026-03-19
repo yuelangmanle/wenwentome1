@@ -10,7 +10,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -22,6 +21,14 @@ import com.wenwentome.reader.core.database.toModel
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.data.localbooks.ReaderContent
+import com.wenwentome.reader.feature.discover.AddRemoteBookToShelfUseCase
+import com.wenwentome.reader.feature.discover.DiscoverScreen
+import com.wenwentome.reader.feature.discover.DiscoverUiState
+import com.wenwentome.reader.feature.discover.DiscoverViewModel
+import com.wenwentome.reader.feature.discover.ImportSourcesUseCase
+import com.wenwentome.reader.feature.discover.SourceManagementScreen
+import com.wenwentome.reader.feature.discover.SourceManagementUiState
+import com.wenwentome.reader.feature.discover.SourceManagementViewModel
 import com.wenwentome.reader.feature.library.LibraryScreen
 import com.wenwentome.reader.feature.library.LibraryUiState
 import com.wenwentome.reader.feature.library.LibraryViewModel
@@ -41,6 +48,7 @@ import kotlinx.coroutines.launch
 
 private const val BookDetailRoute = "book/{bookId}"
 private const val ReaderRoute = "reader/{bookId}"
+private const val DiscoverSourcesRoute = "discover/sources"
 
 @Composable
 fun AppNavHost(
@@ -69,6 +77,42 @@ fun AppNavHost(
         )
     }
     val settingsState by settingsViewModel.uiState.collectAsState(initial = SyncSettingsUiState())
+    val sourceDefinitionDao = appContainer.database.sourceDefinitionDao()
+    val discoverViewModel: DiscoverViewModel = remember(appContainer) {
+        DiscoverViewModel(
+            sourceBridgeRepository = appContainer.sourceBridgeRepository,
+            addRemoteBookToShelf = AddRemoteBookToShelfUseCase(
+                sourceBridgeRepository = appContainer.sourceBridgeRepository,
+                bookRecordDao = appContainer.database.bookRecordDao(),
+                remoteBindingDao = appContainer.database.remoteBindingDao(),
+            ),
+        )
+    }
+    val discoverState by discoverViewModel.uiState.collectAsState(initial = DiscoverUiState())
+    val sourceManagementViewModel: SourceManagementViewModel = remember(appContainer) {
+        SourceManagementViewModel(
+            observeSources = sourceDefinitionDao.observeAll().map { list -> list.map { it.toModel() } },
+            toggleSourceEnabled = { sourceId -> sourceDefinitionDao.toggleEnabled(sourceId) },
+        )
+    }
+    val sourceManagementState by sourceManagementViewModel.uiState.collectAsState(initial = SourceManagementUiState())
+    val importSourcesUseCase = remember(appContainer) {
+        ImportSourcesUseCase(
+            sourceRuleParser = appContainer.sourceRuleParser,
+            sourceDefinitionDao = sourceDefinitionDao,
+        )
+    }
+    val sourceImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        importScope.launch {
+            val rawJson = appContainer.appContext.contentResolver
+                .openInputStream(uri)
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                ?: return@launch
+            importSourcesUseCase(rawJson)
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -89,9 +133,20 @@ fun AppNavHost(
             )
         }
         composable(TopLevelDestination.DISCOVER.route) {
-            Text(
-                text = TopLevelDestination.DISCOVER.label,
-                modifier = Modifier.testTag("screen"),
+            DiscoverScreen(
+                state = discoverState,
+                onSearch = discoverViewModel::search,
+                onAddToShelf = discoverViewModel::addToShelf,
+                onManageSources = { navController.navigate(DiscoverSourcesRoute) },
+            )
+        }
+        composable(DiscoverSourcesRoute) {
+            SourceManagementScreen(
+                state = sourceManagementState,
+                onImportJson = {
+                    sourceImportLauncher.launch(arrayOf("application/json", "text/plain"))
+                },
+                onToggleSource = sourceManagementViewModel::toggleEnabled,
             )
         }
         composable(TopLevelDestination.SETTINGS.route) {

@@ -3,6 +3,9 @@ package com.wenwentome.reader.di
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
+import com.wenwentome.reader.bridge.source.RealSourceBridgeRepository
+import com.wenwentome.reader.bridge.source.SourceDefinitionProvider
+import com.wenwentome.reader.bridge.source.SourceRuleParser
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.core.database.datastore.PreferencesSnapshot as LocalPreferencesSnapshot
 import com.wenwentome.reader.core.database.datastore.ReaderPreferencesStore
@@ -37,7 +40,9 @@ class AppContainer(private val application: Application) {
             appContext,
             ReaderDatabase::class.java,
             "reader.db",
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     val fileStore: LocalBookFileStore by lazy {
@@ -70,6 +75,33 @@ class AppContainer(private val application: Application) {
         ImportLocalBookUseCase(
             contentResolver = appContext.contentResolver,
             repository = localBookImportRepository,
+        )
+    }
+
+    val sourceRuleParser: SourceRuleParser by lazy {
+        SourceRuleParser()
+    }
+
+    val sourceBridgeRepository: RealSourceBridgeRepository by lazy {
+        RealSourceBridgeRepository(
+            sourceProvider = object : SourceDefinitionProvider {
+                override suspend fun getAll() =
+                    database.sourceDefinitionDao().getAll()
+                        .map { it.toModel() }
+                        .mapNotNull { definition ->
+                            val raw = definition.rawDefinition ?: return@mapNotNull null
+                            runCatching {
+                                val parsed = sourceRuleParser.parse(raw)
+                                parsed.copy(
+                                    id = definition.sourceId,
+                                    name = definition.sourceName,
+                                    group = definition.group,
+                                    baseUrl = definition.sourceUrl ?: parsed.baseUrl,
+                                    enabled = definition.enabled,
+                                )
+                            }.getOrNull()
+                        }
+            },
         )
     }
 

@@ -22,7 +22,7 @@ import com.wenwentome.reader.core.database.entity.SourceDefinitionEntity
         SourceDefinitionEntity::class,
         RemoteBindingEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -33,4 +33,3 @@ abstract class ReaderDatabase : RoomDatabase() {
     abstract fun remoteBindingDao(): RemoteBindingDao
     abstract fun sourceDefinitionDao(): SourceDefinitionDao
 }
-

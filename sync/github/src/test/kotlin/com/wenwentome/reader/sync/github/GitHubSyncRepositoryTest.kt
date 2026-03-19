@@ -212,6 +212,8 @@ private fun sampleSourceDefinition(): SourceDefinition =
         sourceName = "示例源",
         sourceType = SourceType.IMPORTED,
         ruleFormat = RuleFormat.LEGACY,
+        sourceUrl = "https://example.com",
+        rawDefinition = "{\"bookSourceName\":\"示例源\"}",
     )
 
 private fun samplePreferences(): PreferencesSnapshot =

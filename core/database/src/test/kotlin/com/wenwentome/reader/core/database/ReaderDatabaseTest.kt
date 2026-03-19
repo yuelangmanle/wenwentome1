@@ -132,6 +132,8 @@ class ReaderDatabaseTest {
                         sourceName = "B-Source",
                         sourceType = SourceType.IMPORTED,
                         ruleFormat = RuleFormat.CUSTOM,
+                        sourceUrl = "https://example.com/b",
+                        rawDefinition = "{\"bookSourceName\":\"B-Source\"}",
                         enabled = true,
                     ),
                     SourceDefinitionEntity(
@@ -139,6 +141,8 @@ class ReaderDatabaseTest {
                         sourceName = "A-Source",
                         sourceType = SourceType.IMPORTED,
                         ruleFormat = RuleFormat.CUSTOM,
+                        sourceUrl = "https://example.com/a",
+                        rawDefinition = "{\"bookSourceName\":\"A-Source\"}",
                         enabled = true,
                     ),
                 ),
@@ -150,6 +154,7 @@ class ReaderDatabaseTest {
         database.sourceDefinitionDao().toggleEnabled("s2")
         val toggled = database.sourceDefinitionDao().getAll().first { it.sourceId == "s2" }
         assertEquals(false, toggled.enabled)
+        assertEquals("https://example.com/a", toggled.sourceUrl)
     }
 
     private fun testDatabase(): ReaderDatabase =

@@ -11,8 +11,9 @@ data class SourceDefinitionEntity(
     val sourceName: String,
     val sourceType: SourceType,
     val ruleFormat: RuleFormat,
+    val sourceUrl: String? = null,
+    val rawDefinition: String? = null,
     val authState: String? = null,
     val enabled: Boolean = true,
     val group: String? = null,
 )
-

@@ -89,6 +89,8 @@ fun SourceDefinitionEntity.toModel(): SourceDefinition =
         sourceName = sourceName,
         sourceType = sourceType,
         ruleFormat = ruleFormat,
+        sourceUrl = sourceUrl,
+        rawDefinition = rawDefinition,
         authState = authState,
         enabled = enabled,
         group = group,
@@ -100,6 +102,8 @@ fun SourceDefinition.toEntity(): SourceDefinitionEntity =
         sourceName = sourceName,
         sourceType = sourceType,
         ruleFormat = ruleFormat,
+        sourceUrl = sourceUrl,
+        rawDefinition = rawDefinition,
         authState = authState,
         enabled = enabled,
         group = group,
@@ -126,4 +130,3 @@ fun RemoteBinding.toEntity(): RemoteBindingEntity =
         syncMode = syncMode,
         lastFetchedAt = lastFetchedAt,
     )
-

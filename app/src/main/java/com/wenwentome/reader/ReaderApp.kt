@@ -18,6 +18,7 @@ import com.wenwentome.reader.navigation.AppNavHost
 import com.wenwentome.reader.navigation.TopLevelDestination
 
 private val bookshelfChildRoutes = setOf("book/{bookId}", "reader/{bookId}")
+private val discoverChildRoutes = setOf("discover/sources")
 
 @Composable
 fun ReaderApp(
@@ -36,6 +37,12 @@ fun ReaderApp(
                                 ?.hierarchy
                                 ?.any { it.route == destination.route } == true ||
                                 currentDestination?.route in bookshelfChildRoutes
+
+                        TopLevelDestination.DISCOVER ->
+                            currentDestination
+                                ?.hierarchy
+                                ?.any { it.route == destination.route } == true ||
+                                currentDestination?.route in discoverChildRoutes
 
                         else ->
                             currentDestination

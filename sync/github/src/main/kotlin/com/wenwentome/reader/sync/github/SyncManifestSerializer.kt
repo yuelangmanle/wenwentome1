@@ -188,6 +188,8 @@ class SyncManifestSerializer {
                 put("sourceName", JsonPrimitive(definition.sourceName))
                 put("sourceType", JsonPrimitive(definition.sourceType.name))
                 put("ruleFormat", JsonPrimitive(definition.ruleFormat.name))
+                put("sourceUrl", optionalString(definition.sourceUrl))
+                put("rawDefinition", optionalString(definition.rawDefinition))
                 put("authState", optionalString(definition.authState))
                 put("enabled", JsonPrimitive(definition.enabled))
                 put("group", optionalString(definition.group))
@@ -202,6 +204,8 @@ class SyncManifestSerializer {
                 sourceName = root.requiredString("sourceName"),
                 sourceType = enumValueOf(root.requiredString("sourceType")),
                 ruleFormat = enumValueOf(root.requiredString("ruleFormat")),
+                sourceUrl = root.optionalString("sourceUrl"),
+                rawDefinition = root.optionalString("rawDefinition"),
                 authState = root.optionalString("authState"),
                 enabled = root.requiredBoolean("enabled"),
                 group = root.optionalString("group"),
