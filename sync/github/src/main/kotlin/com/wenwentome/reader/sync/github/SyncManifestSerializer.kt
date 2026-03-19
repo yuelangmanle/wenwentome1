@@ -14,7 +14,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.content
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -149,7 +148,9 @@ class SyncManifestSerializer {
                         label = bookmark.requiredString("label"),
                     )
                 },
-                notes = root["notes"]?.jsonArray.orEmpty().map { it.jsonPrimitive.content },
+                notes = root["notes"]?.jsonArray.orEmpty().map { note ->
+                    requireNotNull(note.jsonPrimitive.contentOrNull) { "notes entry must be a string" }
+                },
                 updatedAt = root.requiredLong("updatedAt"),
             )
         }
@@ -271,7 +272,7 @@ class SyncManifestSerializer {
         value?.let(::JsonPrimitive) ?: JsonPrimitive(null as String?)
 
     private fun JsonObject.requiredString(key: String): String =
-        getValue(key).jsonPrimitive.content
+        requireNotNull(getValue(key).jsonPrimitive.contentOrNull) { "$key must be a string" }
 
     private fun JsonObject.optionalString(key: String): String? =
         this[key]?.jsonPrimitive?.contentOrNull
