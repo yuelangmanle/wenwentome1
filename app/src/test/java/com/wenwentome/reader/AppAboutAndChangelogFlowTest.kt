@@ -2,6 +2,7 @@ package com.wenwentome.reader
 
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -30,7 +31,13 @@ class AppAboutAndChangelogFlowTest {
         composeTestRule.onNodeWithText("作者：月亮满了").assertTextEquals("作者：月亮满了")
         composeTestRule.onNodeWithText("版本 1.0").assertTextEquals("版本 1.0")
         composeTestRule.onNodeWithText("查看完整更新日志").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("更新日志").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithText("更新日志").assertTextEquals("更新日志")
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("v1.0").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithText("v1.0").assertTextEquals("v1.0")
     }
 }
