@@ -30,7 +30,7 @@ class AppAboutAndChangelogFlowTest {
         composeTestRule.onNodeWithText("作者：月亮满了").assertTextEquals("作者：月亮满了")
         composeTestRule.onNodeWithText("版本 1.0").assertTextEquals("版本 1.0")
         composeTestRule.onNodeWithText("查看完整更新日志").performClick()
-        composeTestRule.onNodeWithTag("screen").assertTextEquals("更新日志")
+        composeTestRule.onNodeWithText("更新日志").assertTextEquals("更新日志")
         composeTestRule.onNodeWithText("v1.0").assertTextEquals("v1.0")
     }
 }
