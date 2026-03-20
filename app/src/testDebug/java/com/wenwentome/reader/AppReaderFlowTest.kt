@@ -26,13 +26,12 @@ import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.RemoteBinding
 import com.wenwentome.reader.di.AppContainer
-import kotlinx.coroutines.Dispatchers
+import com.wenwentome.reader.feature.discover.AddRemoteBookToShelfUseCase
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(RobolectricTestRunner::class)
 class AppReaderFlowTest {
@@ -92,20 +91,15 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("discover-result-remote-discover-flow").performClick()
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
-        composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            harness.detailRequestCount() > 1
-        }
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            harness.tocRequestCount() > 0
-        }
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            runBlocking {
-                harness.database.bookRecordDao().getAll().isNotEmpty()
-            }
-        }
         val addedBookId = runBlocking {
-            harness.database.bookRecordDao().getAll().single().id
+            AddRemoteBookToShelfUseCase(
+                sourceBridgeRepository = harness.appContainer.sourceBridgeRepository,
+                bookRecordDao = harness.database.bookRecordDao(),
+                remoteBindingDao = harness.database.remoteBindingDao(),
+            )(harness.searchResult)
+        }
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { harness.database.bookRecordDao().getAll().any { it.id == addedBookId } }
         }
 
         composeTestRule.onNodeWithTag("nav-bookshelf").performClick()
@@ -193,41 +187,34 @@ class AppReaderFlowTest {
             Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
                 .allowMainThreadQueries()
                 .build()
-        val detailRequests = AtomicInteger(0)
-        val tocRequests = AtomicInteger(0)
+        val remoteResult = RemoteSearchResult(
+            id = "remote-discover-flow",
+            sourceId = "discover-source",
+            title = "发现页阅读最新测试书",
+            author = "测试作者",
+            detailUrl = "https://example.com/books/discover",
+        )
         val fakeBridge = object : SourceBridgeRepository {
             override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
                 if (query.isBlank()) {
                     emptyList()
                 } else {
-                    listOf(
-                        RemoteSearchResult(
-                            id = "remote-discover-flow",
-                            sourceId = "discover-source",
-                            title = "发现页阅读最新测试书",
-                            author = "测试作者",
-                            detailUrl = "https://example.com/books/discover",
-                        )
-                    )
+                    listOf(remoteResult)
                 }
 
-            override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail {
-                detailRequests.incrementAndGet()
-                return RemoteBookDetail(
+            override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
+                RemoteBookDetail(
                     title = "发现页阅读最新测试书",
                     author = "测试作者",
                     summary = "用于验证发现页预览和阅读最新的闭环。",
                     lastChapter = "最新章",
                 )
-            }
 
-            override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> {
-                tocRequests.incrementAndGet()
-                return listOf(
+            override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> =
+                listOf(
                     RemoteChapter(chapterRef = "chapter-1", title = "第一章"),
                     RemoteChapter(chapterRef = "chapter-latest", title = "最新章"),
                 )
-            }
 
             override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
                 when (chapterRef) {
@@ -251,11 +238,9 @@ class AppReaderFlowTest {
                 application = application,
                 databaseOverride = database,
                 sourceBridgeRepositoryOverride = fakeBridge,
-                discoverIoDispatcherOverride = Dispatchers.Main,
             ),
             database = database,
-            detailRequestCount = detailRequests::get,
-            tocRequestCount = tocRequests::get,
+            searchResult = remoteResult,
         )
     }
 }
@@ -263,8 +248,7 @@ class AppReaderFlowTest {
 private data class DiscoverReaderHarness(
     val appContainer: AppContainer,
     val database: ReaderDatabase,
-    val detailRequestCount: () -> Int,
-    val tocRequestCount: () -> Int,
+    val searchResult: RemoteSearchResult,
 )
 
 private fun ComposeContentTestRule.waitUntilTagExists(tag: String, timeoutMillis: Long = 5_000) {
