@@ -159,6 +159,8 @@ class LocalBookContentRepositoryTest {
         override fun observeByBookId(bookId: String): Flow<List<BookAssetEntity>> =
             items.asStateFlow().map { list -> list.filter { it.bookId == bookId } }
 
+        override fun observeAll(): Flow<List<BookAssetEntity>> = items.asStateFlow()
+
         override suspend fun findByRole(bookId: String, assetRole: AssetRole): BookAssetEntity? =
             items.value.firstOrNull { it.bookId == bookId && it.assetRole == assetRole }
 

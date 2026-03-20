@@ -126,6 +126,9 @@ private class FakeReadingStateDao : ReadingStateDao {
     override fun observeByBookId(bookId: String): Flow<ReadingStateEntity?> =
         statesFlow.map { it[bookId] }
 
+    override fun observeAll(): Flow<List<ReadingStateEntity>> =
+        statesFlow.map { it.values.toList() }
+
     override suspend fun getAll(): List<ReadingStateEntity> = states.values.toList()
 
     override suspend fun deleteByBookId(bookId: String) {

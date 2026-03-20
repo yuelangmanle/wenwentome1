@@ -238,6 +238,9 @@ internal class FakeRemoteBindingDao : RemoteBindingDao {
     override fun observeByBookId(bookId: String): Flow<RemoteBindingEntity?> =
         bindingsFlow.map { it[bookId] }
 
+    override fun observeAll(): Flow<List<RemoteBindingEntity>> =
+        bindingsFlow.map { it.values.toList() }
+
     override suspend fun getByRemoteBook(sourceId: String, remoteBookId: String): RemoteBindingEntity? =
         bindings.values.firstOrNull { it.sourceId == sourceId && it.remoteBookId == remoteBookId }
 

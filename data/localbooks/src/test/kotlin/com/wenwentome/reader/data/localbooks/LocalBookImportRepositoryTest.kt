@@ -213,6 +213,9 @@ class LocalBookImportRepositoryTest {
         override fun observeByBookId(bookId: String): Flow<ReadingStateEntity?> =
             items.asStateFlow().map { map -> map[bookId] }
 
+        override fun observeAll(): Flow<List<ReadingStateEntity>> =
+            items.asStateFlow().map { map -> map.values.toList() }
+
         override suspend fun getAll(): List<ReadingStateEntity> = items.value.values.toList()
 
         override suspend fun clearAll() {
@@ -247,6 +250,8 @@ class LocalBookImportRepositoryTest {
 
         override fun observeByBookId(bookId: String): Flow<List<BookAssetEntity>> =
             items.asStateFlow().map { list -> list.filter { it.bookId == bookId } }
+
+        override fun observeAll(): Flow<List<BookAssetEntity>> = items.asStateFlow()
 
         override suspend fun findByRole(bookId: String, assetRole: AssetRole): BookAssetEntity? =
             items.value.firstOrNull { it.bookId == bookId && it.assetRole == assetRole }
