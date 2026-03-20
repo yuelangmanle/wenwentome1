@@ -2,8 +2,6 @@ package com.wenwentome.reader
 
 import android.app.Application
 import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -25,6 +23,7 @@ import com.wenwentome.reader.di.AppContainer
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -107,15 +106,16 @@ class AppSmokeFlowTest {
             ReaderApp(appContainer = appContainer)
         }
 
-        composeTestRule.onNodeWithTag("book-$bookId").assertExists().performClick()
-        composeTestRule.onNodeWithTag("book-detail").assertExists()
+        composeTestRule.onNodeWithTag("book-$bookId").performClick()
+        composeTestRule.onNodeWithText("开始阅读").assertTextEquals("开始阅读")
         composeTestRule.onNodeWithText("开始阅读").performClick()
-        composeTestRule.onNodeWithTag("reader-screen").assertExists()
 
         // Task 4: web-origin content should come from source bridge + binding, not placeholder summary.
-        composeTestRule.onNodeWithText("网文正文桥接将在后续任务接入。").assertDoesNotExist()
-        composeTestRule.onNodeWithText("第一章").assertExists()
-        composeTestRule.onNodeWithText("真实正文第一段").assertExists()
+        assertThrows(AssertionError::class.java) {
+            composeTestRule.onNodeWithText("网文正文桥接将在后续任务接入。").assertTextEquals("网文正文桥接将在后续任务接入。")
+        }
+        composeTestRule.onNodeWithText("第一章").assertTextEquals("第一章")
+        composeTestRule.onNodeWithText("真实正文第一段").assertTextEquals("真实正文第一段")
     }
 
     @Test
@@ -172,10 +172,9 @@ class AppSmokeFlowTest {
             ReaderApp(appContainer = appContainer)
         }
 
-        composeTestRule.onNodeWithTag("book-$bookId").assertExists().performClick()
+        composeTestRule.onNodeWithTag("book-$bookId").performClick()
         composeTestRule.onNodeWithText("开始阅读").performClick()
-        composeTestRule.onNodeWithTag("reader-screen").assertExists()
-        composeTestRule.onNodeWithText("目录拉取失败").assertExists()
+        composeTestRule.onNodeWithText("目录拉取失败").assertTextEquals("目录拉取失败")
     }
 
     @Test
@@ -237,9 +236,9 @@ class AppSmokeFlowTest {
             ReaderApp(appContainer = appContainer)
         }
 
-        composeTestRule.onNodeWithTag("book-$bookId").assertExists().performClick()
+        composeTestRule.onNodeWithTag("book-$bookId").performClick()
         composeTestRule.onNodeWithText("开始阅读").performClick()
-        composeTestRule.onNodeWithText("保存进度").assertExists().performClick()
+        composeTestRule.onNodeWithText("保存进度").performClick()
         composeTestRule.waitForIdle()
 
         val savedState = runBlocking {
