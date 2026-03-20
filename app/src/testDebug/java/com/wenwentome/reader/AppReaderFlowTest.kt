@@ -91,11 +91,19 @@ class AppReaderFlowTest {
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
         composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking {
+                harness.database.bookRecordDao().getAll().isNotEmpty()
+            }
+        }
+        val addedBookId = runBlocking {
+            harness.database.bookRecordDao().getAll().single().id
+        }
 
         composeTestRule.onNodeWithTag("nav-bookshelf").performClick()
         composeTestRule.waitUntilTagExists("library-screen")
-        composeTestRule.waitUntilTextExists("发现页阅读最新测试书")
-        composeTestRule.onNodeWithText("发现页阅读最新测试书").assertExistsCompat()
+        composeTestRule.waitUntilTagExists("book-cover-card-$addedBookId")
+        composeTestRule.onNodeWithTag("book-cover-card-$addedBookId").assertExistsCompat()
     }
 
     private fun createWebReaderAppContainer(): AppContainer {
