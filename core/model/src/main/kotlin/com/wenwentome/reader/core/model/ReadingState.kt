@@ -6,6 +6,10 @@ data class ReadingBookmark(
     val label: String,
 )
 
+/**
+ * `chapterRef` + `locator` 共同表示正文逻辑锚点。
+ * 这里不保存与阅读呈现模式绑定的视觉页码。
+ */
 data class ReadingState(
     val bookId: String,
     val locator: String? = null,
@@ -19,4 +23,3 @@ data class ReadingState(
         fun initial(bookId: String) = ReadingState(bookId = bookId)
     }
 }
-

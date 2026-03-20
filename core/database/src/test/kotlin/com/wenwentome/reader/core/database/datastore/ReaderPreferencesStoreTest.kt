@@ -3,8 +3,12 @@ package com.wenwentome.reader.core.database.datastore
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.test.core.app.ApplicationProvider
+import com.wenwentome.reader.core.model.ReaderMode
+import com.wenwentome.reader.core.model.ReaderPresentationPrefs
+import com.wenwentome.reader.core.model.ReaderTheme
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -16,6 +20,25 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class ReaderPreferencesStoreTest {
+    @Test
+    fun readerPreferences_roundTripModeAndPresentationPrefs() = runTest {
+        val context = isolatedContext()
+        val store = ReaderPreferencesStore(context)
+        val expectedPresentationPrefs =
+            ReaderPresentationPrefs(
+                theme = ReaderTheme.SEPIA,
+                fontSizeSp = 20,
+                lineHeightMultiplier = 1.7f,
+                brightnessPercent = 72,
+            )
+
+        store.saveReaderMode(ReaderMode.HORIZONTAL_PAGING)
+        store.savePresentationPrefs(expectedPresentationPrefs)
+
+        assertEquals(ReaderMode.HORIZONTAL_PAGING, store.readerMode.first())
+        assertEquals(expectedPresentationPrefs, store.presentationPrefs.first())
+    }
+
     @Test
     fun exportAndImportSnapshot_roundTripsGitHubConfigAndDeviceId() = runTest {
         val context = isolatedContext()

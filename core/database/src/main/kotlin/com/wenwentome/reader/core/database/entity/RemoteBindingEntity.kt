@@ -13,5 +13,6 @@ data class RemoteBindingEntity(
     val tocRef: String? = null,
     val syncMode: RemoteSyncMode = RemoteSyncMode.LATEST_ONLY,
     val lastFetchedAt: Long? = null,
+    val latestKnownChapterRef: String? = null,
+    val lastCatalogRefreshAt: Long? = null,
 )
-

@@ -6,6 +6,7 @@ import androidx.room.Room
 import com.wenwentome.reader.bridge.source.RealSourceBridgeRepository
 import com.wenwentome.reader.bridge.source.SourceDefinitionProvider
 import com.wenwentome.reader.bridge.source.SourceRuleParser
+import com.wenwentome.reader.core.database.MIGRATION_2_3
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.core.database.datastore.PreferencesSnapshot as LocalPreferencesSnapshot
 import com.wenwentome.reader.core.database.datastore.ReaderPreferencesStore
@@ -42,6 +43,7 @@ class AppContainer(private val application: Application) {
             ReaderDatabase::class.java,
             "reader.db",
         )
+            .addMigrations(MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }

@@ -22,7 +22,7 @@ import com.wenwentome.reader.core.database.entity.SourceDefinitionEntity
         SourceDefinitionEntity::class,
         RemoteBindingEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)

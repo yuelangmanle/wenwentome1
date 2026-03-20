@@ -122,6 +122,26 @@ class ReaderDatabaseTest {
     }
 
     @Test
+    fun remoteBinding_roundTripsLatestChapterMetadata() = runTest {
+        val database = testDatabase()
+        database.remoteBindingDao()
+            .upsert(
+                RemoteBindingEntity(
+                    bookId = "book-1",
+                    sourceId = "src",
+                    remoteBookId = "remote",
+                    remoteBookUrl = "https://example.com/book",
+                    latestKnownChapterRef = "chapter-9",
+                    lastCatalogRefreshAt = 123L,
+                ),
+            )
+
+        val binding = database.remoteBindingDao().observeByBookId("book-1").first()
+        assertEquals("chapter-9", binding?.latestKnownChapterRef)
+        assertEquals(123L, binding?.lastCatalogRefreshAt)
+    }
+
+    @Test
     fun sourceDefinitionDao_observeAll_isOrderedBySourceName_andToggleEnabledWorks() = runTest {
         val database = testDatabase()
         database.sourceDefinitionDao()

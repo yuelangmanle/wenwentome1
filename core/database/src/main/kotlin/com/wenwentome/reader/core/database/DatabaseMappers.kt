@@ -118,6 +118,8 @@ fun RemoteBindingEntity.toModel(): RemoteBinding =
         tocRef = tocRef,
         syncMode = syncMode,
         lastFetchedAt = lastFetchedAt,
+        latestKnownChapterRef = latestKnownChapterRef,
+        lastCatalogRefreshAt = lastCatalogRefreshAt,
     )
 
 fun RemoteBinding.toEntity(): RemoteBindingEntity =
@@ -129,4 +131,6 @@ fun RemoteBinding.toEntity(): RemoteBindingEntity =
         tocRef = tocRef,
         syncMode = syncMode,
         lastFetchedAt = lastFetchedAt,
+        latestKnownChapterRef = latestKnownChapterRef,
+        lastCatalogRefreshAt = lastCatalogRefreshAt,
     )
