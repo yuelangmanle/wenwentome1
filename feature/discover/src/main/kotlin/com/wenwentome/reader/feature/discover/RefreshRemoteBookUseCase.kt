@@ -31,7 +31,8 @@ class RefreshRemoteBookUseCase(
 
         val detail = sourceBridgeRepository.fetchBookDetail(binding.sourceId, binding.remoteBookId)
         val toc = sourceBridgeRepository.fetchToc(binding.sourceId, binding.remoteBookId)
-        val latestKnownChapterRef = resolveLatestKnownChapterRef(detail, toc)
+        val latestKnownChapterRef =
+            resolveLatestKnownChapterRefForRefresh(detail, toc, binding.latestKnownChapterRef)
 
         val hasUpdates =
             latestKnownChapterRef != null && latestKnownChapterRef != readingState?.chapterRef
@@ -49,4 +50,3 @@ class RefreshRemoteBookUseCase(
         )
     }
 }
-

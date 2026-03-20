@@ -64,6 +64,53 @@ class RefreshRemoteBookUseCaseTest {
         assertEquals("chapter-3", updatedBinding.latestKnownChapterRef)
         assertEquals(123L, updatedBinding.lastCatalogRefreshAt)
     }
+
+    @Test
+    fun refreshRemoteBook_keepsExistingLatestKnownChapterRefWhenTocIsEmpty() = runTest {
+        val remoteBindingDao = FakeRemoteBindingDao()
+        val readingStateDao = FakeReadingStateDao()
+        val useCase = RefreshRemoteBookUseCase(
+            sourceBridgeRepository = FakeSourceBridgeRepository(
+                detail = RemoteBookDetail(
+                    title = "雪中悍刀行",
+                    lastChapter = "第三章",
+                ),
+                toc = emptyList(),
+            ),
+            remoteBindingDao = remoteBindingDao,
+            readingStateDao = readingStateDao,
+            now = { 999L },
+        )
+        remoteBindingDao.upsert(
+            RemoteBindingEntity(
+                bookId = "book-1",
+                sourceId = "source-1",
+                remoteBookId = "remote-1",
+                remoteBookUrl = "https://example.com/books/1",
+                tocRef = "chapter-1",
+                latestKnownChapterRef = "chapter-2",
+                lastCatalogRefreshAt = 1L,
+            ),
+        )
+        // readingState 恰好停在已知最新章，刷新失败时不应把 hasUpdates 清空成 false-positive/false-negative。
+        readingStateDao.upsert(
+            ReadingStateEntity(
+                bookId = "book-1",
+                chapterRef = "chapter-2",
+            ),
+        )
+
+        val result = useCase("book-1")
+
+        // TOC 空导致本轮无法解析新的 latest ref，应保留旧值
+        assertEquals("chapter-2", result.latestKnownChapterRef)
+        assertEquals(false, result.hasUpdates)
+
+        val updatedBinding = remoteBindingDao.bindings.getValue("book-1")
+        assertEquals("chapter-2", updatedBinding.latestKnownChapterRef)
+        // 即便解析失败，也算一次用户手动刷新，仍然要更新 refresh timestamp
+        assertEquals(999L, updatedBinding.lastCatalogRefreshAt)
+    }
 }
 
 private class FakeSourceBridgeRepository(
@@ -139,4 +186,3 @@ private class FakeReadingStateDao : ReadingStateDao {
         statesFlow.value = emptyMap()
     }
 }
-

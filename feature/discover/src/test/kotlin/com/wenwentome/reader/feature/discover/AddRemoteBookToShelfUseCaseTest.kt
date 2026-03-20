@@ -84,6 +84,87 @@ class AddRemoteBookToShelfUseCaseTest {
         // add-to-shelf 不应写 lastCatalogRefreshAt
         assertNull(binding.lastCatalogRefreshAt)
     }
+
+    @Test
+    fun addRemoteBookToShelf_matchesLastChapterAfterTitleNormalization() = runTest {
+        val bookRecordDao = FakeBookRecordDao()
+        val remoteBindingDao = FakeRemoteBindingDao()
+        val useCase = AddRemoteBookToShelfUseCase(
+            sourceBridgeRepository = FakeSourceBridgeRepository(
+                detail = RemoteBookDetail(
+                    title = "雪中悍刀行",
+                    author = "烽火戏诸侯",
+                    summary = "北凉刀，江湖雪。",
+                    coverUrl = "https://example.com/cover.jpg",
+                    // 常见噪音：前缀 + 全角冒号 + 全角空格/多余空白
+                    lastChapter = "最新章节：　 第三章　",
+                ),
+                toc = listOf(
+                    RemoteChapter(chapterRef = "chapter-1", title = "第一章"),
+                    RemoteChapter(chapterRef = "chapter-2", title = "第二章"),
+                    RemoteChapter(chapterRef = "chapter-3", title = "第三章"),
+                ),
+            ),
+            bookRecordDao = bookRecordDao,
+            remoteBindingDao = remoteBindingDao,
+        )
+        val result = RemoteSearchResult(
+            id = "remote-1",
+            sourceId = "source-1",
+            title = "雪中悍刀行",
+            author = "烽火戏诸侯",
+            detailUrl = "https://example.com/books/1",
+        )
+
+        useCase(result)
+
+        val bookId = bookRecordDao.records.values.single().id
+        val binding = remoteBindingDao.bindings.getValue(bookId)
+        assertEquals("chapter-1", binding.tocRef)
+        assertEquals("chapter-3", binding.latestKnownChapterRef)
+        assertNull(binding.lastCatalogRefreshAt)
+    }
+
+    @Test
+    fun addRemoteBookToShelf_returnsNullLatestKnownChapterRefWhenLastChapterNotInToc() = runTest {
+        val bookRecordDao = FakeBookRecordDao()
+        val remoteBindingDao = FakeRemoteBindingDao()
+        val useCase = AddRemoteBookToShelfUseCase(
+            sourceBridgeRepository = FakeSourceBridgeRepository(
+                detail = RemoteBookDetail(
+                    title = "雪中悍刀行",
+                    author = "烽火戏诸侯",
+                    summary = "北凉刀，江湖雪。",
+                    coverUrl = "https://example.com/cover.jpg",
+                    // 详情页有 lastChapter，但 TOC 并不包含
+                    lastChapter = "不存在的章节",
+                ),
+                toc = listOf(
+                    RemoteChapter(chapterRef = "chapter-1", title = "第一章"),
+                    RemoteChapter(chapterRef = "chapter-2", title = "第二章"),
+                    RemoteChapter(chapterRef = "chapter-3", title = "第三章"),
+                ),
+            ),
+            bookRecordDao = bookRecordDao,
+            remoteBindingDao = remoteBindingDao,
+        )
+        val result = RemoteSearchResult(
+            id = "remote-1",
+            sourceId = "source-1",
+            title = "雪中悍刀行",
+            author = "烽火戏诸侯",
+            detailUrl = "https://example.com/books/1",
+        )
+
+        useCase(result)
+
+        val bookId = bookRecordDao.records.values.single().id
+        val binding = remoteBindingDao.bindings.getValue(bookId)
+        assertEquals("chapter-1", binding.tocRef)
+        // 有 lastChapter 但无法匹配时，不要硬猜 toc.last()
+        assertNull(binding.latestKnownChapterRef)
+        assertNull(binding.lastCatalogRefreshAt)
+    }
 }
 
 private class FakeSourceBridgeRepository(
