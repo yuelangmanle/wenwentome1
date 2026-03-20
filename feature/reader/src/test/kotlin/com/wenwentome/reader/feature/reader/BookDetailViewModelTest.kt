@@ -39,6 +39,7 @@ class BookDetailViewModelTest {
             updateReadingState = {},
         )
 
+        viewModel.uiState.first { it.book != null }
         viewModel.importCover(sampleImageBytes, "image/png")
         advanceUntilIdle()
 
@@ -86,6 +87,7 @@ class BookDetailViewModelTest {
             observeManualCover = flowOf(null),
             updateReadingState = { state -> persistedState = state },
         )
+        viewModel.uiState.first { it.book != null }
         val eventDeferred = async { viewModel.events.first() }
 
         viewModel.jumpToLatest()
@@ -119,6 +121,7 @@ class BookDetailViewModelTest {
             updateReadingState = { state -> persistedState = state },
         )
 
+        viewModel.uiState.first { it.book != null }
         viewModel.jumpToLatest()
         advanceUntilIdle()
 

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
@@ -45,7 +46,7 @@ class BookDetailScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("导入照片").performClick()
+        composeTestRule.onNodeWithText("导入照片").performScrollTo().performClick()
         composeTestRule.assertTagExists("book-cover-picker-requested")
     }
 
@@ -65,7 +66,7 @@ class BookDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("detail-read-button").assertExistsCompat()
+        composeTestRule.onNodeWithTag("detail-read-button").performScrollTo().assertExistsCompat()
         composeTestRule.onNodeWithText("继续阅读").assertExistsCompat()
         composeTestRule.onNodeWithText("查看目录").assertExistsCompat()
         composeTestRule.onNodeWithTag("detail-progress-label").assertTextContains("42%")
