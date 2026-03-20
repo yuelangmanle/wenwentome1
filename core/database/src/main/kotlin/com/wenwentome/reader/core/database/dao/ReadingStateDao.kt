@@ -19,6 +19,9 @@ interface ReadingStateDao {
     fun observeByBookId(bookId: String): Flow<ReadingStateEntity?>
 
     @Query("SELECT * FROM reading_states")
+    fun observeAll(): Flow<List<ReadingStateEntity>>
+
+    @Query("SELECT * FROM reading_states")
     suspend fun getAll(): List<ReadingStateEntity>
 
     @Query("DELETE FROM reading_states WHERE bookId = :bookId")

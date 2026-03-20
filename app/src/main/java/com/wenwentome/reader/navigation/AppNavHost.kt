@@ -10,8 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation.NavHostController
@@ -82,18 +84,49 @@ fun AppNavHost(
     val uriHandler = LocalUriHandler.current
     val libraryViewModel: LibraryViewModel = remember(appContainer) {
         LibraryViewModel(
-            observeBookshelf = ObserveBookshelfUseCase.from(appContainer.database.bookRecordDao()),
+            observeBookshelf = ObserveBookshelfUseCase.from(
+                bookRecordDao = appContainer.database.bookRecordDao(),
+                readingStateDao = appContainer.database.readingStateDao(),
+                remoteBindingDao = appContainer.database.remoteBindingDao(),
+                bookAssetDao = appContainer.database.bookAssetDao(),
+            ),
             importLocalBook = { uri -> appContainer.importLocalBook(uri) },
+            refreshCatalogAction = { bookId ->
+                appContainer.refreshRemoteBook(bookId)
+                Unit
+            },
         )
     }
     val libraryState by libraryViewModel.uiState.collectAsState(initial = LibraryUiState())
     val importScope = rememberCoroutineScope()
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        importScope.launch {
-            libraryViewModel.import(uri)
-        }
+        libraryViewModel.import(uri)
     }
+    var coverImportTargetBookId by remember { mutableStateOf<String?>(null) }
+    val coverPickerLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            val bookId = coverImportTargetBookId
+            if (uri == null || bookId == null) {
+                coverImportTargetBookId = null
+                return@rememberLauncherForActivityResult
+            }
+            importScope.launch {
+                val bytes = withContext(Dispatchers.IO) {
+                    appContainer.appContext.contentResolver.openInputStream(uri)?.use { input ->
+                        input.readBytes()
+                    }
+                } ?: return@launch
+                val mime = appContainer.appContext.contentResolver.getType(uri) ?: "image/jpeg"
+                importManualCover(
+                    bookId = bookId,
+                    bytes = bytes,
+                    mime = mime,
+                    appContainer = appContainer,
+                )
+                coverImportTargetBookId = null
+            }
+        }
     val settingsViewModel: SyncSettingsViewModel = remember(appContainer) {
         SyncSettingsViewModel(
             configStore = appContainer.syncSettingsConfigStore,
@@ -155,6 +188,25 @@ fun AppNavHost(
                 onBookClick = { bookId ->
                     navController.navigate("book/$bookId")
                 },
+                onImportPhoto = { bookId ->
+                    coverImportTargetBookId = bookId
+                    coverPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
+                onRefreshCover = { bookId ->
+                    importScope.launch {
+                        refreshBookCover(bookId = bookId, appContainer = appContainer)
+                    }
+                },
+                onRestoreAutomaticCover = { bookId ->
+                    importScope.launch {
+                        restoreAutomaticCover(bookId = bookId, appContainer = appContainer)
+                    }
+                },
+                onRefreshCatalog = { bookId ->
+                    libraryViewModel.refreshCatalog(bookId)
+                },
             )
         }
         composable(TopLevelDestination.DISCOVER.route) {
@@ -197,20 +249,6 @@ fun AppNavHost(
             val bookId = requireNotNull(backStackEntry.arguments?.getString("bookId"))
             val viewModel = rememberBookDetailViewModel(bookId = bookId, appContainer = appContainer)
             val state by viewModel.uiState.collectAsState(initial = BookDetailUiState())
-            val coverImportScope = rememberCoroutineScope()
-            val coverPickerLauncher =
-                rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-                    uri ?: return@rememberLauncherForActivityResult
-                    coverImportScope.launch {
-                        val bytes = withContext(Dispatchers.IO) {
-                            appContainer.appContext.contentResolver.openInputStream(uri)?.use { input ->
-                                input.readBytes()
-                            }
-                        } ?: return@launch
-                        val mime = appContainer.appContext.contentResolver.getType(uri) ?: "image/jpeg"
-                        viewModel.importCover(bytes, mime)
-                    }
-                }
 
             LaunchedEffect(viewModel) {
                 viewModel.events.collectLatest { event ->
@@ -232,6 +270,7 @@ fun AppNavHost(
                     onJumpToLatestClick = viewModel::jumpToLatest,
                     onRefreshCoverClick = viewModel::refreshCover,
                     onImportPhotoClick = {
+                        coverImportTargetBookId = bookId
                         coverPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )

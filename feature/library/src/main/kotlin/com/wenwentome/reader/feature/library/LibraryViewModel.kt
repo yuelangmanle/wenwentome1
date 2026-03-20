@@ -1,25 +1,43 @@
 package com.wenwentome.reader.feature.library
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import android.net.Uri
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class LibraryViewModel(
     private val observeBookshelf: ObserveBookshelfUseCase,
     private val importLocalBook: suspend (Uri) -> Unit,
+    private val refreshCatalogAction: suspend (String) -> Unit = {},
     private val filter: LibraryFilter = LibraryFilter.DEFAULT,
-) {
-    val uiState: Flow<LibraryUiState> =
+) : ViewModel() {
+    val uiState: StateFlow<LibraryUiState> =
         observeBookshelf()
-            .map { books ->
+            .map { items ->
                 LibraryUiState(
                     filter = filter,
-                    visibleBooks = filter.apply(books),
+                    continueReading = items.firstOrNull { it.progressPercent > 0f },
+                    visibleBooks = filter.apply(items),
                 )
-            }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = LibraryUiState(filter = filter),
+            )
 
-    suspend fun import(uri: Uri) {
-        importLocalBook(uri)
+    fun refreshCatalog(bookId: String) {
+        viewModelScope.launch {
+            refreshCatalogAction(bookId)
+        }
+    }
+
+    fun import(uri: Uri) {
+        viewModelScope.launch {
+            importLocalBook(uri)
+        }
     }
 }
-

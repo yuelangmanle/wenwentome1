@@ -25,6 +25,9 @@ interface BookAssetDao {
     @Query("SELECT * FROM book_assets WHERE bookId = :bookId")
     fun observeByBookId(bookId: String): Flow<List<BookAssetEntity>>
 
+    @Query("SELECT * FROM book_assets")
+    fun observeAll(): Flow<List<BookAssetEntity>>
+
     @Query("SELECT * FROM book_assets WHERE bookId = :bookId AND assetRole = :assetRole LIMIT 1")
     suspend fun findByRole(bookId: String, assetRole: AssetRole): BookAssetEntity?
 

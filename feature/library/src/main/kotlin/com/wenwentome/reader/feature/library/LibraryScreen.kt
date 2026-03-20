@@ -8,26 +8,33 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.wenwentome.reader.core.model.BookRecord
 
 @Composable
 fun LibraryScreen(
     state: LibraryUiState,
     onImportClick: () -> Unit,
     onBookClick: (String) -> Unit,
+    onImportPhoto: (String) -> Unit,
+    onRefreshCover: (String) -> Unit,
+    onRestoreAutomaticCover: (String) -> Unit,
+    onRefreshCatalog: (String) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(16.dp),
 ) {
+    var actionTarget by remember { mutableStateOf<LibraryBookItem?>(null) }
+
     Scaffold(
         modifier = modifier.testTag("library-screen"),
         floatingActionButton = {
@@ -55,6 +62,15 @@ fun LibraryScreen(
                     style = MaterialTheme.typography.headlineSmall,
                 )
             }
+            state.continueReading?.let { item ->
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    ContinueReadingCard(
+                        item = item,
+                        onClick = { onBookClick(item.book.id) },
+                        modifier = Modifier.testTag("continue-reading-card"),
+                    )
+                }
+            }
             if (state.visibleBooks.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
@@ -65,45 +81,30 @@ fun LibraryScreen(
             } else {
                 items(
                     items = state.visibleBooks,
-                    key = { it.id },
-                ) { book ->
-                    BookCard(
-                        book = book,
-                        onClick = { onBookClick(book.id) },
-                        modifier = Modifier.testTag("book-${book.id}"),
+                    key = { it.book.id },
+                ) { item ->
+                    BookCoverCard(
+                        item = item,
+                        onClick = { onBookClick(item.book.id) },
+                        onLongClick = { actionTarget = item },
+                        modifier = Modifier.testTag("book-cover-card-${item.book.id}"),
                     )
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun BookCard(
-    book: BookRecord,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ElevatedCard(
-        onClick = onClick,
-        modifier = modifier,
-    ) {
-        androidx.compose.foundation.layout.Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = book.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = book.author ?: "未知作者",
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        BookActionsMenu(
+            visible = actionTarget != null,
+            onDismiss = { actionTarget = null },
+            onOpenDetail = { actionTarget?.let { onBookClick(it.book.id) } },
+            onImportPhoto = { actionTarget?.let { onImportPhoto(it.book.id) } },
+            onRefreshCover = { actionTarget?.let { onRefreshCover(it.book.id) } },
+            onRestoreAutomaticCover = actionTarget?.takeIf { it.canRestoreAutomaticCover }?.let { item ->
+                { onRestoreAutomaticCover(item.book.id) }
+            },
+            onRefreshCatalog = actionTarget?.takeIf { it.book.originType != com.wenwentome.reader.core.model.OriginType.LOCAL }?.let { item ->
+                { onRefreshCatalog(item.book.id) }
+            },
+        )
     }
 }
