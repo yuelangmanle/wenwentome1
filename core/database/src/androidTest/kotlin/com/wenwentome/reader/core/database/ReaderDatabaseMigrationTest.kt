@@ -5,13 +5,14 @@ import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ReaderDatabaseMigrationTest {
     @Test
-    fun migrate2To3_preservesExistingShelfData() {
+    fun migrate2To3_preservesRemoteBindingsRows_andKeepsNewColumnsNullable() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         context.deleteDatabase(TEST_DB)
 
@@ -99,11 +100,11 @@ class ReaderDatabaseMigrationTest {
         migratedDb.openHelper.writableDatabase.query(
             "SELECT bookId, latestKnownChapterRef, lastCatalogRefreshAt FROM remote_bindings",
         ).use { cursor ->
-                assertEquals(1, cursor.count)
-                cursor.moveToFirst()
-                assertEquals("book-1", cursor.getString(0))
-                assertEquals(null, cursor.getString(1))
-                assertEquals(null, cursor.getString(2))
+            assertEquals(1, cursor.count)
+            cursor.moveToFirst()
+            assertEquals("book-1", cursor.getString(0))
+            assertTrue(cursor.isNull(1))
+            assertTrue(cursor.isNull(2))
         }
 
         migratedDb.close()

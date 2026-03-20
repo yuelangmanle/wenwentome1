@@ -44,7 +44,6 @@ class AppContainer(private val application: Application) {
             "reader.db",
         )
             .addMigrations(MIGRATION_2_3)
-            .fallbackToDestructiveMigration()
             .build()
     }
 
