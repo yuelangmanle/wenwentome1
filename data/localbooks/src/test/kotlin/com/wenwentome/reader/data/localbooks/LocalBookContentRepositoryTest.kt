@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.InputStream
 
@@ -22,16 +23,17 @@ class LocalBookContentRepositoryTest {
 
         assertEquals("第一章", content.chapterTitle)
         assertFalse(content.paragraphs.first().contains("Cover"))
+        assertTrue(content.paragraphs.any { it.contains("第一章-第一段") })
     }
 
     @Test
     fun load_epubRestoresLegacySpineLocatorFrom10WithoutLosingProgress() = runTest {
         val repository = createRepository(epubFixture = "sample-cover-first.epub")
 
-        val content = repository.load(bookId = "epub-book", locator = "0:3")
+        val content = repository.load(bookId = "epub-book", locator = "3:1")
 
         assertEquals("第一章", content.chapterTitle)
-        assertFalse(content.paragraphs.first().contains("Cover"))
+        assertEquals("第一章-第一段。", content.paragraphs.first())
     }
 
     private fun createRepository(epubFixture: String): LocalBookContentRepository {

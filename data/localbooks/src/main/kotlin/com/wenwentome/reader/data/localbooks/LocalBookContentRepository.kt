@@ -2,6 +2,8 @@ package com.wenwentome.reader.data.localbooks
 
 import com.wenwentome.reader.core.database.dao.BookAssetDao
 import com.wenwentome.reader.core.model.ReaderChapter
+import nl.siegmann.epublib.domain.Book
+import nl.siegmann.epublib.domain.SpineReference
 import nl.siegmann.epublib.epub.EpubReader
 import java.io.InputStream
 
@@ -46,7 +48,7 @@ class LocalBookContentRepository(
         val book = EpubReader().readEpub(inputStream)
         val catalog = epubCatalogParser.catalog(book)
         val fallbackChapter = catalog.firstOrNull() ?: error("EPUB has no readable chapter")
-        val resolvedLocator = resolveEpubLocator(locator, catalog, fallbackChapter)
+        val resolvedLocator = resolveEpubLocator(locator, book, catalog, fallbackChapter)
         val chapter = catalog.firstOrNull { sameChapterRef(it.chapterRef, resolvedLocator.chapterRef) } ?: fallbackChapter
         val resource = book.resources.getByHref(chapter.chapterRef)
             ?: book.resources.getByHref(normalizeChapterRef(chapter.chapterRef))
@@ -65,6 +67,7 @@ class LocalBookContentRepository(
 
     private fun resolveEpubLocator(
         locator: String?,
+        book: Book,
         catalog: List<ReaderChapter>,
         fallbackChapter: ReaderChapter,
     ): EpubLocator {
@@ -74,8 +77,12 @@ class LocalBookContentRepository(
         }
 
         parseLegacyEpubLocator(locator)?.let { (legacyChapterIndex, paragraphIndex) ->
-            // 兼容 1.0：旧 locator 的 spineIndex 视为“过滤后可读章节索引”，防止升级后丢进度。
-            val chapter = catalog.getOrElse(legacyChapterIndex.coerceIn(0, catalog.lastIndex)) { fallbackChapter }
+            // 兼容 1.0：先在原始 spine 上定位 resource，再映射到过滤后的可读章节，避免升级后错位。
+            val chapter = mapLegacySpineIndexToReadableChapter(
+                book = book,
+                catalog = catalog,
+                legacySpineIndex = legacyChapterIndex,
+            ) ?: fallbackChapter
             return EpubLocator(
                 chapterRef = chapter.chapterRef,
                 paragraphIndex = paragraphIndex,
@@ -86,6 +93,39 @@ class LocalBookContentRepository(
             chapterRef = fallbackChapter.chapterRef,
             paragraphIndex = 0,
         )
+    }
+
+    private fun mapLegacySpineIndexToReadableChapter(
+        book: Book,
+        catalog: List<ReaderChapter>,
+        legacySpineIndex: Int,
+    ): ReaderChapter? {
+        val spineReferences = book.spine?.spineReferences
+            .orEmpty()
+            .filterIsInstance<SpineReference>()
+        if (spineReferences.isEmpty()) {
+            return null
+        }
+        val clampedIndex = legacySpineIndex.coerceIn(0, spineReferences.lastIndex)
+
+        chapterForSpineReference(spineReferences.getOrNull(clampedIndex), catalog)?.let { return it }
+        for (index in (clampedIndex + 1)..spineReferences.lastIndex) {
+            chapterForSpineReference(spineReferences.getOrNull(index), catalog)?.let { return it }
+        }
+        for (index in (clampedIndex - 1) downTo 0) {
+            chapterForSpineReference(spineReferences.getOrNull(index), catalog)?.let { return it }
+        }
+        return null
+    }
+
+    private fun chapterForSpineReference(
+        spineReference: SpineReference?,
+        catalog: List<ReaderChapter>,
+    ): ReaderChapter? {
+        val resource = spineReference?.resource ?: return null
+        return catalog.firstOrNull { chapter ->
+            sameChapterRef(chapter.chapterRef, resource.href)
+        }
     }
 
     private fun parseStructuredEpubLocator(locator: String?): EpubLocator? {

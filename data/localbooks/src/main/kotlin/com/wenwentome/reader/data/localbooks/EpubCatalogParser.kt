@@ -29,6 +29,10 @@ class EpubCatalogParser {
         if (tocEntries.isNotEmpty()) {
             return tocEntries
         }
+        val navEntries = resolveReadableEntriesFromNav(book)
+        if (navEntries.isNotEmpty()) {
+            return navEntries
+        }
         return resolveReadableEntriesFromSpine(book)
     }
 
@@ -66,6 +70,47 @@ class EpubCatalogParser {
                 collectTocResources(children, entriesByHref, book)
             }
         }
+    }
+
+    private fun resolveReadableEntriesFromNav(book: Book): List<ReadableEntry> {
+        val navResource = resolveNavResource(book) ?: return emptyList()
+        val navHtml = runCatching {
+            navResource.inputStream.use { inputStream ->
+                inputStream.readBytes().decodeToString()
+            }
+        }.getOrNull() ?: return emptyList()
+
+        val navBlocks = extractTocNavBlocks(navHtml)
+        if (navBlocks.isEmpty()) {
+            return emptyList()
+        }
+
+        val entriesByHref = LinkedHashMap<String, ReadableEntry>()
+        navBlocks.forEach { block ->
+            ANCHOR_TAG_REGEX.findAll(block).forEach { anchor ->
+                val href = anchor.groupValues[1].trim()
+                if (href.isBlank()) {
+                    return@forEach
+                }
+                val title = stripTags(anchor.groupValues[2]).takeIf { it.isNotBlank() }
+                val resource = resolveResourceFromNavHref(book, navResource.href, href) ?: return@forEach
+                if (!isReadableResource(resource, book)) {
+                    return@forEach
+                }
+                val normalizedHref = normalizeHref(resource.href)
+                if (normalizedHref.isBlank()) {
+                    return@forEach
+                }
+                entriesByHref.putIfAbsent(
+                    normalizedHref,
+                    ReadableEntry(
+                        resource = resource,
+                        title = title,
+                    )
+                )
+            }
+        }
+        return entriesByHref.values.toList()
     }
 
     private fun resolveReadableEntriesFromSpine(book: Book): List<ReadableEntry> {
@@ -133,7 +178,96 @@ class EpubCatalogParser {
         return href.endsWith(".xhtml") || href.endsWith(".html") || href.endsWith(".htm")
     }
 
+    private fun resolveNavResource(book: Book): Resource? {
+        val htmlResources = book.resources.getAll().filter { resource -> isHtmlLike(resource) }
+        val obviousNav = htmlResources.firstOrNull { resource ->
+            val id = resource.id?.trim()?.lowercase().orEmpty()
+            val fileName = normalizeHref(resource.href).substringAfterLast('/').substringBeforeLast('.').lowercase()
+            id == "nav" || fileName == "nav"
+        }
+        if (obviousNav != null) {
+            return obviousNav
+        }
+        return htmlResources.firstOrNull { resource ->
+            val content = runCatching {
+                resource.inputStream.use { inputStream ->
+                    inputStream.readBytes().decodeToString()
+                }
+            }.getOrNull() ?: return@firstOrNull false
+            TOC_NAV_BLOCK_REGEX.containsMatchIn(content)
+        }
+    }
+
+    private fun extractTocNavBlocks(html: String): List<String> {
+        val tocBlocks = TOC_NAV_BLOCK_REGEX.findAll(html).map { it.value }.toList()
+        if (tocBlocks.isNotEmpty()) {
+            return tocBlocks
+        }
+        return GENERIC_NAV_BLOCK_REGEX.findAll(html).map { it.value }.toList()
+    }
+
+    private fun resolveResourceFromNavHref(book: Book, navHref: String?, navLinkHref: String): Resource? {
+        val normalizedLinkHref = normalizeHref(navLinkHref)
+        if (normalizedLinkHref.isBlank()) {
+            return null
+        }
+        book.resources.getByHref(normalizedLinkHref)?.let { return it }
+
+        val resolvedRelativeHref = resolveRelativeHref(
+            baseHref = normalizeHref(navHref),
+            relativeHref = normalizedLinkHref,
+        )
+        if (resolvedRelativeHref.isBlank()) {
+            return null
+        }
+        return book.resources.getByHref(resolvedRelativeHref)
+    }
+
+    private fun resolveRelativeHref(baseHref: String, relativeHref: String): String {
+        if (relativeHref.startsWith("/")) {
+            return relativeHref.removePrefix("/")
+        }
+        val baseDirectory = baseHref.substringBeforeLast('/', missingDelimiterValue = "")
+        if (baseDirectory.isBlank()) {
+            return normalizePath(relativeHref)
+        }
+        return normalizePath("$baseDirectory/$relativeHref")
+    }
+
+    private fun normalizePath(path: String): String {
+        val segments = mutableListOf<String>()
+        path.split('/').forEach { segment ->
+            when (segment) {
+                "", "." -> Unit
+                ".." -> if (segments.isNotEmpty()) segments.removeAt(segments.lastIndex)
+                else -> segments += segment
+            }
+        }
+        return segments.joinToString("/")
+    }
+
+    private fun stripTags(value: String): String {
+        val withoutTags = value.replace(Regex("(?s)<[^>]+>"), " ")
+        return withoutTags
+            .replace("&nbsp;", " ")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
     private fun normalizeHref(href: String?): String = href?.substringBefore('#').orEmpty()
+
+    private companion object {
+        private val TOC_NAV_BLOCK_REGEX = Regex(
+            "(?is)<nav\\b[^>]*(?:epub:type|type|role)\\s*=\\s*['\"][^'\"]*(?:toc|doc-toc)[^'\"]*['\"][^>]*>.*?</nav>",
+        )
+        private val GENERIC_NAV_BLOCK_REGEX = Regex("(?is)<nav\\b[^>]*>.*?</nav>")
+        private val ANCHOR_TAG_REGEX = Regex("(?is)<a\\b[^>]*href\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>(.*?)</a>")
+    }
 
     private data class ReadableEntry(
         val resource: Resource,

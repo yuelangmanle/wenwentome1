@@ -15,11 +15,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
+import java.net.URI
+import java.util.zip.ZipInputStream
 
 class LocalBookImportRepositoryTest {
     @Test
@@ -65,8 +69,28 @@ class LocalBookImportRepositoryTest {
 
         val result = context.repository.import("sample-cover-first.epub", fixture("sample-cover-first.epub"))
 
-        assertTrue(result.assets.any { it.assetRole == AssetRole.COVER })
-        assertTrue(result.assets.any { it.assetRole == AssetRole.PRIMARY_TEXT })
+        val coverAsset = result.assets.first { it.assetRole == AssetRole.COVER }
+        val primaryAsset = result.assets.first { it.assetRole == AssetRole.PRIMARY_TEXT }
+        val coverEntity = context.bookAssetDao.getAll().first { it.assetRole == AssetRole.COVER }
+        val primaryEntity = context.bookAssetDao.getAll().first { it.assetRole == AssetRole.PRIMARY_TEXT }
+
+        assertNotEquals(coverAsset.storageUri, primaryAsset.storageUri)
+
+        val coverFile = File(URI(coverEntity.storageUri))
+        val primaryFile = File(URI(primaryEntity.storageUri))
+        assertTrue(coverFile.exists())
+        assertTrue(primaryFile.exists())
+
+        val coverBytes = coverFile.readBytes()
+        val primaryBytes = primaryFile.readBytes()
+        val expectedCoverBytes = fixtureZipEntryBytes("sample-cover-first.epub", "OEBPS/images/cover.jpg")
+
+        assertArrayEquals(expectedCoverBytes, coverBytes)
+        assertArrayEquals(fixtureBytes("sample-cover-first.epub"), primaryBytes)
+
+        assertTrue(coverEntity.mime.startsWith("image/"))
+        assertEquals("application/epub+zip", primaryEntity.mime)
+        assertNotEquals(coverEntity.size, primaryEntity.size)
     }
 
     @Test
@@ -90,6 +114,19 @@ class LocalBookImportRepositoryTest {
         }
 
     private fun fixtureBytes(name: String): ByteArray = fixture(name).use { it.readBytes() }
+
+    private fun fixtureZipEntryBytes(name: String, entryPath: String): ByteArray {
+        val bytes = fixtureBytes(name)
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.name == entryPath) {
+                    return zip.readBytes()
+                }
+            }
+        }
+        error("Missing zip entry $entryPath in fixture $name")
+    }
 
     private fun createRepositoryContext(
         bookRecordDao: FakeBookRecordDao = FakeBookRecordDao(),
