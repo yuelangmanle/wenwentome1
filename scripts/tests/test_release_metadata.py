@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from release_metadata import extract_notes, read_version_name  # noqa: E402
+from release_metadata import extract_notes, read_version_name, resolve_release_tag  # noqa: E402
 
 
 class ReleaseMetadataTest(unittest.TestCase):
@@ -30,6 +30,26 @@ class ReleaseMetadataTest(unittest.TestCase):
             """
         )
         self.assertEqual("1.0", version_name)
+
+    def test_resolve_release_tag_uses_git_tag_context_on_push(self):
+        tag_name, version = resolve_release_tag(
+            event_name="push",
+            ref_type="tag",
+            ref_name="v1.0",
+            manual_tag=None,
+        )
+        self.assertEqual("v1.0", tag_name)
+        self.assertEqual("1.0", version)
+
+    def test_resolve_release_tag_uses_manual_tag_on_workflow_dispatch(self):
+        tag_name, version = resolve_release_tag(
+            event_name="workflow_dispatch",
+            ref_type="branch",
+            ref_name="main",
+            manual_tag="v1.0",
+        )
+        self.assertEqual("v1.0", tag_name)
+        self.assertEqual("1.0", version)
 
 
 if __name__ == "__main__":

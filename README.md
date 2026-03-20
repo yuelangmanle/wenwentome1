@@ -12,6 +12,7 @@
 ## 下载
 
 - 正式版本请前往 GitHub Releases 页面下载 `release APK`
+- Release 页面：`https://github.com/yuelangmanle/wenwentome1/releases`
 - 正式发版 tag 采用 `v<major>.<minor>`，例如 `v1.0`
 
 ## 版本信息
