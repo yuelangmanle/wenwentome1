@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag，例如 v1.0"
+        description: "当前 main 版本的 release tag，例如 v1.0"
         required: true
         type: string
 

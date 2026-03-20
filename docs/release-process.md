@@ -32,9 +32,9 @@
 5. 等待 GitHub Actions 的 `android-release` workflow 完成
 6. 在 GitHub Releases 页面检查 Release 标题、说明和 APK 附件
 
-## 手动重发版
+## 手动触发当前版本发版
 
-当 tag 已规划好但需要从 GitHub Actions 页面手动补发时：
+当需要从 GitHub Actions 页面手动触发当前 `main` 上的正式版时：
 
 1. 从 Actions 打开 `android-release`
 2. 选择 `Run workflow`
@@ -43,12 +43,17 @@
 5. 运行后由 workflow 校验 `tag_name`、`versionName` 和 `CHANGELOG.md`
 6. 成功后自动创建或更新对应 GitHub Release
 
+注意：
+
+- 该入口只适用于 `main` 当前版本，不能用来回补已经过去的旧版本 tag
+- 如果某个 tag 已经触发过 `android-release`，优先在该 workflow run 上直接 `Re-run jobs`
+
 ## 规则
 
 - tag 必须与 `versionName` 一致
 - 例如 `versionName = 1.0` 时，tag 必须是 `v1.0`
 - tag 对应提交必须来自 `main`
-- 手动触发 release 时也必须显式填写 `tag_name`
+- 手动触发当前版本 release 时也必须显式填写 `tag_name`
 
 ## 失败排查
 
