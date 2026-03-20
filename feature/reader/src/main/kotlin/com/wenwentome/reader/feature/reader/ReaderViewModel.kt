@@ -26,6 +26,7 @@ class ReaderViewModel(
                 locator = state?.locator,
                 progressPercent = state?.progressPercent ?: 0f,
                 chapterTitle = content.chapterTitle,
+                chapterRef = content.chapterRef ?: state?.chapterRef,
                 paragraphs = content.paragraphs,
                 bookmarks = state?.bookmarks.orEmpty(),
             )

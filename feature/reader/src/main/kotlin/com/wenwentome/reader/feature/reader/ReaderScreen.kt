@@ -63,7 +63,7 @@ fun ReaderScreen(
             Button(
                 onClick = {
                     onLocatorChanged(
-                        state.locator ?: state.chapterTitle ?: "chapter-1",
+                        state.locator ?: state.chapterRef ?: "chapter-1",
                         state.progressPercent,
                     )
                 },

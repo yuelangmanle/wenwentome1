@@ -63,38 +63,36 @@ fun readerContentFlow(
                             )
                             return@flow
                         }
-                        val chapterRef =
-                            state?.chapterRef?.takeIf { it.isNotBlank() }
-                                ?: binding.latestKnownChapterRef?.takeIf { it.isNotBlank() }
-                                ?: withContext(Dispatchers.IO) {
-                                    sourceBridgeRepository.fetchToc(
-                                        sourceId = binding.sourceId,
-                                        remoteBookId = binding.remoteBookId,
-                                    ).firstOrNull()?.chapterRef
-                                }
-                        if (chapterRef == null) {
-                            emit(
-                                ReaderContent(
-                                    chapterTitle = book.title,
-                                    paragraphs = listOf("未找到可阅读章节"),
-                                )
-                            )
-                            return@flow
-                        }
-
                         emit(
                             runCatching {
-                                val remote = withContext(Dispatchers.IO) {
-                                    sourceBridgeRepository.fetchChapterContent(
-                                        sourceId = binding.sourceId,
-                                        chapterRef = chapterRef,
+                                val chapterRef =
+                                    state?.chapterRef?.takeIf { it.isNotBlank() }
+                                        ?: binding.latestKnownChapterRef?.takeIf { it.isNotBlank() }
+                                        ?: withContext(Dispatchers.IO) {
+                                            sourceBridgeRepository.fetchToc(
+                                                sourceId = binding.sourceId,
+                                                remoteBookId = binding.remoteBookId,
+                                            ).firstOrNull()?.chapterRef
+                                        }
+
+                                if (chapterRef == null) {
+                                    ReaderContent(
+                                        chapterTitle = book.title,
+                                        paragraphs = listOf("未找到可阅读章节"),
+                                    )
+                                } else {
+                                    val remote = withContext(Dispatchers.IO) {
+                                        sourceBridgeRepository.fetchChapterContent(
+                                            sourceId = binding.sourceId,
+                                            chapterRef = chapterRef,
+                                        )
+                                    }
+                                    ReaderContent(
+                                        chapterTitle = remote.title.ifBlank { book.title },
+                                        paragraphs = splitToParagraphs(remote.content),
+                                        chapterRef = remote.chapterRef,
                                     )
                                 }
-                                ReaderContent(
-                                    chapterTitle = remote.title.ifBlank { book.title },
-                                    paragraphs = splitToParagraphs(remote.content),
-                                    chapterRef = remote.chapterRef,
-                                )
                             }.getOrElse { error ->
                                 ReaderContent(
                                     chapterTitle = book.title,

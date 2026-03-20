@@ -8,6 +8,7 @@ data class ReaderUiState(
     val locator: String? = null,
     val progressPercent: Float = 0f,
     val chapterTitle: String? = null,
+    val chapterRef: String? = null,
     val paragraphs: List<String> = emptyList(),
     val bookmarks: List<ReadingBookmark> = emptyList(),
 )

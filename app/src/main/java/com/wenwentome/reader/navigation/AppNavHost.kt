@@ -195,7 +195,7 @@ fun AppNavHost(
                 onLocatorChanged = { locator, progress ->
                     viewModel.updateLocator(
                         locator = locator,
-                        chapterRef = state.chapterTitle,
+                        chapterRef = state.chapterRef,
                         progressPercent = progress,
                     )
                 },

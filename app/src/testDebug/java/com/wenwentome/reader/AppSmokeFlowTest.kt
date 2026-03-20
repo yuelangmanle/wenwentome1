@@ -22,7 +22,9 @@ import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.RemoteBinding
 import com.wenwentome.reader.di.AppContainer
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -114,5 +116,136 @@ class AppSmokeFlowTest {
         composeTestRule.onNodeWithText("网文正文桥接将在后续任务接入。").assertDoesNotExist()
         composeTestRule.onNodeWithText("第一章").assertExists()
         composeTestRule.onNodeWithText("真实正文第一段").assertExists()
+    }
+
+    @Test
+    fun openingWebBook_withoutLatestKnownChapterRef_rendersTocFailureMessage() {
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val database =
+            Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+        val fakeBridge = object : SourceBridgeRepository {
+            override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
+                throw UnsupportedOperationException("Not needed in this test")
+
+            override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
+                throw UnsupportedOperationException("Not needed in this test")
+
+            override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> =
+                error("目录拉取失败")
+
+            override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
+                throw UnsupportedOperationException("Not needed in this test")
+        }
+        val appContainer = AppContainer(
+            application = application,
+            databaseOverride = database,
+            sourceBridgeRepositoryOverride = fakeBridge,
+        )
+
+        val bookId = "book-web-toc-error"
+        runBlocking {
+            database.bookRecordDao().upsert(
+                BookRecord(
+                    id = bookId,
+                    title = "目录失败测试书",
+                    author = "测试作者",
+                    originType = OriginType.WEB,
+                    primaryFormat = BookFormat.WEB,
+                    summary = null,
+                ).toEntity()
+            )
+            database.remoteBindingDao().upsert(
+                RemoteBinding(
+                    bookId = bookId,
+                    sourceId = "fake-src",
+                    remoteBookId = "https://example.com/book",
+                    remoteBookUrl = "https://example.com/book",
+                    tocRef = null,
+                    latestKnownChapterRef = null,
+                ).toEntity()
+            )
+        }
+
+        composeTestRule.setContent {
+            ReaderApp(appContainer = appContainer)
+        }
+
+        composeTestRule.onNodeWithTag("book-$bookId").assertExists().performClick()
+        composeTestRule.onNodeWithText("开始阅读").performClick()
+        composeTestRule.onNodeWithTag("reader-screen").assertExists()
+        composeTestRule.onNodeWithText("目录拉取失败").assertExists()
+    }
+
+    @Test
+    fun savingWebBookProgress_persistsRemoteChapterRefInsteadOfTitle() {
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val database =
+            Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+        val chapterRef = "https://example.com/chapter-1"
+        val fakeBridge = object : SourceBridgeRepository {
+            override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
+                throw UnsupportedOperationException("Not needed in this test")
+
+            override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
+                throw UnsupportedOperationException("Not needed in this test")
+
+            override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> =
+                throw UnsupportedOperationException("Not needed in this test")
+
+            override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
+                RemoteChapterContent(
+                    chapterRef = chapterRef,
+                    title = "第一章",
+                    content = "真实正文第一段\n\n真实正文第二段",
+                )
+        }
+        val appContainer = AppContainer(
+            application = application,
+            databaseOverride = database,
+            sourceBridgeRepositoryOverride = fakeBridge,
+        )
+
+        val bookId = "book-web-save-progress"
+        runBlocking {
+            database.bookRecordDao().upsert(
+                BookRecord(
+                    id = bookId,
+                    title = "进度保存测试书",
+                    author = "测试作者",
+                    originType = OriginType.WEB,
+                    primaryFormat = BookFormat.WEB,
+                    summary = null,
+                ).toEntity()
+            )
+            database.remoteBindingDao().upsert(
+                RemoteBinding(
+                    bookId = bookId,
+                    sourceId = "fake-src",
+                    remoteBookId = "https://example.com/book",
+                    remoteBookUrl = "https://example.com/book",
+                    tocRef = chapterRef,
+                    latestKnownChapterRef = chapterRef,
+                ).toEntity()
+            )
+        }
+
+        composeTestRule.setContent {
+            ReaderApp(appContainer = appContainer)
+        }
+
+        composeTestRule.onNodeWithTag("book-$bookId").assertExists().performClick()
+        composeTestRule.onNodeWithText("开始阅读").performClick()
+        composeTestRule.onNodeWithText("保存进度").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        val savedState = runBlocking {
+            database.readingStateDao().observeByBookId(bookId).first()
+        }
+        assertEquals(chapterRef, savedState?.locator)
+        assertEquals(chapterRef, savedState?.chapterRef)
     }
 }

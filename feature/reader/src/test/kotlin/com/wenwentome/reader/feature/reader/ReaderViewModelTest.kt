@@ -32,6 +32,7 @@ class ReaderViewModelTest {
                 ReadingState(
                     bookId = "book-1",
                     locator = "chapter-3",
+                    chapterRef = "chapter-3",
                     progressPercent = 0.31f,
                     bookmarks = listOf(
                         ReadingBookmark(
@@ -47,6 +48,7 @@ class ReaderViewModelTest {
                 ReaderContent(
                     chapterTitle = "第三章",
                     paragraphs = listOf("正文第一段"),
+                    chapterRef = "OPS/chapter-3.xhtml",
                 )
             ),
             updateReadingState = {},
@@ -54,6 +56,7 @@ class ReaderViewModelTest {
 
         val state = viewModel.uiState.first { it.book != null }
         assertEquals("chapter-3", state.locator)
+        assertEquals("OPS/chapter-3.xhtml", state.chapterRef)
         assertEquals(0.31f, state.progressPercent)
         assertEquals(1, state.bookmarks.size)
         assertEquals("第三章", state.chapterTitle)
