@@ -91,7 +91,10 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("discover-result-remote-discover-flow").performClick()
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
-        composeTestRule.onNodeWithTag("discover-result-add-remote-discover-flow").performClick()
+        composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            harness.detailRequestCount() > 1
+        }
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             harness.tocRequestCount() > 0
         }
@@ -189,6 +192,7 @@ class AppReaderFlowTest {
             Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
                 .allowMainThreadQueries()
                 .build()
+        val detailRequests = AtomicInteger(0)
         val tocRequests = AtomicInteger(0)
         val fakeBridge = object : SourceBridgeRepository {
             override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
@@ -206,13 +210,15 @@ class AppReaderFlowTest {
                     )
                 }
 
-            override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
-                RemoteBookDetail(
+            override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail {
+                detailRequests.incrementAndGet()
+                return RemoteBookDetail(
                     title = "发现页阅读最新测试书",
                     author = "测试作者",
                     summary = "用于验证发现页预览和阅读最新的闭环。",
                     lastChapter = "最新章",
                 )
+            }
 
             override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> {
                 tocRequests.incrementAndGet()
@@ -246,6 +252,7 @@ class AppReaderFlowTest {
                 sourceBridgeRepositoryOverride = fakeBridge,
             ),
             database = database,
+            detailRequestCount = detailRequests::get,
             tocRequestCount = tocRequests::get,
         )
     }
@@ -254,6 +261,7 @@ class AppReaderFlowTest {
 private data class DiscoverReaderHarness(
     val appContainer: AppContainer,
     val database: ReaderDatabase,
+    val detailRequestCount: () -> Int,
     val tocRequestCount: () -> Int,
 )
 
