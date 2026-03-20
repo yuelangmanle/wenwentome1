@@ -38,6 +38,7 @@ class DiscoverViewModelTest {
             sourceBridgeRepository = FakeBridgeRepository(searchResults = listOf(sampleSearchResult())),
             addRemoteBookToShelf = addRemoteBookUseCase,
             resolveShelfBookId = { resolvedBookId },
+            ioDispatcher = Dispatchers.Main,
         )
 
         viewModel.search("雪中悍刀行")
@@ -61,6 +62,7 @@ class DiscoverViewModelTest {
                 ),
             ),
             addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            ioDispatcher = Dispatchers.Main,
         )
 
         viewModel.search("雪")
@@ -105,6 +107,7 @@ class DiscoverViewModelTest {
                 ),
             ),
             addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            ioDispatcher = Dispatchers.Main,
         )
 
         viewModel.search("雪中")
@@ -146,6 +149,7 @@ class DiscoverViewModelTest {
             updateReadingState = { state ->
                 persistedChapterRef = state.chapterRef
             },
+            ioDispatcher = Dispatchers.Main,
         )
 
         viewModel.search("雪中")

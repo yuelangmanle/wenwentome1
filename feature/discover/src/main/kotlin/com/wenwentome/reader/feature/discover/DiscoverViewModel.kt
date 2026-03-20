@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.model.ReadingState
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -38,6 +39,7 @@ class DiscoverViewModel(
     },
     private val loadReadingState: suspend (String) -> ReadingState? = { null },
     private val updateReadingState: suspend (ReadingState) -> Unit = {},
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(DiscoverUiState())
     val uiState: StateFlow<DiscoverUiState> = mutableUiState.asStateFlow()
@@ -96,7 +98,7 @@ class DiscoverViewModel(
         viewModelScope.launch {
             mutableUiState.update { it.copy(addingResultIds = it.addingResultIds + resultId) }
             try {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     ensureBookOnShelf(result)
                 }
                 mutableUiState.update {
@@ -118,13 +120,13 @@ class DiscoverViewModel(
         viewModelScope.launch {
             mutableUiState.update { it.copy(refreshingResultIds = it.refreshingResultIds + result.id) }
             try {
-                val ensured = withContext(Dispatchers.IO) {
+                val ensured = withContext(ioDispatcher) {
                     ensureBookOnShelf(result)
                 }
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     refreshRemoteBook(ensured.bookId)
                 }
-                val detail = withContext(Dispatchers.IO) {
+                val detail = withContext(ioDispatcher) {
                     sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
                 }
                 mutableUiState.update {
@@ -147,35 +149,35 @@ class DiscoverViewModel(
         viewModelScope.launch {
             mutableUiState.update { it.copy(refreshingResultIds = it.refreshingResultIds + result.id) }
             try {
-                val ensured = withContext(Dispatchers.IO) {
+                val ensured = withContext(ioDispatcher) {
                     ensureBookOnShelf(result)
                 }
-                val refreshResult = withContext(Dispatchers.IO) {
+                val refreshResult = withContext(ioDispatcher) {
                     refreshRemoteBook(ensured.bookId)
                 }
                 val latestChapterRef = refreshResult.latestKnownChapterRef
                 if (latestChapterRef.isNullOrBlank()) {
                     mutableEvents.tryEmit(DiscoverEvent.OpenBookDetail(bookId = ensured.bookId))
                 } else {
-                    val currentReadingState = withContext(Dispatchers.IO) {
+                    val currentReadingState = withContext(ioDispatcher) {
                         loadReadingState(ensured.bookId)
                     }
-                    withContext(Dispatchers.IO) {
+                    withContext(ioDispatcher) {
                         updateReadingState(
-                        ReadingState(
-                            bookId = ensured.bookId,
-                            locator = latestChapterRef,
-                            chapterRef = latestChapterRef,
-                            progressPercent = currentReadingState?.progressPercent ?: 0f,
-                            bookmarks = currentReadingState?.bookmarks.orEmpty(),
-                            notes = currentReadingState?.notes.orEmpty(),
-                            updatedAt = System.currentTimeMillis(),
+                            ReadingState(
+                                bookId = ensured.bookId,
+                                locator = latestChapterRef,
+                                chapterRef = latestChapterRef,
+                                progressPercent = currentReadingState?.progressPercent ?: 0f,
+                                bookmarks = currentReadingState?.bookmarks.orEmpty(),
+                                notes = currentReadingState?.notes.orEmpty(),
+                                updatedAt = System.currentTimeMillis(),
+                            )
                         )
-                    )
                     }
                     mutableEvents.tryEmit(DiscoverEvent.OpenReader(bookId = ensured.bookId))
                 }
-                val detail = withContext(Dispatchers.IO) {
+                val detail = withContext(ioDispatcher) {
                     sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
                 }
                 mutableUiState.update {
