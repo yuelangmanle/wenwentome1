@@ -17,6 +17,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.material3.Text
 import com.wenwentome.reader.appProjectInfo
+import com.wenwentome.reader.core.model.BookFormat
+import com.wenwentome.reader.core.model.OriginType
+import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.di.AppContainer
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
@@ -42,9 +45,13 @@ import com.wenwentome.reader.feature.settings.ChangelogUiState
 import com.wenwentome.reader.feature.settings.ChangelogViewModel
 import com.wenwentome.reader.feature.settings.SyncSettingsUiState
 import com.wenwentome.reader.feature.settings.SyncSettingsViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val BookDetailRoute = "book/{bookId}"
 private const val ReaderRoute = "reader/{bookId}"
@@ -199,6 +206,20 @@ fun AppNavHost(
                         progressPercent = progress,
                     )
                 },
+                onReaderModeChange = viewModel::setReaderMode,
+                onThemeChange = { theme ->
+                    viewModel.updatePresentation(state.presentation.copy(theme = theme))
+                },
+                onFontSizeChange = { fontSize ->
+                    viewModel.updatePresentation(state.presentation.copy(fontSizeSp = fontSize))
+                },
+                onLineHeightChange = { lineHeight ->
+                    viewModel.updatePresentation(state.presentation.copy(lineHeightMultiplier = lineHeight))
+                },
+                onBrightnessChange = { brightness ->
+                    viewModel.updatePresentation(state.presentation.copy(brightnessPercent = brightness))
+                },
+                onChapterSelected = viewModel::jumpToChapter,
             )
         }
     }
@@ -214,9 +235,15 @@ private fun rememberReaderViewModel(
     val localBookContentRepository = appContainer.localBookContentRepository
     val remoteBindingDao = appContainer.database.remoteBindingDao()
     val sourceBridgeRepository = appContainer.sourceBridgeRepository
+    val preferencesStore = appContainer.preferencesStore
 
     val observeBook = remember(bookId, appContainer) {
         bookRecordDao.observeById(bookId).map { entity ->
+            entity?.toModel()
+        }
+    }
+    val observeBinding = remember(bookId, appContainer) {
+        remoteBindingDao.observeByBookId(bookId).map { entity ->
             entity?.toModel()
         }
     }
@@ -237,6 +264,65 @@ private fun rememberReaderViewModel(
             )
         }
     }
+    val observeChapters = remember(bookId, appContainer) {
+        observeBook.flatMapLatest { book ->
+            when (book?.originType) {
+                null -> flowOf(emptyList())
+                OriginType.LOCAL -> {
+                    flow {
+                        emit(
+                            runCatching {
+                                withContext(Dispatchers.IO) {
+                                    localBookContentRepository.loadChapters(bookId)
+                                }
+                            }.getOrElse {
+                                fallbackLocalChapters(book)
+                            }
+                        )
+                    }
+                }
+                OriginType.WEB, OriginType.MIXED ->
+                    observeBinding.flatMapLatest { binding ->
+                        if (binding == null) {
+                            flowOf(emptyList())
+                        } else {
+                            flow {
+                                emit(
+                                    runCatching {
+                                        withContext(Dispatchers.IO) {
+                                            sourceBridgeRepository.fetchToc(
+                                                sourceId = binding.sourceId,
+                                                remoteBookId = binding.remoteBookId,
+                                            ).mapIndexed { index, chapter ->
+                                                ReaderChapter(
+                                                    chapterRef = chapter.chapterRef,
+                                                    title = chapter.title.ifBlank { "章节 ${index + 1}" },
+                                                    orderIndex = index,
+                                                    sourceType = BookFormat.WEB,
+                                                    locatorHint = chapter.chapterRef,
+                                                    isLatest = chapter.chapterRef == binding.latestKnownChapterRef,
+                                                )
+                                            }
+                                        }
+                                    }.getOrDefault(emptyList())
+                                )
+                            }
+                        }
+                    }
+            }
+        }
+    }
+    val observeLatestChapterRef = remember(bookId, appContainer) {
+        observeBook.flatMapLatest { book ->
+            when (book?.originType) {
+                OriginType.WEB, OriginType.MIXED ->
+                    observeBinding.map { binding ->
+                        binding?.latestKnownChapterRef?.takeIf { it.isNotBlank() }
+                    }
+                else -> flowOf(null)
+            }
+        }
+    }
 
     return remember(bookId, appContainer) {
         ReaderViewModel(
@@ -244,7 +330,28 @@ private fun rememberReaderViewModel(
             observeBook = observeBook,
             observeReadingState = observeReadingState,
             observeContent = observeContent,
+            observeReaderMode = preferencesStore.readerMode,
+            observePresentationPrefs = preferencesStore.presentationPrefs,
+            observeChapters = observeChapters,
+            observeLatestChapterRef = observeLatestChapterRef,
+            saveReaderMode = preferencesStore::saveReaderMode,
+            savePresentationPrefs = preferencesStore::savePresentationPrefs,
             updateReadingState = { state -> readingStateDao.upsert(state.toEntity()) },
         )
     }
 }
+
+private fun fallbackLocalChapters(book: com.wenwentome.reader.core.model.BookRecord?): List<ReaderChapter> =
+    when (book?.primaryFormat) {
+        BookFormat.TXT ->
+            listOf(
+                ReaderChapter(
+                    chapterRef = "txt-body",
+                    title = "正文",
+                    orderIndex = 0,
+                    sourceType = BookFormat.TXT,
+                    locatorHint = "0",
+                )
+            )
+        BookFormat.EPUB, BookFormat.WEB, null -> emptyList()
+    }

@@ -28,6 +28,17 @@ class LocalBookContentRepositoryTest {
     }
 
     @Test
+    fun loadChapters_epubReturnsReadableCatalogWithLocatorHints() = runTest {
+        val repository = createRepository(epubFixture = "sample-cover-first.epub")
+
+        val chapters = repository.loadChapters(bookId = "epub-book")
+
+        assertEquals("第一章", chapters.first().title)
+        assertEquals("OEBPS/chapter1.xhtml", chapters.first().chapterRef)
+        assertEquals("chapter:OEBPS/chapter1.xhtml#paragraph:0", chapters.first().locatorHint)
+    }
+
+    @Test
     fun load_epubRestoresLegacySpineLocatorFrom10WithoutLosingProgress() = runTest {
         val repository = createRepository(epubFixture = "sample-cover-first.epub")
 

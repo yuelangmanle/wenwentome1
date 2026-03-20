@@ -29,6 +29,29 @@ class LocalBookContentRepository(
         }
     }
 
+    suspend fun loadChapters(bookId: String): List<ReaderChapter> {
+        val asset = requireNotNull(bookAssetDao.findPrimaryAsset(bookId)) {
+            "Primary asset missing for $bookId"
+        }
+        return fileStore.open(asset.storageUri).use { inputStream ->
+            when (asset.mime) {
+                "text/plain" ->
+                    listOf(
+                        ReaderChapter(
+                            chapterRef = "txt-body",
+                            title = "正文",
+                            orderIndex = 0,
+                            sourceType = com.wenwentome.reader.core.model.BookFormat.TXT,
+                            locatorHint = "0",
+                        )
+                    )
+
+                "application/epub+zip" -> EpubReader().readEpub(inputStream).let(epubCatalogParser::catalog)
+                else -> emptyList()
+            }
+        }
+    }
+
     private fun renderTxt(inputStream: InputStream, locator: String?): ReaderContent {
         val paragraphs = inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
             reader.readText()
