@@ -1,12 +1,8 @@
 package com.wenwentome.reader.feature.reader
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -43,15 +39,12 @@ class BookDetailScreenTest {
                 onImportPhotoClick = { pickerRequested = true },
                 onRestoreAutomaticCoverClick = {},
             )
-            if (pickerRequested) {
-                Box(modifier = Modifier.testTag("book-cover-picker-requested"))
-            }
         }
 
         composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("cover-import-photo-button"))
         composeTestRule.onNodeWithTag("cover-import-photo-button").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.assertTagExists("book-cover-picker-requested")
+        assertTrue(pickerRequested)
     }
 
     @Test
@@ -120,8 +113,4 @@ class BookDetailScreenTest {
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
     fetchSemanticsNode()
-}
-
-private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.assertTagExists(tag: String) {
-    assertTrue(onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty())
 }
