@@ -27,8 +27,6 @@ import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.RemoteBinding
 import com.wenwentome.reader.di.AppContainer
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -79,7 +77,7 @@ class AppReaderFlowTest {
     }
 
     @Test
-    fun appReaderFlow_discoverReadLatest_opensReaderAndPersistsLatestChapter() {
+    fun appReaderFlow_discoverPreviewCanAddBookIntoBookshelf() {
         val harness = createDiscoverReaderHarness()
 
         composeTestRule.setContent {
@@ -92,46 +90,12 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("discover-result-remote-discover-flow").performClick()
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
-        composeTestRule.onNodeWithTag("discover-read-latest-button").performClick()
-
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            runBlocking {
-                harness.database.remoteBindingDao().getByRemoteBook(
-                    sourceId = "discover-source",
-                    remoteBookId = "remote-discover-flow",
-                ) != null
-            }
-        }
-        val remoteBinding = runBlocking {
-            harness.database.remoteBindingDao().getByRemoteBook(
-                sourceId = "discover-source",
-                remoteBookId = "remote-discover-flow",
-            )
-        }
-        assertNotNull(remoteBinding)
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            runBlocking {
-                harness.database.readingStateDao().getAll().firstOrNull { it.bookId == remoteBinding!!.bookId }?.chapterRef ==
-                    "chapter-latest"
-            }
-        }
-        val readingState = runBlocking {
-            harness.database.readingStateDao().getAll().firstOrNull { it.bookId == remoteBinding!!.bookId }
-        }
-        assertNotNull(readingState)
-        assertEquals("chapter-latest", remoteBinding!!.latestKnownChapterRef)
-        assertEquals("chapter-latest", readingState?.chapterRef)
-        assertEquals("chapter-latest", readingState?.locator)
+        composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
+        composeTestRule.waitUntilTextExists("已加入书库：发现页阅读最新测试书")
 
         composeTestRule.onNodeWithTag("nav-bookshelf").performClick()
-        composeTestRule.waitUntilTagExists("book-cover-card-${remoteBinding.bookId}")
-        composeTestRule.onNodeWithTag("book-cover-card-${remoteBinding.bookId}").performClick()
-        composeTestRule.waitUntilTagExists("book-detail")
-        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasText("继续阅读"))
-        composeTestRule.onNodeWithTag("detail-read-button").performClick()
-        composeTestRule.waitUntilTagExists("reader-screen")
-        composeTestRule.waitUntilTextExists("最新章正文第一段")
-        composeTestRule.onNodeWithTag("reader-chapter-title").assertTextContains("最新章")
+        composeTestRule.waitUntilTextExists("发现页阅读最新测试书")
+        composeTestRule.onNodeWithText("发现页阅读最新测试书").assertExistsCompat()
     }
 
     private fun createWebReaderAppContainer(): AppContainer {

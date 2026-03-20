@@ -155,7 +155,9 @@ private fun SelectedPreviewCard(
                 Button(
                     onClick = { onAddToShelf(selectedId) },
                     enabled = !isAdding,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("discover-preview-add-button"),
                 ) {
                     Text(if (isAdding) "加入中" else "加入书库")
                 }
