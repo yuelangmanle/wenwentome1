@@ -107,8 +107,10 @@ class AppSmokeFlowTest {
         }
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("开始阅读").assertTextEquals("开始阅读")
         composeTestRule.onNodeWithText("开始阅读").performClick()
+        composeTestRule.waitForIdle()
 
         // Task 4: web-origin content should come from source bridge + binding, not placeholder summary.
         assertThrows(AssertionError::class.java) {
@@ -173,7 +175,9 @@ class AppSmokeFlowTest {
         }
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("开始阅读").performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("目录拉取失败").assertTextEquals("目录拉取失败")
     }
 
@@ -237,7 +241,9 @@ class AppSmokeFlowTest {
         }
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("开始阅读").performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("保存进度").performClick()
         composeTestRule.waitForIdle()
 
