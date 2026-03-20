@@ -26,6 +26,7 @@ import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.RemoteBinding
 import com.wenwentome.reader.di.AppContainer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -250,6 +251,7 @@ class AppReaderFlowTest {
                 application = application,
                 databaseOverride = database,
                 sourceBridgeRepositoryOverride = fakeBridge,
+                discoverIoDispatcherOverride = Dispatchers.Main,
             ),
             database = database,
             detailRequestCount = detailRequests::get,

@@ -35,12 +35,15 @@ import com.wenwentome.reader.sync.github.SourceDefinitionSyncStore
 import com.wenwentome.reader.sync.github.SyncFileStore
 import com.wenwentome.reader.sync.github.SyncManifestSerializer
 import com.wenwentome.reader.sync.github.SyncPreferencesStore
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 
 class AppContainer(
     private val application: Application,
     private val databaseOverride: ReaderDatabase? = null,
     private val sourceBridgeRepositoryOverride: SourceBridgeRepository? = null,
+    private val discoverIoDispatcherOverride: CoroutineDispatcher? = null,
 ) {
     val appContext: Context = application
 
@@ -124,6 +127,10 @@ class AppContainer(
             remoteBindingDao = database.remoteBindingDao(),
             readingStateDao = database.readingStateDao(),
         )
+    }
+
+    val discoverIoDispatcher: CoroutineDispatcher by lazy {
+        discoverIoDispatcherOverride ?: Dispatchers.IO
     }
 
     val syncSettingsConfigStore: SyncSettingsConfigStore by lazy {

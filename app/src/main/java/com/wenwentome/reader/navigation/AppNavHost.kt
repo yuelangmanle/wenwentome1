@@ -157,6 +157,7 @@ fun AppNavHost(
             updateReadingState = { state ->
                 readingStateDao.upsert(state.toEntity())
             },
+            ioDispatcher = appContainer.discoverIoDispatcher,
         )
     }
     val discoverState by discoverViewModel.uiState.collectAsState(initial = DiscoverUiState())
