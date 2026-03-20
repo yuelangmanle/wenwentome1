@@ -2,7 +2,10 @@ package com.wenwentome.reader
 
 import android.app.Application
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -107,10 +110,12 @@ class AppSmokeFlowTest {
         }
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntilTagExists("book-detail")
         composeTestRule.onNodeWithText("开始阅读").assertTextEquals("开始阅读")
         composeTestRule.onNodeWithText("开始阅读").performClick()
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.waitUntilTextExists("第一章")
+        composeTestRule.waitUntilTextExists("真实正文第一段")
 
         // Task 4: web-origin content should come from source bridge + binding, not placeholder summary.
         assertThrows(AssertionError::class.java) {
@@ -175,9 +180,10 @@ class AppSmokeFlowTest {
         }
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntilTagExists("book-detail")
         composeTestRule.onNodeWithText("开始阅读").performClick()
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.waitUntilTextExists("目录拉取失败")
         composeTestRule.onNodeWithText("目录拉取失败").assertTextEquals("目录拉取失败")
     }
 
@@ -241,9 +247,10 @@ class AppSmokeFlowTest {
         }
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntilTagExists("book-detail")
         composeTestRule.onNodeWithText("开始阅读").performClick()
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.waitUntilTextExists("第一章")
         composeTestRule.onNodeWithText("保存进度").performClick()
         composeTestRule.waitForIdle()
 
@@ -252,5 +259,17 @@ class AppSmokeFlowTest {
         }
         assertEquals(chapterRef, savedState?.locator)
         assertEquals(chapterRef, savedState?.chapterRef)
+    }
+}
+
+private fun ComposeContentTestRule.waitUntilTagExists(tag: String, timeoutMillis: Long = 5_000) {
+    waitUntil(timeoutMillis = timeoutMillis) {
+        onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+    }
+}
+
+private fun ComposeContentTestRule.waitUntilTextExists(text: String, timeoutMillis: Long = 5_000) {
+    waitUntil(timeoutMillis = timeoutMillis) {
+        onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
     }
 }
