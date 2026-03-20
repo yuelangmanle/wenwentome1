@@ -1,10 +1,7 @@
 package com.wenwentome.reader.feature.discover
 
-import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
-import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
-import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.database.dao.ReadingStateDao
 import com.wenwentome.reader.core.database.dao.RemoteBindingDao
 import com.wenwentome.reader.core.database.entity.ReadingStateEntity
@@ -110,51 +107,6 @@ class RefreshRemoteBookUseCaseTest {
         assertEquals("chapter-2", updatedBinding.latestKnownChapterRef)
         // 即便解析失败，也算一次用户手动刷新，仍然要更新 refresh timestamp
         assertEquals(999L, updatedBinding.lastCatalogRefreshAt)
-    }
-}
-
-private class FakeSourceBridgeRepository(
-    private val detail: RemoteBookDetail,
-    private val toc: List<RemoteChapter>,
-) : SourceBridgeRepository {
-    override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> = emptyList()
-
-    override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail = detail
-
-    override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> = toc
-
-    override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
-        RemoteChapterContent(
-            chapterRef = chapterRef,
-            title = chapterRef,
-            content = "",
-        )
-}
-
-private class FakeRemoteBindingDao : RemoteBindingDao {
-    val bindings = linkedMapOf<String, RemoteBindingEntity>()
-    private val bindingsFlow = MutableStateFlow<Map<String, RemoteBindingEntity>>(emptyMap())
-
-    override suspend fun upsert(entity: RemoteBindingEntity) {
-        bindings[entity.bookId] = entity
-        bindingsFlow.value = bindings.toMap()
-    }
-
-    override suspend fun upsertAll(entities: List<RemoteBindingEntity>) {
-        for (entity in entities) upsert(entity)
-    }
-
-    override fun observeByBookId(bookId: String): Flow<RemoteBindingEntity?> =
-        bindingsFlow.map { it[bookId] }
-
-    override suspend fun getByRemoteBook(sourceId: String, remoteBookId: String): RemoteBindingEntity? =
-        bindings.values.firstOrNull { it.sourceId == sourceId && it.remoteBookId == remoteBookId }
-
-    override suspend fun getAll(): List<RemoteBindingEntity> = bindings.values.toList()
-
-    override suspend fun clearAll() {
-        bindings.clear()
-        bindingsFlow.value = emptyMap()
     }
 }
 

@@ -167,7 +167,7 @@ class AddRemoteBookToShelfUseCaseTest {
     }
 }
 
-private class FakeSourceBridgeRepository(
+internal class FakeSourceBridgeRepository(
     private val detail: RemoteBookDetail = RemoteBookDetail(
         title = "雪中悍刀行",
         author = "烽火戏诸侯",
@@ -220,7 +220,7 @@ private class FakeBookRecordDao : BookRecordDao {
     }
 }
 
-private class FakeRemoteBindingDao : RemoteBindingDao {
+internal class FakeRemoteBindingDao : RemoteBindingDao {
     val bindings = linkedMapOf<String, RemoteBindingEntity>()
     private val bindingsFlow = MutableStateFlow<Map<String, RemoteBindingEntity>>(emptyMap())
 
