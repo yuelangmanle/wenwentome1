@@ -22,13 +22,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 
 @Composable
 fun DiscoverScreen(
     state: DiscoverUiState,
     onSearch: (String) -> Unit,
     onPreview: (String) -> Unit,
-    onAddToShelf: (String) -> Unit,
+    onAddToShelf: (RemoteSearchResult) -> Unit,
     onRefreshSelected: () -> Unit,
     onReadLatest: () -> Unit,
     onManageSources: () -> Unit,
@@ -90,7 +91,7 @@ fun DiscoverScreen(
                     trailingContent = {
                         val isAdding = result.id in state.addingResultIds
                         Button(
-                            onClick = { onAddToShelf(result.id) },
+                            onClick = { onAddToShelf(result) },
                             enabled = !isAdding,
                             modifier = Modifier.testTag("discover-result-add-${result.id}"),
                         ) {
@@ -106,11 +107,12 @@ fun DiscoverScreen(
 @Composable
 private fun SelectedPreviewCard(
     state: DiscoverUiState,
-    onAddToShelf: (String) -> Unit,
+    onAddToShelf: (RemoteSearchResult) -> Unit,
     onRefreshSelected: () -> Unit,
     onReadLatest: () -> Unit,
 ) {
-    val selectedId = state.selectedResultId ?: return
+    val selectedResult = state.selectedResult ?: return
+    val selectedId = selectedResult.id
     val preview = state.selectedPreview
     val isAdding = selectedId in state.addingResultIds
     val isRefreshing = selectedId in state.refreshingResultIds
@@ -127,11 +129,11 @@ private fun SelectedPreviewCard(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = preview?.title ?: "预览加载中",
+                text = preview?.title ?: selectedResult.title,
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                text = preview?.author ?: "未知作者",
+                text = preview?.author ?: selectedResult.author ?: "未知作者",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -154,7 +156,7 @@ private fun SelectedPreviewCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Button(
-                    onClick = { onAddToShelf(selectedId) },
+                    onClick = { onAddToShelf(selectedResult) },
                     enabled = !isAdding,
                     modifier = Modifier
                         .weight(1f)

@@ -43,7 +43,7 @@ class DiscoverViewModelTest {
 
         viewModel.search("雪中悍刀行")
         advanceUntilIdle()
-        viewModel.addToShelf(sampleSearchResult().id)
+        viewModel.addToShelf(viewModel.uiState.value.results.single())
         advanceUntilIdle()
 
         assertEquals("雪中悍刀行", viewModel.uiState.value.lastAddedTitle)
@@ -116,6 +116,7 @@ class DiscoverViewModelTest {
         advanceUntilIdle()
 
         assertEquals("remote-1", viewModel.uiState.value.selectedResultId)
+        assertEquals(sampleSearchResult(), viewModel.uiState.value.selectedResult)
         assertEquals("雪中悍刀行", viewModel.uiState.value.selectedPreview?.title)
         assertEquals("最新章", viewModel.uiState.value.selectedPreview?.lastChapter)
     }

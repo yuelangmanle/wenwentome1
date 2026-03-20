@@ -8,6 +8,7 @@ data class DiscoverUiState(
     val query: String = "",
     val results: List<RemoteSearchResult> = emptyList(),
     val selectedResultId: String? = null,
+    val selectedResult: RemoteSearchResult? = null,
     val selectedPreview: RemoteBookDetail? = null,
     val addingResultIds: Set<String> = emptySet(),
     val refreshingResultIds: Set<String> = emptySet(),

@@ -56,6 +56,7 @@ class DiscoverViewModel(
                 query = query,
                 results = if (query.isBlank()) emptyList() else it.results,
                 selectedResultId = null,
+                selectedResult = null,
                 selectedPreview = null,
                 refreshingResultIds = emptySet(),
             )
@@ -79,6 +80,7 @@ class DiscoverViewModel(
         mutableUiState.update {
             it.copy(
                 selectedResultId = resultId,
+                selectedResult = result,
                 selectedPreview = null,
             )
         }
@@ -92,23 +94,22 @@ class DiscoverViewModel(
         }
     }
 
-    fun addToShelf(resultId: String) {
-        val result = mutableUiState.value.results.firstOrNull { it.id == resultId } ?: return
-        if (resultId in mutableUiState.value.addingResultIds) return
+    fun addToShelf(result: RemoteSearchResult) {
+        if (result.id in mutableUiState.value.addingResultIds) return
         viewModelScope.launch {
-            mutableUiState.update { it.copy(addingResultIds = it.addingResultIds + resultId) }
+            mutableUiState.update { it.copy(addingResultIds = it.addingResultIds + result.id) }
             try {
                 withContext(ioDispatcher) {
                     addRemoteBookToShelf(result)
                 }
                 mutableUiState.update {
                     it.copy(
-                        addingResultIds = it.addingResultIds - resultId,
+                        addingResultIds = it.addingResultIds - result.id,
                         lastAddedTitle = result.title,
                     )
                 }
             } catch (error: Throwable) {
-                mutableUiState.update { it.copy(addingResultIds = it.addingResultIds - resultId) }
+                mutableUiState.update { it.copy(addingResultIds = it.addingResultIds - result.id) }
                 throw error
             }
         }
@@ -195,9 +196,7 @@ class DiscoverViewModel(
     }
 
     private fun selectedResult(): RemoteSearchResult? {
-        val state = mutableUiState.value
-        val selectedId = state.selectedResultId ?: return null
-        return state.results.firstOrNull { it.id == selectedId }
+        return mutableUiState.value.selectedResult
     }
 
     private suspend fun ensureBookOnShelf(result: RemoteSearchResult): EnsuredShelfBook {
