@@ -26,8 +26,10 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
-      - name: Run unit tests and assemble debug APK
-        run: ./gradlew test testDebugUnitTest assembleDebug --stacktrace
+      - name: Run debug unit tests and assemble debug APK
+        # Avoid running debug/release unit-test aggregates together because Room schemas
+        # are exported to the same build directory in core:database.
+        run: ./gradlew testDebugUnitTest assembleDebug --stacktrace
 
       - name: Upload debug APK artifacts
         if: always()
