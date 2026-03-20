@@ -56,7 +56,7 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithText("目录").performClick()
         composeTestRule.waitUntilTagExists("reader-toc-sheet")
         composeTestRule.onNodeWithTag("reader-toc-sheet").assertExistsCompat()
-        composeTestRule.onNodeWithText("最新章").assertExistsCompat()
+        composeTestRule.onNodeWithTag("toc-latest-chapter").assertExistsCompat()
     }
 
     @Test
@@ -91,9 +91,17 @@ class AppReaderFlowTest {
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
         composeTestRule.onNodeWithTag("discover-read-latest-button").performClick()
-        composeTestRule.waitUntilTagExists("reader-screen")
-        composeTestRule.waitUntilTextExists("最新章正文第一段")
-        composeTestRule.onNodeWithTag("reader-chapter-title").assertTextContains("最新章")
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking {
+                val binding = harness.database.remoteBindingDao().getByRemoteBook(
+                    sourceId = "discover-source",
+                    remoteBookId = "remote-discover-flow",
+                ) ?: return@runBlocking false
+                val readingState = harness.database.readingStateDao().observeByBookId(binding.bookId).first()
+                readingState?.chapterRef == "chapter-latest"
+            }
+        }
 
         val remoteBinding = runBlocking {
             harness.database.remoteBindingDao().getByRemoteBook(
@@ -108,6 +116,16 @@ class AppReaderFlowTest {
         assertEquals("chapter-latest", remoteBinding!!.latestKnownChapterRef)
         assertEquals("chapter-latest", readingState?.chapterRef)
         assertEquals("chapter-latest", readingState?.locator)
+
+        composeTestRule.onNodeWithTag("nav-bookshelf").performClick()
+        composeTestRule.waitUntilTagExists("book-cover-card-${remoteBinding.bookId}")
+        composeTestRule.onNodeWithTag("book-cover-card-${remoteBinding.bookId}").performClick()
+        composeTestRule.waitUntilTagExists("book-detail")
+        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasText("继续阅读"))
+        composeTestRule.onNodeWithTag("detail-read-button").performClick()
+        composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.waitUntilTextExists("最新章正文第一段")
+        composeTestRule.onNodeWithTag("reader-chapter-title").assertTextContains("最新章")
     }
 
     private fun createWebReaderAppContainer(): AppContainer {
