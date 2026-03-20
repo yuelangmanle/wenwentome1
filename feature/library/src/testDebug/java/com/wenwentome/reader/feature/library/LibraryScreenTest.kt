@@ -1,6 +1,5 @@
 package com.wenwentome.reader.feature.library
 
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -33,11 +32,11 @@ class LibraryScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("continue-reading-card").assertExists()
-        composeTestRule.onNodeWithTag("book-cover-card-book-1").assertExists()
+        composeTestRule.onNodeWithTag("continue-reading-card").assertExistsCompat()
+        composeTestRule.onNodeWithTag("book-cover-card-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
-        composeTestRule.onNodeWithText("导入照片").assertExists()
-        composeTestRule.onNodeWithText("恢复自动封面").assertExists()
+        composeTestRule.onNodeWithText("导入照片").assertExistsCompat()
+        composeTestRule.onNodeWithText("恢复自动封面").assertExistsCompat()
     }
 
     private fun sampleState() =
@@ -73,4 +72,8 @@ class LibraryScreenTest {
                 )
             ),
         )
+}
+
+private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
+    fetchSemanticsNode()
 }
