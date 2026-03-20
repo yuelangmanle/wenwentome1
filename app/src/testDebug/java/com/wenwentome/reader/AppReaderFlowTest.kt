@@ -31,6 +31,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(RobolectricTestRunner::class)
 class AppReaderFlowTest {
@@ -91,6 +92,9 @@ class AppReaderFlowTest {
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
         composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            harness.tocRequestCount() > 0
+        }
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             runBlocking {
                 harness.database.bookRecordDao().getAll().isNotEmpty()
@@ -185,6 +189,7 @@ class AppReaderFlowTest {
             Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
                 .allowMainThreadQueries()
                 .build()
+        val tocRequests = AtomicInteger(0)
         val fakeBridge = object : SourceBridgeRepository {
             override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
                 if (query.isBlank()) {
@@ -209,11 +214,13 @@ class AppReaderFlowTest {
                     lastChapter = "最新章",
                 )
 
-            override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> =
-                listOf(
+            override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> {
+                tocRequests.incrementAndGet()
+                return listOf(
                     RemoteChapter(chapterRef = "chapter-1", title = "第一章"),
                     RemoteChapter(chapterRef = "chapter-latest", title = "最新章"),
                 )
+            }
 
             override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
                 when (chapterRef) {
@@ -239,6 +246,7 @@ class AppReaderFlowTest {
                 sourceBridgeRepositoryOverride = fakeBridge,
             ),
             database = database,
+            tocRequestCount = tocRequests::get,
         )
     }
 }
@@ -246,6 +254,7 @@ class AppReaderFlowTest {
 private data class DiscoverReaderHarness(
     val appContainer: AppContainer,
     val database: ReaderDatabase,
+    val tocRequestCount: () -> Int,
 )
 
 private fun ComposeContentTestRule.waitUntilTagExists(tag: String, timeoutMillis: Long = 5_000) {
