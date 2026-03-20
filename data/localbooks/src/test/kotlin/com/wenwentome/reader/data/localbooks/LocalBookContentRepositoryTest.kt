@@ -71,6 +71,28 @@ class LocalBookContentRepositoryTest {
         assertEquals("第二章-第一段。", content.paragraphs.first())
     }
 
+    @Test
+    fun load_epubWhenTocAndNavTocBothExist_prefersTocOrder() = runTest {
+        val repository = createRepository(epubFixture = "sample-toc-nav-conflict.epub")
+
+        val content = repository.load(bookId = "epub-book", locator = null)
+
+        // TOC 首章为第二章；nav toc 首章为第一章。应优先取 TOC。
+        assertEquals("目录第二章", content.chapterTitle)
+        assertTrue(content.paragraphs.any { it.contains("第二章-来自TOC首章") })
+    }
+
+    @Test
+    fun load_epubWhenObviousNavIsLandmarks_stillFindsActualTocNavResource() = runTest {
+        val repository = createRepository(epubFixture = "sample-nav-secondary-toc.epub")
+
+        val content = repository.load(bookId = "epub-book", locator = null)
+
+        // 若错误命中 landmarks nav 并直接回退 spine，会落到第二章；正确行为是扫描到 secondary toc nav，落到第一章。
+        assertEquals("第一章-secondary-nav", content.chapterTitle)
+        assertTrue(content.paragraphs.any { it.contains("第一章-secondary-nav-第一段") })
+    }
+
     private fun createRepository(epubFixture: String): LocalBookContentRepository {
         val filesDir = createTempDir(prefix = "localbooks-content-test-")
         val fileStore = LocalBookFileStore(filesDir = filesDir)

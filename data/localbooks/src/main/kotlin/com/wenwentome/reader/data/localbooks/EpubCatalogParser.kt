@@ -180,22 +180,15 @@ class EpubCatalogParser {
 
     private fun resolveNavResource(book: Book): Resource? {
         val htmlResources = book.resources.getAll().filter { resource -> isHtmlLike(resource) }
-        val obviousNav = htmlResources.firstOrNull { resource ->
-            val id = resource.id?.trim()?.lowercase().orEmpty()
-            val fileName = normalizeHref(resource.href).substringAfterLast('/').substringBeforeLast('.').lowercase()
-            id == "nav" || fileName == "nav"
+        if (htmlResources.isEmpty()) {
+            return null
         }
-        if (obviousNav != null) {
-            return obviousNav
-        }
-        return htmlResources.firstOrNull { resource ->
-            val content = runCatching {
-                resource.inputStream.use { inputStream ->
-                    inputStream.readBytes().decodeToString()
-                }
-            }.getOrNull() ?: return@firstOrNull false
-            TOC_NAV_BLOCK_REGEX.containsMatchIn(content)
-        }
+
+        val obviousNavResources = htmlResources.filter(::isObviousNavResource)
+        val remainingResources = htmlResources.filterNot(::isObviousNavResource)
+        val candidates = obviousNavResources + remainingResources
+
+        return candidates.firstOrNull(::containsTocNavBlock)
     }
 
     private fun extractTocNavBlocks(html: String): List<String> {
@@ -253,6 +246,21 @@ class EpubCatalogParser {
             .replace("&#39;", "'")
             .replace(Regex("\\s+"), " ")
             .trim()
+    }
+
+    private fun isObviousNavResource(resource: Resource): Boolean {
+        val id = resource.id?.trim()?.lowercase().orEmpty()
+        val fileName = normalizeHref(resource.href).substringAfterLast('/').substringBeforeLast('.').lowercase()
+        return id == "nav" || fileName == "nav"
+    }
+
+    private fun containsTocNavBlock(resource: Resource): Boolean {
+        val content = runCatching {
+            resource.inputStream.use { inputStream ->
+                inputStream.readBytes().decodeToString()
+            }
+        }.getOrNull() ?: return false
+        return TOC_NAV_BLOCK_REGEX.containsMatchIn(content)
     }
 
     private fun normalizeHref(href: String?): String = href?.substringBefore('#').orEmpty()
