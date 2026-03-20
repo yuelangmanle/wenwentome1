@@ -36,11 +36,12 @@ class AddRemoteBookToShelfUseCaseTest {
             detailUrl = "https://example.com/books/1",
         )
 
-        useCase(result)
-        useCase(result)
+        val firstBookId = useCase(result)
+        val secondBookId = useCase(result)
 
         assertEquals(1, bookRecordDao.records.size)
         assertEquals(1, remoteBindingDao.bindings.size)
+        assertEquals(firstBookId, secondBookId)
     }
 
     @Test
@@ -73,10 +74,11 @@ class AddRemoteBookToShelfUseCaseTest {
             detailUrl = "https://example.com/books/1",
         )
 
-        useCase(result)
+        val returnedBookId = useCase(result)
 
         val bookId = bookRecordDao.records.values.single().id
         val binding = remoteBindingDao.bindings.getValue(bookId)
+        assertEquals(bookId, returnedBookId)
         // 目录定位仍然是“第一章”，不能偷换成最新章
         assertEquals("chapter-1", binding.tocRef)
         // 新增的 metadata: latestKnownChapterRef 应写入最新章

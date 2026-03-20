@@ -183,10 +183,7 @@ class DiscoverViewModel(
         if (existingBookId != null) {
             return EnsuredShelfBook(bookId = existingBookId, wasAdded = false)
         }
-        addRemoteBookToShelf(result)
-        val addedBookId = requireNotNull(resolveShelfBookId(result)) {
-            "Added remote result but no shelf binding found: ${result.id}"
-        }
+        val addedBookId = addRemoteBookToShelf(result)
         return EnsuredShelfBook(bookId = addedBookId, wasAdded = true)
     }
 

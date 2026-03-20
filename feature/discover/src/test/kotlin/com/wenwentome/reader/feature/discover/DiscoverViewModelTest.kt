@@ -30,7 +30,9 @@ class DiscoverViewModelTest {
     fun addingSearchResult_createsBookRecordAndRemoteBinding() = runTest {
         var resolvedBookId: String? = null
         val addRemoteBookUseCase = FakeAddRemoteBookToShelfUseCase { result ->
-            resolvedBookId = "book-${result.id}"
+            val bookId = "book-${result.id}"
+            resolvedBookId = bookId
+            bookId
         }
         val viewModel = DiscoverViewModel(
             sourceBridgeRepository = FakeBridgeRepository(searchResults = listOf(sampleSearchResult())),
@@ -167,13 +169,13 @@ class DiscoverViewModelTest {
 }
 
 private class FakeAddRemoteBookToShelfUseCase(
-    private val onInvoke: ((RemoteSearchResult) -> Unit)? = null,
+    private val onInvoke: ((RemoteSearchResult) -> String)? = null,
 ) : AddRemoteBookToShelf {
     val invocations = mutableListOf<RemoteSearchResult>()
 
-    override suspend fun invoke(result: RemoteSearchResult) {
+    override suspend fun invoke(result: RemoteSearchResult): String {
         invocations += result
-        onInvoke?.invoke(result)
+        return onInvoke?.invoke(result) ?: "book-${result.id}"
     }
 }
 

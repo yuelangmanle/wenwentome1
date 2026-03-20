@@ -14,7 +14,7 @@ import com.wenwentome.reader.core.model.RemoteBinding
 import java.util.UUID
 
 fun interface AddRemoteBookToShelf {
-    suspend operator fun invoke(result: RemoteSearchResult)
+    suspend operator fun invoke(result: RemoteSearchResult): String
 }
 
 private fun normalizeChapterTitleForMatch(raw: String): String {
@@ -71,10 +71,10 @@ class AddRemoteBookToShelfUseCase(
     private val bookRecordDao: BookRecordDao,
     private val remoteBindingDao: RemoteBindingDao,
 ) : AddRemoteBookToShelf {
-    override suspend fun invoke(result: RemoteSearchResult) {
+    override suspend fun invoke(result: RemoteSearchResult): String {
         val existingBinding = remoteBindingDao.getByRemoteBook(result.sourceId, result.id)
         if (existingBinding != null) {
-            return
+            return existingBinding.bookId
         }
         val detail = sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
         val toc = sourceBridgeRepository.fetchToc(result.sourceId, result.id)
@@ -100,5 +100,6 @@ class AddRemoteBookToShelfUseCase(
                 latestKnownChapterRef = latestKnownChapterRef,
             ).toEntity()
         )
+        return book.id
     }
 }
