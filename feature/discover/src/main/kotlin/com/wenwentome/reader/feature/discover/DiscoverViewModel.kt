@@ -99,7 +99,7 @@ class DiscoverViewModel(
             mutableUiState.update { it.copy(addingResultIds = it.addingResultIds + resultId) }
             try {
                 withContext(ioDispatcher) {
-                    ensureBookOnShelf(result)
+                    addRemoteBookToShelf(result)
                 }
                 mutableUiState.update {
                     it.copy(
