@@ -65,6 +65,7 @@ class BookDetailScreenTest {
             )
         }
 
+        composeTestRule.onNodeWithTag("detail-read-button").assertExistsCompat()
         composeTestRule.onNodeWithText("继续阅读").assertExistsCompat()
         composeTestRule.onNodeWithText("查看目录").assertExistsCompat()
         composeTestRule.onNodeWithTag("detail-progress-label").assertTextContains("42%")

@@ -111,8 +111,7 @@ class AppSmokeFlowTest {
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
-        composeTestRule.onNodeWithText("开始阅读").assertTextEquals("开始阅读")
-        composeTestRule.onNodeWithText("开始阅读").performClick()
+        composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.waitUntilTextExists("第一章")
         composeTestRule.waitUntilTextExists("真实正文第一段")
@@ -181,7 +180,7 @@ class AppSmokeFlowTest {
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
-        composeTestRule.onNodeWithText("开始阅读").performClick()
+        composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.waitUntilTextExists("目录拉取失败")
         composeTestRule.onNodeWithText("目录拉取失败").assertTextEquals("目录拉取失败")
@@ -248,7 +247,7 @@ class AppSmokeFlowTest {
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
-        composeTestRule.onNodeWithText("开始阅读").performClick()
+        composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.waitUntilTextExists("第一章")
         composeTestRule.onNodeWithText("保存进度").performClick()

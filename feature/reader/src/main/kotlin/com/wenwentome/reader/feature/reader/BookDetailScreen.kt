@@ -177,7 +177,9 @@ fun BookDetailScreen(
                 ) {
                     Button(
                         onClick = onReadClick,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("detail-read-button"),
                     ) {
                         Text(state.readActionLabel)
                     }
