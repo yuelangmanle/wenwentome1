@@ -4,6 +4,7 @@ import com.wenwentome.reader.core.database.dao.BookAssetDao
 import com.wenwentome.reader.core.database.dao.BookRecordDao
 import com.wenwentome.reader.core.database.dao.ReadingStateDao
 import com.wenwentome.reader.core.database.toEntity
+import com.wenwentome.reader.core.model.AssetRole
 import com.wenwentome.reader.core.model.BookAsset
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.ReadingState
@@ -31,8 +32,10 @@ class LocalBookImportRepository(
         try {
             val assets: List<BookAsset> = parsed.assets.mapIndexed { index, asset ->
                 val hash = sha256Hex(asset.bytes)
+                val assetBaseName = resolveAssetBaseName(asset.assetRole, index)
                 val storageUri = fileStore.persistOriginal(
                     bookId = book.id,
+                    baseName = assetBaseName,
                     extension = asset.extension,
                     bytes = asset.bytes,
                 )
@@ -43,7 +46,7 @@ class LocalBookImportRepository(
                     mime = asset.mime,
                     size = asset.bytes.size.toLong(),
                     hash = hash,
-                    syncPath = "books/${book.id}/asset-$index.${asset.extension}",
+                    syncPath = "books/${book.id}/$assetBaseName.${asset.extension}",
                 )
             }
 
@@ -72,4 +75,11 @@ class LocalBookImportRepository(
         MessageDigest.getInstance("SHA-256")
             .digest(bytes)
             .joinToString("") { b -> "%02x".format(b.toInt() and 0xff) }
+
+    private fun resolveAssetBaseName(assetRole: AssetRole, index: Int): String =
+        when (assetRole) {
+            AssetRole.PRIMARY_TEXT -> "source"
+            AssetRole.COVER -> "cover"
+            AssetRole.CACHE_PACKAGE -> "cache-$index"
+        }
 }

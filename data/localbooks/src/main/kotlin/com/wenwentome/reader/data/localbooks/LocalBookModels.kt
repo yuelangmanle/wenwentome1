@@ -31,3 +31,9 @@ data class ReaderContent(
     val paragraphs: List<String>,
 )
 
+data class EpubLocator(
+    val chapterRef: String,
+    val paragraphIndex: Int,
+) {
+    fun encode(): String = "chapter:$chapterRef#paragraph:$paragraphIndex"
+}

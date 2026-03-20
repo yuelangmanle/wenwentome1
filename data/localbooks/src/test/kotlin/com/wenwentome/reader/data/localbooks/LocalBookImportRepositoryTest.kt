@@ -33,9 +33,9 @@ class LocalBookImportRepositoryTest {
         assertEquals(0f, result.readingState.progressPercent)
         assertEquals(listOf(result.book.id), context.bookRecordDao.getAll().map { it.id })
         assertEquals(listOf(result.book.id), context.readingStateDao.getAll().map { it.bookId })
-        assertEquals(listOf(result.book.id), context.bookAssetDao.getAll().map { it.bookId })
+        assertEquals(setOf(result.book.id), context.bookAssetDao.getAll().map { it.bookId }.toSet())
 
-        val persistedAsset = context.bookAssetDao.getAll().single()
+        val persistedAsset = context.bookAssetDao.getAll().first { it.assetRole == AssetRole.PRIMARY_TEXT }
         val persistedBytes = context.fileStore.open(persistedAsset.storageUri).use { it.readBytes() }
         assertArrayEquals(fixtureBytes("sample.epub"), persistedBytes)
     }
@@ -57,6 +57,16 @@ class LocalBookImportRepositoryTest {
         assertTrue(context.bookRecordDao.getAll().isEmpty())
         assertTrue(context.bookAssetDao.getAll().isEmpty())
         assertTrue(context.readingStateDao.getAll().isEmpty())
+    }
+
+    @Test
+    fun import_epubPersistsCoverAssetSeparatelyFromPrimaryText() = runTest {
+        val context = createRepositoryContext()
+
+        val result = context.repository.import("sample-cover-first.epub", fixture("sample-cover-first.epub"))
+
+        assertTrue(result.assets.any { it.assetRole == AssetRole.COVER })
+        assertTrue(result.assets.any { it.assetRole == AssetRole.PRIMARY_TEXT })
     }
 
     @Test
