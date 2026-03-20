@@ -1,8 +1,10 @@
 package com.wenwentome.reader.feature.reader
 
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -13,6 +15,7 @@ import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.core.model.ReaderMode
 import com.wenwentome.reader.core.model.ReaderPresentationPrefs
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,10 +42,10 @@ class ReaderScreenTest {
         }
 
         composeTestRule.onNodeWithText("模式").performClick()
-        composeTestRule.onNodeWithTag("reader-mode-picker").assertExists()
+        composeTestRule.assertTagExists("reader-mode-picker")
         composeTestRule.onNodeWithText("设置").performClick()
-        composeTestRule.onNodeWithTag("reader-settings-sheet").assertExists()
-        composeTestRule.onNodeWithText("字体大小").assertExists()
+        composeTestRule.assertTagExists("reader-settings-sheet")
+        composeTestRule.assertTextExists("字体大小")
     }
 
     @Test
@@ -63,8 +66,8 @@ class ReaderScreenTest {
         }
 
         composeTestRule.onNodeWithText("目录").performClick()
-        composeTestRule.onNodeWithTag("toc-current-chapter").assertExists()
-        composeTestRule.onNodeWithTag("toc-latest-chapter").assertExists()
+        composeTestRule.assertTagExists("toc-current-chapter")
+        composeTestRule.assertTagExists("toc-latest-chapter")
         composeTestRule.onNodeWithTag("reader-progress-label").assertTextContains("42%")
         assertEquals(emptyList<String>(), locatorChanges)
     }
@@ -106,4 +109,12 @@ class ReaderScreenTest {
             chapterTitle = "第三章",
             paragraphs = listOf("正文第一段"),
         )
+}
+
+private fun ComposeContentTestRule.assertTagExists(tag: String) {
+    assertTrue(onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty())
+}
+
+private fun ComposeContentTestRule.assertTextExists(text: String) {
+    assertTrue(onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty())
 }
