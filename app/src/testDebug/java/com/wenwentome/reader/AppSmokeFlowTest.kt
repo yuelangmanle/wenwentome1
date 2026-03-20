@@ -2,6 +2,7 @@ package com.wenwentome.reader
 
 import android.app.Application
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
@@ -111,6 +113,7 @@ class AppSmokeFlowTest {
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
+        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("detail-read-button"))
         composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.waitUntilTextExists("第一章")
@@ -180,6 +183,7 @@ class AppSmokeFlowTest {
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
+        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("detail-read-button"))
         composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.waitUntilTextExists("目录拉取失败")
@@ -247,6 +251,7 @@ class AppSmokeFlowTest {
 
         composeTestRule.onNodeWithTag("book-$bookId").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
+        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("detail-read-button"))
         composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.waitUntilTextExists("第一章")
