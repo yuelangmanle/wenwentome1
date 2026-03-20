@@ -36,6 +36,41 @@ class LocalBookContentRepositoryTest {
         assertEquals("第一章-第一段。", content.paragraphs.first())
     }
 
+    @Test
+    fun load_epubWithTocMissingAndNavToc_usesNavCatalogBeforeSpine() = runTest {
+        val repository = createRepository(epubFixture = "sample-cover-first.epub")
+
+        val content = repository.load(bookId = "epub-book", locator = null)
+
+        // sample-cover-first 的 spine 可读首章是“第二章”，若这里是“第一章”说明走了 nav toc 而非 spine。
+        assertEquals("第一章", content.chapterTitle)
+        assertTrue(content.paragraphs.first().contains("第一章"))
+    }
+
+    @Test
+    fun load_epubWithNonTocNav_fallsBackToFilteredSpine() = runTest {
+        val repository = createRepository(epubFixture = "sample-nav-landmarks-first.epub")
+
+        val content = repository.load(bookId = "epub-book", locator = null)
+
+        assertEquals("第二章", content.chapterTitle)
+        assertTrue(content.paragraphs.first().contains("第二章"))
+    }
+
+    @Test
+    fun load_epubStructuredLocator_recoversViaRawSpineMappingWhenChapterNotInCatalog() = runTest {
+        val repository = createRepository(epubFixture = "sample-cover-first.epub")
+
+        val content = repository.load(
+            bookId = "epub-book",
+            locator = "chapter:OEBPS/nav.xhtml#paragraph:1",
+        )
+
+        // nav.xhtml 不在可读 catalog 中，应映射到其在 raw spine 附近的可读章节（第二章），而不是回退首章。
+        assertEquals("第二章", content.chapterTitle)
+        assertEquals("第二章-第一段。", content.paragraphs.first())
+    }
+
     private fun createRepository(epubFixture: String): LocalBookContentRepository {
         val filesDir = createTempDir(prefix = "localbooks-content-test-")
         val fileStore = LocalBookFileStore(filesDir = filesDir)

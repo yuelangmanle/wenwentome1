@@ -199,11 +199,7 @@ class EpubCatalogParser {
     }
 
     private fun extractTocNavBlocks(html: String): List<String> {
-        val tocBlocks = TOC_NAV_BLOCK_REGEX.findAll(html).map { it.value }.toList()
-        if (tocBlocks.isNotEmpty()) {
-            return tocBlocks
-        }
-        return GENERIC_NAV_BLOCK_REGEX.findAll(html).map { it.value }.toList()
+        return TOC_NAV_BLOCK_REGEX.findAll(html).map { it.value }.toList()
     }
 
     private fun resolveResourceFromNavHref(book: Book, navHref: String?, navLinkHref: String): Resource? {
@@ -265,7 +261,6 @@ class EpubCatalogParser {
         private val TOC_NAV_BLOCK_REGEX = Regex(
             "(?is)<nav\\b[^>]*(?:epub:type|type|role)\\s*=\\s*['\"][^'\"]*(?:toc|doc-toc)[^'\"]*['\"][^>]*>.*?</nav>",
         )
-        private val GENERIC_NAV_BLOCK_REGEX = Regex("(?is)<nav\\b[^>]*>.*?</nav>")
         private val ANCHOR_TAG_REGEX = Regex("(?is)<a\\b[^>]*href\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>(.*?)</a>")
     }
 

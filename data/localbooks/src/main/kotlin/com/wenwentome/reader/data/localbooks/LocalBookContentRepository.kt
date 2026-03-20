@@ -72,8 +72,17 @@ class LocalBookContentRepository(
         fallbackChapter: ReaderChapter,
     ): EpubLocator {
         parseStructuredEpubLocator(locator)?.let { structured ->
-            val matchedChapter = catalog.firstOrNull { sameChapterRef(it.chapterRef, structured.chapterRef) } ?: fallbackChapter
-            return structured.copy(chapterRef = matchedChapter.chapterRef)
+            val matchedChapter = catalog.firstOrNull { sameChapterRef(it.chapterRef, structured.chapterRef) }
+            if (matchedChapter != null) {
+                return structured.copy(chapterRef = matchedChapter.chapterRef)
+            }
+
+            val recoveredChapter = mapStructuredChapterRefToReadableChapter(
+                book = book,
+                catalog = catalog,
+                chapterRef = structured.chapterRef,
+            ) ?: fallbackChapter
+            return structured.copy(chapterRef = recoveredChapter.chapterRef)
         }
 
         parseLegacyEpubLocator(locator)?.let { (legacyChapterIndex, paragraphIndex) ->
@@ -95,14 +104,35 @@ class LocalBookContentRepository(
         )
     }
 
+    private fun mapStructuredChapterRefToReadableChapter(
+        book: Book,
+        catalog: List<ReaderChapter>,
+        chapterRef: String,
+    ): ReaderChapter? {
+        val normalizedChapterRef = normalizeChapterRef(chapterRef)
+        if (normalizedChapterRef.isBlank()) {
+            return null
+        }
+
+        val spineIndexByRef = findSpineIndexByChapterRef(book, normalizedChapterRef)
+        if (spineIndexByRef >= 0) {
+            return mapLegacySpineIndexToReadableChapter(book, catalog, spineIndexByRef)
+        }
+
+        val resource = book.resources.getByHref(chapterRef) ?: book.resources.getByHref(normalizedChapterRef) ?: return null
+        val spineIndexByResource = findSpineIndexByChapterRef(book, resource.href)
+        if (spineIndexByResource < 0) {
+            return null
+        }
+        return mapLegacySpineIndexToReadableChapter(book, catalog, spineIndexByResource)
+    }
+
     private fun mapLegacySpineIndexToReadableChapter(
         book: Book,
         catalog: List<ReaderChapter>,
         legacySpineIndex: Int,
     ): ReaderChapter? {
-        val spineReferences = book.spine?.spineReferences
-            .orEmpty()
-            .filterIsInstance<SpineReference>()
+        val spineReferences = spineReferences(book)
         if (spineReferences.isEmpty()) {
             return null
         }
@@ -117,6 +147,27 @@ class LocalBookContentRepository(
         }
         return null
     }
+
+    private fun findSpineIndexByChapterRef(book: Book, chapterRef: String): Int {
+        val normalizedChapterRef = normalizeChapterRef(chapterRef)
+        if (normalizedChapterRef.isBlank()) {
+            return -1
+        }
+
+        val spineReferences = spineReferences(book)
+        spineReferences.forEachIndexed { index, spineReference ->
+            val resource = spineReference.resource ?: return@forEachIndexed
+            if (sameChapterRef(resource.href, normalizedChapterRef)) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    private fun spineReferences(book: Book): List<SpineReference> =
+        book.spine?.spineReferences
+            .orEmpty()
+            .filterIsInstance<SpineReference>()
 
     private fun chapterForSpineReference(
         spineReference: SpineReference?,
