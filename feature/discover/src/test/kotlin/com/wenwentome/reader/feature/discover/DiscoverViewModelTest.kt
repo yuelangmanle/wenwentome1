@@ -37,9 +37,9 @@ class DiscoverViewModelTest {
         viewModel.search("雪中悍刀行")
         advanceUntilIdle()
         viewModel.addToShelf(sampleSearchResult().id)
+        advanceUntilIdle()
 
-        val state = viewModel.uiState.first { it.lastAddedTitle != null }
-        assertEquals("雪中悍刀行", state.lastAddedTitle)
+        assertEquals("雪中悍刀行", viewModel.uiState.value.lastAddedTitle)
         assertEquals(1, addRemoteBookUseCase.invocations.size)
     }
 
