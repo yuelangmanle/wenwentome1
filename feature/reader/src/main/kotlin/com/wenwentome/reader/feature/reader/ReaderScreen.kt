@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -22,7 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -47,9 +46,9 @@ fun ReaderScreen(
 ) {
     val saveLocator = state.locatorForSave()
     val palette = state.readerPalette()
-    var showModePicker by rememberSaveable { mutableStateOf(false) }
-    var showSettings by rememberSaveable { mutableStateOf(false) }
-    var showToc by rememberSaveable { mutableStateOf(false) }
+    var showModePicker by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+    var showToc by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
