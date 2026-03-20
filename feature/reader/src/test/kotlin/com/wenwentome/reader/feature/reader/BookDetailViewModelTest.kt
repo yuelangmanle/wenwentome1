@@ -5,6 +5,7 @@ import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.core.model.ReadingState
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -88,7 +89,7 @@ class BookDetailViewModelTest {
             updateReadingState = { state -> persistedState = state },
         )
         viewModel.uiState.first { it.book != null }
-        val eventDeferred = async { viewModel.events.first() }
+        val eventDeferred = async(start = CoroutineStart.UNDISPATCHED) { viewModel.events.first() }
 
         viewModel.jumpToLatest()
         advanceUntilIdle()
