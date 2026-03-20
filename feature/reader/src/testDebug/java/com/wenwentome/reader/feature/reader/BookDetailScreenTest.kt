@@ -4,14 +4,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertTextContains
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performScrollToNode
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
@@ -48,8 +46,7 @@ class BookDetailScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasText("导入照片"))
-        composeTestRule.onNodeWithText("导入照片").performClick()
+        composeTestRule.onNodeWithTag("cover-import-photo-button").performScrollTo().performClick()
         composeTestRule.assertTagExists("book-cover-picker-requested")
     }
 

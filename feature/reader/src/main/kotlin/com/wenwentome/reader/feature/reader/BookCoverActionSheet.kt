@@ -11,6 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -39,13 +40,17 @@ fun BookCoverActionSheet(
             ) {
                 OutlinedButton(
                     onClick = onRefreshCover,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("cover-refresh-button"),
                 ) {
                     Text("刷新封面")
                 }
                 OutlinedButton(
                     onClick = onImportPhoto,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("cover-import-photo-button"),
                 ) {
                     Text("导入照片")
                 }
@@ -53,7 +58,9 @@ fun BookCoverActionSheet(
             onRestoreAutomaticCover?.let { restore ->
                 OutlinedButton(
                     onClick = restore,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("cover-restore-automatic-button"),
                 ) {
                     Text("恢复自动封面")
                 }
