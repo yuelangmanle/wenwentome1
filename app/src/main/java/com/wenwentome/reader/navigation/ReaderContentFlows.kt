@@ -11,6 +11,7 @@ import com.wenwentome.reader.data.localbooks.ReaderContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -65,7 +66,12 @@ fun readerContentFlow(
                         val chapterRef =
                             state?.chapterRef?.takeIf { it.isNotBlank() }
                                 ?: binding.latestKnownChapterRef?.takeIf { it.isNotBlank() }
-                                ?: binding.tocRef?.takeIf { it.isNotBlank() }
+                                ?: withContext(Dispatchers.IO) {
+                                    sourceBridgeRepository.fetchToc(
+                                        sourceId = binding.sourceId,
+                                        remoteBookId = binding.remoteBookId,
+                                    ).firstOrNull()?.chapterRef
+                                }
                         if (chapterRef == null) {
                             emit(
                                 ReaderContent(
@@ -87,6 +93,7 @@ fun readerContentFlow(
                                 ReaderContent(
                                     chapterTitle = remote.title.ifBlank { book.title },
                                     paragraphs = splitToParagraphs(remote.content),
+                                    chapterRef = remote.chapterRef,
                                 )
                             }.getOrElse { error ->
                                 ReaderContent(
@@ -113,4 +120,3 @@ private fun splitToParagraphs(raw: String): List<String> {
         .filter { it.isNotBlank() }
     return if (parts.isEmpty()) listOf(normalized) else parts
 }
-

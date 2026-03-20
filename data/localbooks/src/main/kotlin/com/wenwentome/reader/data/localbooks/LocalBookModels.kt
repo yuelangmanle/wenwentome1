@@ -29,6 +29,7 @@ data class ImportedLocalBook(
 data class ReaderContent(
     val chapterTitle: String,
     val paragraphs: List<String>,
+    val chapterRef: String? = null,
 )
 
 data class EpubLocator(
