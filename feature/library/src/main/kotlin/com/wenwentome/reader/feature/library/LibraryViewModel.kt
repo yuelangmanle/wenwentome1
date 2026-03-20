@@ -3,7 +3,6 @@ package com.wenwentome.reader.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.net.Uri
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -25,7 +24,7 @@ class LibraryViewModel(
                 )
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
+                started = kotlinx.coroutines.flow.SharingStarted.Eagerly,
                 initialValue = LibraryUiState(filter = filter),
             )
 
