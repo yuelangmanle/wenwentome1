@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.model.ReadingState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed interface DiscoverEvent {
     data class OpenBookDetail(
@@ -94,7 +96,9 @@ class DiscoverViewModel(
         viewModelScope.launch {
             mutableUiState.update { it.copy(addingResultIds = it.addingResultIds + resultId) }
             try {
-                ensureBookOnShelf(result)
+                withContext(Dispatchers.IO) {
+                    ensureBookOnShelf(result)
+                }
                 mutableUiState.update {
                     it.copy(
                         addingResultIds = it.addingResultIds - resultId,
@@ -114,9 +118,15 @@ class DiscoverViewModel(
         viewModelScope.launch {
             mutableUiState.update { it.copy(refreshingResultIds = it.refreshingResultIds + result.id) }
             try {
-                val ensured = ensureBookOnShelf(result)
-                refreshRemoteBook(ensured.bookId)
-                val detail = sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                val ensured = withContext(Dispatchers.IO) {
+                    ensureBookOnShelf(result)
+                }
+                withContext(Dispatchers.IO) {
+                    refreshRemoteBook(ensured.bookId)
+                }
+                val detail = withContext(Dispatchers.IO) {
+                    sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                }
                 mutableUiState.update {
                     it.copy(
                         selectedPreview = detail,
@@ -137,14 +147,21 @@ class DiscoverViewModel(
         viewModelScope.launch {
             mutableUiState.update { it.copy(refreshingResultIds = it.refreshingResultIds + result.id) }
             try {
-                val ensured = ensureBookOnShelf(result)
-                val refreshResult = refreshRemoteBook(ensured.bookId)
+                val ensured = withContext(Dispatchers.IO) {
+                    ensureBookOnShelf(result)
+                }
+                val refreshResult = withContext(Dispatchers.IO) {
+                    refreshRemoteBook(ensured.bookId)
+                }
                 val latestChapterRef = refreshResult.latestKnownChapterRef
                 if (latestChapterRef.isNullOrBlank()) {
                     mutableEvents.tryEmit(DiscoverEvent.OpenBookDetail(bookId = ensured.bookId))
                 } else {
-                    val currentReadingState = loadReadingState(ensured.bookId)
-                    updateReadingState(
+                    val currentReadingState = withContext(Dispatchers.IO) {
+                        loadReadingState(ensured.bookId)
+                    }
+                    withContext(Dispatchers.IO) {
+                        updateReadingState(
                         ReadingState(
                             bookId = ensured.bookId,
                             locator = latestChapterRef,
@@ -155,9 +172,12 @@ class DiscoverViewModel(
                             updatedAt = System.currentTimeMillis(),
                         )
                     )
+                    }
                     mutableEvents.tryEmit(DiscoverEvent.OpenReader(bookId = ensured.bookId))
                 }
-                val detail = sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                val detail = withContext(Dispatchers.IO) {
+                    sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                }
                 mutableUiState.update {
                     it.copy(
                         selectedPreview = detail,
