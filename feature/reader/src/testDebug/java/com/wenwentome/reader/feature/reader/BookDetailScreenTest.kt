@@ -50,6 +50,7 @@ class BookDetailScreenTest {
 
         composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("cover-import-photo-button"))
         composeTestRule.onNodeWithTag("cover-import-photo-button").performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.assertTagExists("book-cover-picker-requested")
     }
 
