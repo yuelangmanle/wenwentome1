@@ -7,6 +7,8 @@ import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -80,6 +82,83 @@ class DiscoverViewModelTest {
         assertEquals("雪中", viewModel.uiState.value.query)
         assertEquals(listOf("雪中悍刀行"), viewModel.uiState.value.results.map { it.title })
     }
+
+    @Test
+    fun discoverViewModel_selectResultLoadsPreviewState() = runTest {
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                detailByRemoteBookId = mapOf(
+                    "remote-1" to RemoteBookDetail(
+                        title = "雪中悍刀行",
+                        author = "烽火戏诸侯",
+                        summary = "北凉刀，江湖雪。",
+                        lastChapter = "最新章",
+                    )
+                ),
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+        )
+
+        viewModel.search("雪中")
+        advanceUntilIdle()
+        viewModel.selectResult("remote-1")
+        advanceUntilIdle()
+
+        assertEquals("remote-1", viewModel.uiState.value.selectedResultId)
+        assertEquals("雪中悍刀行", viewModel.uiState.value.selectedPreview?.title)
+        assertEquals("最新章", viewModel.uiState.value.selectedPreview?.lastChapter)
+    }
+
+    @Test
+    fun discoverViewModel_readLatest_refreshesSelectedBookAndOpensReader() = runTest {
+        val addRemoteBookUseCase = FakeAddRemoteBookToShelfUseCase()
+        var refreshedBookId: String? = null
+        var persistedChapterRef: String? = null
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                detailByRemoteBookId = mapOf(
+                    "remote-1" to RemoteBookDetail(
+                        title = "雪中悍刀行",
+                        author = "烽火戏诸侯",
+                        summary = "北凉刀，江湖雪。",
+                        lastChapter = "第十章",
+                    )
+                ),
+            ),
+            addRemoteBookToShelf = addRemoteBookUseCase,
+            resolveShelfBookId = { "book-remote-1" },
+            refreshRemoteBook = { bookId ->
+                refreshedBookId = bookId
+                RefreshRemoteBookResult(
+                    latestKnownChapterRef = "chapter-10",
+                    hasUpdates = true,
+                )
+            },
+            updateReadingState = { state ->
+                persistedChapterRef = state.chapterRef
+            },
+        )
+
+        viewModel.search("雪中")
+        advanceUntilIdle()
+        viewModel.selectResult("remote-1")
+        advanceUntilIdle()
+        val eventDeferred = async(start = CoroutineStart.UNDISPATCHED) { viewModel.events.first() }
+
+        viewModel.readLatest()
+        advanceUntilIdle()
+
+        assertEquals("book-remote-1", refreshedBookId)
+        assertEquals("chapter-10", persistedChapterRef)
+        assertEquals(
+            DiscoverEvent.OpenReader(bookId = "book-remote-1"),
+            eventDeferred.await(),
+        )
+        assertEquals(emptySet<String>(), viewModel.uiState.value.refreshingResultIds)
+        assertEquals("第十章", viewModel.uiState.value.selectedPreview?.lastChapter)
+    }
 }
 
 private class FakeAddRemoteBookToShelfUseCase : AddRemoteBookToShelf {
@@ -93,12 +172,13 @@ private class FakeAddRemoteBookToShelfUseCase : AddRemoteBookToShelf {
 private class FakeBridgeRepository(
     private val searchResults: List<RemoteSearchResult> = emptyList(),
     private val deferredSearchResults: Map<String, CompletableDeferred<List<RemoteSearchResult>>> = emptyMap(),
+    private val detailByRemoteBookId: Map<String, RemoteBookDetail> = emptyMap(),
 ) : SourceBridgeRepository {
     override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
         deferredSearchResults[query]?.await() ?: searchResults
 
     override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
-        RemoteBookDetail(title = remoteBookId)
+        detailByRemoteBookId[remoteBookId] ?: RemoteBookDetail(title = remoteBookId)
 
     override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> = emptyList()
 

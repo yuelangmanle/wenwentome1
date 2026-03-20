@@ -64,6 +64,7 @@ fun ReaderScreen(
                 text = state.chapterTitle ?: state.book?.title.orEmpty(),
                 style = MaterialTheme.typography.titleLarge,
                 color = palette.text,
+                modifier = Modifier.testTag("reader-chapter-title"),
             )
             LinearProgressIndicator(
                 progress = { state.progressPercent.coerceIn(0f, 1f) },

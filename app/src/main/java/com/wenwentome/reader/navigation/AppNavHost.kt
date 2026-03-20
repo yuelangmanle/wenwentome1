@@ -31,6 +31,7 @@ import com.wenwentome.reader.di.AppContainer
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
 import com.wenwentome.reader.feature.discover.AddRemoteBookToShelfUseCase
+import com.wenwentome.reader.feature.discover.DiscoverEvent
 import com.wenwentome.reader.feature.discover.DiscoverScreen
 import com.wenwentome.reader.feature.discover.DiscoverUiState
 import com.wenwentome.reader.feature.discover.DiscoverViewModel
@@ -82,12 +83,14 @@ fun AppNavHost(
     appContainer: AppContainer,
 ) {
     val uriHandler = LocalUriHandler.current
+    val readingStateDao = appContainer.database.readingStateDao()
+    val remoteBindingDao = appContainer.database.remoteBindingDao()
     val libraryViewModel: LibraryViewModel = remember(appContainer) {
         LibraryViewModel(
             observeBookshelf = ObserveBookshelfUseCase.from(
                 bookRecordDao = appContainer.database.bookRecordDao(),
-                readingStateDao = appContainer.database.readingStateDao(),
-                remoteBindingDao = appContainer.database.remoteBindingDao(),
+                readingStateDao = readingStateDao,
+                remoteBindingDao = remoteBindingDao,
                 bookAssetDao = appContainer.database.bookAssetDao(),
             ),
             importLocalBook = { uri -> appContainer.importLocalBook(uri) },
@@ -142,8 +145,18 @@ fun AppNavHost(
             addRemoteBookToShelf = AddRemoteBookToShelfUseCase(
                 sourceBridgeRepository = appContainer.sourceBridgeRepository,
                 bookRecordDao = appContainer.database.bookRecordDao(),
-                remoteBindingDao = appContainer.database.remoteBindingDao(),
+                remoteBindingDao = remoteBindingDao,
             ),
+            resolveShelfBookId = { result ->
+                remoteBindingDao.getByRemoteBook(result.sourceId, result.id)?.bookId
+            },
+            refreshRemoteBook = appContainer.refreshRemoteBook::invoke,
+            loadReadingState = { bookId ->
+                readingStateDao.observeByBookId(bookId).first()?.toModel()
+            },
+            updateReadingState = { state ->
+                readingStateDao.upsert(state.toEntity())
+            },
         )
     }
     val discoverState by discoverViewModel.uiState.collectAsState(initial = DiscoverUiState())
@@ -210,10 +223,21 @@ fun AppNavHost(
             )
         }
         composable(TopLevelDestination.DISCOVER.route) {
+            LaunchedEffect(discoverViewModel) {
+                discoverViewModel.events.collectLatest { event ->
+                    when (event) {
+                        is DiscoverEvent.OpenBookDetail -> navController.navigate("book/${event.bookId}")
+                        is DiscoverEvent.OpenReader -> navController.navigate("reader/${event.bookId}")
+                    }
+                }
+            }
             DiscoverScreen(
                 state = discoverState,
                 onSearch = discoverViewModel::search,
+                onPreview = discoverViewModel::selectResult,
                 onAddToShelf = discoverViewModel::addToShelf,
+                onRefreshSelected = discoverViewModel::refreshSelected,
+                onReadLatest = discoverViewModel::readLatest,
                 onManageSources = { navController.navigate(DiscoverSourcesRoute) },
             )
         }
