@@ -20,9 +20,6 @@ import com.wenwentome.reader.appProjectInfo
 import com.wenwentome.reader.di.AppContainer
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
-import com.wenwentome.reader.core.model.BookRecord
-import com.wenwentome.reader.core.model.OriginType
-import com.wenwentome.reader.data.localbooks.ReaderContent
 import com.wenwentome.reader.feature.discover.AddRemoteBookToShelfUseCase
 import com.wenwentome.reader.feature.discover.DiscoverScreen
 import com.wenwentome.reader.feature.discover.DiscoverUiState
@@ -45,8 +42,6 @@ import com.wenwentome.reader.feature.settings.ChangelogUiState
 import com.wenwentome.reader.feature.settings.ChangelogViewModel
 import com.wenwentome.reader.feature.settings.SyncSettingsUiState
 import com.wenwentome.reader.feature.settings.SyncSettingsViewModel
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -217,6 +212,8 @@ private fun rememberReaderViewModel(
     val bookRecordDao = appContainer.database.bookRecordDao()
     val readingStateDao = appContainer.database.readingStateDao()
     val localBookContentRepository = appContainer.localBookContentRepository
+    val remoteBindingDao = appContainer.database.remoteBindingDao()
+    val sourceBridgeRepository = appContainer.sourceBridgeRepository
 
     val observeBook = remember(bookId, appContainer) {
         bookRecordDao.observeById(bookId).map { entity ->
@@ -234,7 +231,9 @@ private fun rememberReaderViewModel(
                 book = book,
                 bookId = bookId,
                 observeReadingState = observeReadingState,
-                appContainer = appContainer,
+                localBookContentRepository = localBookContentRepository,
+                remoteBindingDao = remoteBindingDao,
+                sourceBridgeRepository = sourceBridgeRepository,
             )
         }
     }
@@ -249,35 +248,3 @@ private fun rememberReaderViewModel(
         )
     }
 }
-
-private fun readerContentFlow(
-    book: BookRecord?,
-    bookId: String,
-    observeReadingState: kotlinx.coroutines.flow.Flow<com.wenwentome.reader.core.model.ReadingState?>,
-    appContainer: AppContainer,
-): kotlinx.coroutines.flow.Flow<ReaderContent> =
-    when (book?.originType) {
-        OriginType.LOCAL -> observeReadingState.flatMapLatest { state ->
-            flow {
-                emit(
-                    runCatching {
-                        appContainer.localBookContentRepository.load(bookId, state?.locator)
-                    }.getOrElse { error ->
-                        ReaderContent(
-                            chapterTitle = book.title,
-                            paragraphs = listOf(error.message ?: "正文加载失败"),
-                        )
-                    }
-                )
-            }
-        }
-
-        OriginType.WEB, OriginType.MIXED -> flowOf(
-            ReaderContent(
-                chapterTitle = book.title,
-                paragraphs = listOf(book.summary ?: "网文正文桥接将在后续任务接入。"),
-            )
-        )
-
-        null -> flowOf(ReaderContent(chapterTitle = "", paragraphs = emptyList()))
-    }

@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.room.Room
 import com.wenwentome.reader.bridge.source.RealSourceBridgeRepository
 import com.wenwentome.reader.bridge.source.SourceDefinitionProvider
+import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.SourceRuleParser
 import com.wenwentome.reader.core.database.MIGRATION_2_3
 import com.wenwentome.reader.core.database.ReaderDatabase
@@ -34,11 +35,15 @@ import com.wenwentome.reader.sync.github.SyncManifestSerializer
 import com.wenwentome.reader.sync.github.SyncPreferencesStore
 import kotlinx.coroutines.flow.map
 
-class AppContainer(private val application: Application) {
+class AppContainer(
+    private val application: Application,
+    private val databaseOverride: ReaderDatabase? = null,
+    private val sourceBridgeRepositoryOverride: SourceBridgeRepository? = null,
+) {
     val appContext: Context = application
 
     val database: ReaderDatabase by lazy {
-        Room.databaseBuilder(
+        databaseOverride ?: Room.databaseBuilder(
             appContext,
             ReaderDatabase::class.java,
             "reader.db",
@@ -84,8 +89,8 @@ class AppContainer(private val application: Application) {
         SourceRuleParser()
     }
 
-    val sourceBridgeRepository: RealSourceBridgeRepository by lazy {
-        RealSourceBridgeRepository(
+    val sourceBridgeRepository: SourceBridgeRepository by lazy {
+        sourceBridgeRepositoryOverride ?: RealSourceBridgeRepository(
             sourceProvider = object : SourceDefinitionProvider {
                 override suspend fun getAll() =
                     database.sourceDefinitionDao().getAll()
