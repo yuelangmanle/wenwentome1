@@ -114,7 +114,7 @@ fun ReaderScreen(
             if (showToc) {
                 ReaderTocSheet(
                     chapters = state.chapters,
-                    currentChapterRef = state.chapterRef,
+                    currentChapterRef = state.tocHighlightedChapterRef ?: state.chapterRef,
                     latestChapterRef = state.latestChapterRef,
                     initialScrollChapterRef = state.chapterRef ?: state.latestChapterRef,
                     progressLabel = state.progressLabel,
