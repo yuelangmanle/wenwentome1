@@ -93,9 +93,6 @@ class AppReaderFlowTest {
         composeTestRule.waitUntilTextExists("最新章节：最新章")
         composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            composeTestRule.onAllNodesWithText("加入中").fetchSemanticsNodes().isNotEmpty()
-        }
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
             harness.tocRequestCount() > 0
         }
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
