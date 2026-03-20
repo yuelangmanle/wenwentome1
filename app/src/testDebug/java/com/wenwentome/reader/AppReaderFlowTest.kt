@@ -26,7 +26,6 @@ import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.RemoteBinding
 import com.wenwentome.reader.di.AppContainer
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -95,17 +94,30 @@ class AppReaderFlowTest {
         composeTestRule.waitUntilTextExists("最新章节：最新章")
         composeTestRule.onNodeWithTag("discover-read-latest-button").performClick()
 
-        val remoteBinding = waitForRemoteBinding(
-            database = harness.database,
-            sourceId = "discover-source",
-            remoteBookId = "remote-discover-flow",
-        )
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking {
+                harness.database.remoteBindingDao().getByRemoteBook(
+                    sourceId = "discover-source",
+                    remoteBookId = "remote-discover-flow",
+                ) != null
+            }
+        }
+        val remoteBinding = runBlocking {
+            harness.database.remoteBindingDao().getByRemoteBook(
+                sourceId = "discover-source",
+                remoteBookId = "remote-discover-flow",
+            )
+        }
         assertNotNull(remoteBinding)
-        val readingState = waitForReadingState(
-            database = harness.database,
-            bookId = remoteBinding!!.bookId,
-            chapterRef = "chapter-latest",
-        )
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking {
+                harness.database.readingStateDao().getAll().firstOrNull { it.bookId == remoteBinding!!.bookId }?.chapterRef ==
+                    "chapter-latest"
+            }
+        }
+        val readingState = runBlocking {
+            harness.database.readingStateDao().getAll().firstOrNull { it.bookId == remoteBinding!!.bookId }
+        }
         assertNotNull(readingState)
         assertEquals("chapter-latest", remoteBinding!!.latestKnownChapterRef)
         assertEquals("chapter-latest", readingState?.chapterRef)
@@ -263,44 +275,6 @@ private data class DiscoverReaderHarness(
     val appContainer: AppContainer,
     val database: ReaderDatabase,
 )
-
-private fun waitForRemoteBinding(
-    database: ReaderDatabase,
-    sourceId: String,
-    remoteBookId: String,
-    timeoutMillis: Long = 5_000,
-): com.wenwentome.reader.core.database.entity.RemoteBindingEntity? {
-    val deadline = System.currentTimeMillis() + timeoutMillis
-    while (System.currentTimeMillis() < deadline) {
-        val binding = runBlocking {
-            database.remoteBindingDao().getByRemoteBook(sourceId = sourceId, remoteBookId = remoteBookId)
-        }
-        if (binding != null) {
-            return binding
-        }
-        Thread.sleep(50)
-    }
-    return null
-}
-
-private fun waitForReadingState(
-    database: ReaderDatabase,
-    bookId: String,
-    chapterRef: String,
-    timeoutMillis: Long = 5_000,
-): com.wenwentome.reader.core.database.entity.ReadingStateEntity? {
-    val deadline = System.currentTimeMillis() + timeoutMillis
-    while (System.currentTimeMillis() < deadline) {
-        val state = runBlocking {
-            database.readingStateDao().observeByBookId(bookId).first()
-        }
-        if (state?.chapterRef == chapterRef) {
-            return state
-        }
-        Thread.sleep(50)
-    }
-    return null
-}
 
 private fun ComposeContentTestRule.waitUntilTagExists(tag: String, timeoutMillis: Long = 5_000) {
     waitUntil(timeoutMillis = timeoutMillis) {
