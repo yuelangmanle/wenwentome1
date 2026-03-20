@@ -92,6 +92,7 @@ fun DiscoverScreen(
                         Button(
                             onClick = { onAddToShelf(result.id) },
                             enabled = !isAdding,
+                            modifier = Modifier.testTag("discover-result-add-${result.id}"),
                         ) {
                             Text(if (isAdding) "加入中" else "加入书库")
                         }

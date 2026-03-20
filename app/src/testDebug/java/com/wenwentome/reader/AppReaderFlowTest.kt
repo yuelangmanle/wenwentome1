@@ -91,7 +91,7 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("discover-result-remote-discover-flow").performClick()
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
-        composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
+        composeTestRule.onNodeWithTag("discover-result-add-remote-discover-flow").performClick()
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             harness.tocRequestCount() > 0
         }
