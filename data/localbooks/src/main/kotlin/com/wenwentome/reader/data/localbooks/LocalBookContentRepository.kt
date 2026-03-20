@@ -62,6 +62,7 @@ class LocalBookContentRepository(
         return ReaderContent(
             chapterTitle = chapter.title,
             paragraphs = allParagraphs.drop(resolvedLocator.paragraphIndex).take(60),
+            chapterRef = chapter.chapterRef,
         )
     }
 

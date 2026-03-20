@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.wenwentome.reader.core.model.BookFormat
 
 @Composable
 fun ReaderScreen(
@@ -23,6 +24,8 @@ fun ReaderScreen(
     onLocatorChanged: (String, Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val saveLocator = state.locatorForSave()
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -62,11 +65,11 @@ fun ReaderScreen(
         item {
             Button(
                 onClick = {
-                    onLocatorChanged(
-                        state.locator ?: state.chapterRef ?: "chapter-1",
-                        state.progressPercent,
-                    )
+                    saveLocator?.let { locator ->
+                        onLocatorChanged(locator, state.progressPercent)
+                    }
                 },
+                enabled = saveLocator != null,
                 modifier = Modifier.padding(top = 8.dp),
             ) {
                 Text("保存进度")
@@ -74,3 +77,12 @@ fun ReaderScreen(
         }
     }
 }
+
+internal fun ReaderUiState.locatorForSave(): String? =
+    locator?.takeIf { it.isNotBlank() }
+        ?: when (book?.primaryFormat) {
+            BookFormat.TXT -> "0"
+            BookFormat.EPUB -> chapterRef?.takeIf { it.isNotBlank() }?.let { "chapter:$it#paragraph:0" }
+            BookFormat.WEB -> chapterRef?.takeIf { it.isNotBlank() }
+            null -> chapterRef?.takeIf { it.isNotBlank() }
+        }
