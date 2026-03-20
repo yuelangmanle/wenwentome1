@@ -10,9 +10,12 @@ import com.wenwentome.reader.core.database.dao.RemoteBindingDao
 import com.wenwentome.reader.core.database.entity.BookRecordEntity
 import com.wenwentome.reader.core.database.entity.RemoteBindingEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class AddRemoteBookToShelfUseCaseTest {
@@ -39,21 +42,66 @@ class AddRemoteBookToShelfUseCaseTest {
         assertEquals(1, bookRecordDao.records.size)
         assertEquals(1, remoteBindingDao.bindings.size)
     }
+
+    @Test
+    fun addRemoteBookToShelfStoresLatestKnownChapterRef() = runTest {
+        val bookRecordDao = FakeBookRecordDao()
+        val remoteBindingDao = FakeRemoteBindingDao()
+        val useCase = AddRemoteBookToShelfUseCase(
+            sourceBridgeRepository = FakeSourceBridgeRepository(
+                detail = RemoteBookDetail(
+                    title = "雪中悍刀行",
+                    author = "烽火戏诸侯",
+                    summary = "北凉刀，江湖雪。",
+                    coverUrl = "https://example.com/cover.jpg",
+                    lastChapter = "第三章",
+                ),
+                toc = listOf(
+                    RemoteChapter(chapterRef = "chapter-1", title = "第一章"),
+                    RemoteChapter(chapterRef = "chapter-2", title = "第二章"),
+                    RemoteChapter(chapterRef = "chapter-3", title = "第三章"),
+                ),
+            ),
+            bookRecordDao = bookRecordDao,
+            remoteBindingDao = remoteBindingDao,
+        )
+        val result = RemoteSearchResult(
+            id = "remote-1",
+            sourceId = "source-1",
+            title = "雪中悍刀行",
+            author = "烽火戏诸侯",
+            detailUrl = "https://example.com/books/1",
+        )
+
+        useCase(result)
+
+        val bookId = bookRecordDao.records.values.single().id
+        val binding = remoteBindingDao.bindings.getValue(bookId)
+        // 目录定位仍然是“第一章”，不能偷换成最新章
+        assertEquals("chapter-1", binding.tocRef)
+        // 新增的 metadata: latestKnownChapterRef 应写入最新章
+        assertEquals("chapter-3", binding.latestKnownChapterRef)
+        // add-to-shelf 不应写 lastCatalogRefreshAt
+        assertNull(binding.lastCatalogRefreshAt)
+    }
 }
 
-private class FakeSourceBridgeRepository : SourceBridgeRepository {
+private class FakeSourceBridgeRepository(
+    private val detail: RemoteBookDetail = RemoteBookDetail(
+        title = "雪中悍刀行",
+        author = "烽火戏诸侯",
+        summary = "北凉刀，江湖雪。",
+        coverUrl = "https://example.com/cover.jpg",
+    ),
+    private val toc: List<RemoteChapter> = listOf(RemoteChapter(chapterRef = "chapter-1", title = "第一章")),
+) : SourceBridgeRepository {
     override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> = emptyList()
 
     override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
-        RemoteBookDetail(
-            title = "雪中悍刀行",
-            author = "烽火戏诸侯",
-            summary = "北凉刀，江湖雪。",
-            coverUrl = "https://example.com/cover.jpg",
-        )
+        detail
 
     override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> =
-        listOf(RemoteChapter(chapterRef = "chapter-1", title = "第一章"))
+        toc
 
     override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
         RemoteChapterContent(
@@ -93,9 +141,11 @@ private class FakeBookRecordDao : BookRecordDao {
 
 private class FakeRemoteBindingDao : RemoteBindingDao {
     val bindings = linkedMapOf<String, RemoteBindingEntity>()
+    private val bindingsFlow = MutableStateFlow<Map<String, RemoteBindingEntity>>(emptyMap())
 
     override suspend fun upsert(entity: RemoteBindingEntity) {
         bindings[entity.bookId] = entity
+        bindingsFlow.value = bindings.toMap()
     }
 
     override suspend fun upsertAll(entities: List<RemoteBindingEntity>) {
@@ -104,7 +154,8 @@ private class FakeRemoteBindingDao : RemoteBindingDao {
         }
     }
 
-    override fun observeByBookId(bookId: String): Flow<RemoteBindingEntity?> = emptyFlow()
+    override fun observeByBookId(bookId: String): Flow<RemoteBindingEntity?> =
+        bindingsFlow.map { it[bookId] }
 
     override suspend fun getByRemoteBook(sourceId: String, remoteBookId: String): RemoteBindingEntity? =
         bindings.values.firstOrNull { it.sourceId == sourceId && it.remoteBookId == remoteBookId }
@@ -113,5 +164,6 @@ private class FakeRemoteBindingDao : RemoteBindingDao {
 
     override suspend fun clearAll() {
         bindings.clear()
+        bindingsFlow.value = emptyMap()
     }
 }

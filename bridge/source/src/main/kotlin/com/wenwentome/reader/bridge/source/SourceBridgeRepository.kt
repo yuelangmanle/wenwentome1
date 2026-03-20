@@ -1,14 +1,10 @@
 package com.wenwentome.reader.bridge.source
 
-import com.wenwentome.reader.bridge.source.model.BookInfoRule
-import com.wenwentome.reader.bridge.source.model.ContentRule
 import com.wenwentome.reader.bridge.source.model.NormalizedSourceDefinition
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
 import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
-import com.wenwentome.reader.bridge.source.model.SearchRule
-import com.wenwentome.reader.bridge.source.model.TocRule
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -152,6 +148,7 @@ class RealSourceBridgeRepository(
             author = document.extract(rule.author),
             summary = document.extract(rule.intro),
             coverUrl = document.extract(rule.coverUrl)?.let { resolveUrl(source.baseUrl, it) },
+            lastChapter = document.extract(rule.lastChapter),
         )
     }
 
