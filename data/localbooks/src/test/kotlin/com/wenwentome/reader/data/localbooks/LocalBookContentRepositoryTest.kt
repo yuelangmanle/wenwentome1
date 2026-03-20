@@ -159,12 +159,19 @@ class LocalBookContentRepositoryTest {
         override fun observeByBookId(bookId: String): Flow<List<BookAssetEntity>> =
             items.asStateFlow().map { list -> list.filter { it.bookId == bookId } }
 
+        override suspend fun findByRole(bookId: String, assetRole: AssetRole): BookAssetEntity? =
+            items.value.firstOrNull { it.bookId == bookId && it.assetRole == assetRole }
+
         override suspend fun clearAll() {
             items.value = emptyList()
         }
 
         override suspend fun deleteByBookId(bookId: String) {
             items.value = items.value.filterNot { it.bookId == bookId }
+        }
+
+        override suspend fun deleteByRole(bookId: String, assetRole: AssetRole) {
+            items.value = items.value.filterNot { it.bookId == bookId && it.assetRole == assetRole }
         }
 
         override suspend fun replaceAll(entities: List<BookAssetEntity>) {

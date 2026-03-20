@@ -1,11 +1,13 @@
 package com.wenwentome.reader.navigation
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -17,7 +19,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.material3.Text
 import com.wenwentome.reader.appProjectInfo
+import com.wenwentome.reader.core.database.entity.BookAssetEntity
 import com.wenwentome.reader.core.model.BookFormat
+import com.wenwentome.reader.core.model.AssetRole
+import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.di.AppContainer
@@ -35,7 +40,10 @@ import com.wenwentome.reader.feature.library.LibraryScreen
 import com.wenwentome.reader.feature.library.LibraryUiState
 import com.wenwentome.reader.feature.library.LibraryViewModel
 import com.wenwentome.reader.feature.library.ObserveBookshelfUseCase
+import com.wenwentome.reader.feature.reader.BookDetailEvent
 import com.wenwentome.reader.feature.reader.BookDetailScreen
+import com.wenwentome.reader.feature.reader.BookDetailUiState
+import com.wenwentome.reader.feature.reader.BookDetailViewModel
 import com.wenwentome.reader.feature.reader.ReaderScreen
 import com.wenwentome.reader.feature.reader.ReaderUiState
 import com.wenwentome.reader.feature.reader.ReaderViewModel
@@ -45,13 +53,20 @@ import com.wenwentome.reader.feature.settings.ChangelogUiState
 import com.wenwentome.reader.feature.settings.ChangelogViewModel
 import com.wenwentome.reader.feature.settings.SyncSettingsUiState
 import com.wenwentome.reader.feature.settings.SyncSettingsViewModel
+import com.wenwentome.reader.data.localbooks.LocalBookFileStore
+import com.wenwentome.reader.data.localbooks.ParsedAsset
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 
 private const val BookDetailRoute = "book/{bookId}"
 private const val ReaderRoute = "reader/{bookId}"
@@ -180,16 +195,48 @@ fun AppNavHost(
         }
         composable(BookDetailRoute) { backStackEntry ->
             val bookId = requireNotNull(backStackEntry.arguments?.getString("bookId"))
-            val viewModel = rememberReaderViewModel(bookId = bookId, appContainer = appContainer)
-            val state by viewModel.uiState.collectAsState(initial = ReaderUiState())
-            val book = state.book
-            if (book == null) {
+            val viewModel = rememberBookDetailViewModel(bookId = bookId, appContainer = appContainer)
+            val state by viewModel.uiState.collectAsState(initial = BookDetailUiState())
+            val coverImportScope = rememberCoroutineScope()
+            val coverPickerLauncher =
+                rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+                    uri ?: return@rememberLauncherForActivityResult
+                    coverImportScope.launch {
+                        val bytes = withContext(Dispatchers.IO) {
+                            appContainer.appContext.contentResolver.openInputStream(uri)?.use { input ->
+                                input.readBytes()
+                            }
+                        } ?: return@launch
+                        val mime = appContainer.appContext.contentResolver.getType(uri) ?: "image/jpeg"
+                        viewModel.importCover(bytes, mime)
+                    }
+                }
+
+            LaunchedEffect(viewModel) {
+                viewModel.events.collectLatest { event ->
+                    when (event) {
+                        is BookDetailEvent.OpenReader -> navController.navigate("reader/${event.bookId}")
+                    }
+                }
+            }
+
+            if (state.book == null) {
                 Text(text = "书籍加载中")
             } else {
                 BookDetailScreen(
-                    book = book,
-                    onReadClick = { navController.navigate("reader/$bookId") },
-                    onSyncClick = { navController.navigate(TopLevelDestination.SETTINGS.route) },
+                    state = state,
+                    onReadClick = viewModel::openReader,
+                    onToggleCatalog = {},
+                    onChapterClick = viewModel::openChapter,
+                    onRefreshCatalogClick = viewModel::refreshCatalog,
+                    onJumpToLatestClick = viewModel::jumpToLatest,
+                    onRefreshCoverClick = viewModel::refreshCover,
+                    onImportPhotoClick = {
+                        coverPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    onRestoreAutomaticCoverClick = viewModel::restoreAutomaticCover,
                 )
             }
         }
@@ -230,99 +277,27 @@ private fun rememberReaderViewModel(
     bookId: String,
     appContainer: AppContainer,
 ): ReaderViewModel {
-    val bookRecordDao = appContainer.database.bookRecordDao()
     val readingStateDao = appContainer.database.readingStateDao()
-    val localBookContentRepository = appContainer.localBookContentRepository
-    val remoteBindingDao = appContainer.database.remoteBindingDao()
-    val sourceBridgeRepository = appContainer.sourceBridgeRepository
     val preferencesStore = appContainer.preferencesStore
-
-    val observeBook = remember(bookId, appContainer) {
-        bookRecordDao.observeById(bookId).map { entity ->
-            entity?.toModel()
-        }
-    }
-    val observeBinding = remember(bookId, appContainer) {
-        remoteBindingDao.observeByBookId(bookId).map { entity ->
-            entity?.toModel()
-        }
-    }
-    val observeReadingState = remember(bookId, appContainer) {
-        readingStateDao.observeByBookId(bookId).map { entity ->
-            entity?.toModel()
-        }
-    }
-    val observeContent = remember(bookId, appContainer) {
-        observeBook.flatMapLatest { book ->
-            readerContentFlow(
-                book = book,
-                bookId = bookId,
-                observeReadingState = observeReadingState,
-                localBookContentRepository = localBookContentRepository,
-                remoteBindingDao = remoteBindingDao,
-                sourceBridgeRepository = sourceBridgeRepository,
-            )
-        }
-    }
-    val observeChapters = remember(bookId, appContainer) {
-        observeBook.flatMapLatest { book ->
-            when (book?.originType) {
-                null -> flowOf(emptyList())
-                OriginType.LOCAL -> {
-                    flow {
-                        emit(
-                            runCatching {
-                                withContext(Dispatchers.IO) {
-                                    localBookContentRepository.loadChapters(bookId)
-                                }
-                            }.getOrElse {
-                                fallbackLocalChapters(book)
-                            }
-                        )
-                    }
-                }
-                OriginType.WEB, OriginType.MIXED ->
-                    observeBinding.flatMapLatest { binding ->
-                        if (binding == null) {
-                            flowOf(emptyList())
-                        } else {
-                            flow {
-                                emit(
-                                    runCatching {
-                                        withContext(Dispatchers.IO) {
-                                            sourceBridgeRepository.fetchToc(
-                                                sourceId = binding.sourceId,
-                                                remoteBookId = binding.remoteBookId,
-                                            ).mapIndexed { index, chapter ->
-                                                ReaderChapter(
-                                                    chapterRef = chapter.chapterRef,
-                                                    title = chapter.title.ifBlank { "章节 ${index + 1}" },
-                                                    orderIndex = index,
-                                                    sourceType = BookFormat.WEB,
-                                                    locatorHint = chapter.chapterRef,
-                                                    isLatest = chapter.chapterRef == binding.latestKnownChapterRef,
-                                                )
-                                            }
-                                        }
-                                    }.getOrDefault(emptyList())
-                                )
-                            }
-                        }
-                    }
-            }
-        }
-    }
-    val observeLatestChapterRef = remember(bookId, appContainer) {
-        observeBook.flatMapLatest { book ->
-            when (book?.originType) {
-                OriginType.WEB, OriginType.MIXED ->
-                    observeBinding.map { binding ->
-                        binding?.latestKnownChapterRef?.takeIf { it.isNotBlank() }
-                    }
-                else -> flowOf(null)
-            }
-        }
-    }
+    val observeBook = rememberObserveBook(bookId = bookId, appContainer = appContainer)
+    val observeBinding = rememberObserveBinding(bookId = bookId, appContainer = appContainer)
+    val observeReadingState = rememberObserveReadingState(bookId = bookId, appContainer = appContainer)
+    val observeContent = rememberObserveContent(
+        bookId = bookId,
+        appContainer = appContainer,
+        observeBook = observeBook,
+        observeReadingState = observeReadingState,
+    )
+    val observeChapters = rememberObserveChapters(
+        bookId = bookId,
+        appContainer = appContainer,
+        observeBook = observeBook,
+        observeBinding = observeBinding,
+    )
+    val observeLatestChapterRef = rememberObserveLatestChapterRef(
+        observeBook = observeBook,
+        observeBinding = observeBinding,
+    )
 
     return remember(bookId, appContainer) {
         ReaderViewModel(
@@ -340,6 +315,347 @@ private fun rememberReaderViewModel(
         )
     }
 }
+
+@Composable
+private fun rememberBookDetailViewModel(
+    bookId: String,
+    appContainer: AppContainer,
+): BookDetailViewModel {
+    val readingStateDao = appContainer.database.readingStateDao()
+    val bookAssetDao = appContainer.database.bookAssetDao()
+    val observeBook = rememberObserveBook(bookId = bookId, appContainer = appContainer)
+    val observeBinding = rememberObserveBinding(bookId = bookId, appContainer = appContainer)
+    val observeReadingState = rememberObserveReadingState(bookId = bookId, appContainer = appContainer)
+    val observeChapters = rememberObserveChapters(
+        bookId = bookId,
+        appContainer = appContainer,
+        observeBook = observeBook,
+        observeBinding = observeBinding,
+    )
+    val observeLatestChapterRef = rememberObserveLatestChapterRef(
+        observeBook = observeBook,
+        observeBinding = observeBinding,
+    )
+    val observeCoverAsset = remember(bookId, appContainer) {
+        bookAssetDao.observeByBookId(bookId).map { assets ->
+            assets.firstOrNull { it.assetRole == AssetRole.COVER }
+        }
+    }
+    val observeAutomaticCover = remember(bookId, appContainer) {
+        combine(observeBook, observeCoverAsset) { book, coverAsset ->
+            book?.cover ?: coverAsset?.takeIf { !isManualCoverAsset(it) }?.storageUri
+        }
+    }
+    val observeManualCover = remember(bookId, appContainer) {
+        observeCoverAsset.map { asset ->
+            asset?.takeIf(::isManualCoverAsset)?.storageUri
+        }
+    }
+
+    return remember(bookId, appContainer) {
+        BookDetailViewModel(
+            bookId = bookId,
+            observeBook = observeBook,
+            observeReadingState = observeReadingState,
+            observeChapters = observeChapters,
+            observeLatestChapterRef = observeLatestChapterRef,
+            observeAutomaticCover = observeAutomaticCover,
+            observeManualCover = observeManualCover,
+            refreshCatalogAction = { targetBookId -> appContainer.refreshRemoteBook(targetBookId) },
+            refreshCoverAction = { refreshBookCover(bookId = bookId, appContainer = appContainer) },
+            importCoverAction = { bytes, mime ->
+                importManualCover(
+                    bookId = bookId,
+                    bytes = bytes,
+                    mime = mime,
+                    appContainer = appContainer,
+                )
+            },
+            restoreAutomaticCoverAction = {
+                restoreAutomaticCover(
+                    bookId = bookId,
+                    appContainer = appContainer,
+                )
+            },
+            updateReadingState = { state -> readingStateDao.upsert(state.toEntity()) },
+        )
+    }
+}
+
+@Composable
+private fun rememberObserveBook(
+    bookId: String,
+    appContainer: AppContainer,
+): Flow<BookRecord?> {
+    val bookRecordDao = appContainer.database.bookRecordDao()
+    return remember(bookId, appContainer) {
+        bookRecordDao.observeById(bookId).map { entity ->
+            entity?.toModel()
+        }
+    }
+}
+
+@Composable
+private fun rememberObserveBinding(
+    bookId: String,
+    appContainer: AppContainer,
+) = remember(bookId, appContainer) {
+    appContainer.database.remoteBindingDao().observeByBookId(bookId).map { entity ->
+        entity?.toModel()
+    }
+}
+
+@Composable
+private fun rememberObserveReadingState(
+    bookId: String,
+    appContainer: AppContainer,
+) = remember(bookId, appContainer) {
+    appContainer.database.readingStateDao().observeByBookId(bookId).map { entity ->
+        entity?.toModel()
+    }
+}
+
+@Composable
+private fun rememberObserveContent(
+    bookId: String,
+    appContainer: AppContainer,
+    observeBook: Flow<BookRecord?>,
+    observeReadingState: Flow<com.wenwentome.reader.core.model.ReadingState?>,
+) = remember(bookId, appContainer, observeBook, observeReadingState) {
+    observeBook.flatMapLatest { book ->
+        readerContentFlow(
+            book = book,
+            bookId = bookId,
+            observeReadingState = observeReadingState,
+            localBookContentRepository = appContainer.localBookContentRepository,
+            remoteBindingDao = appContainer.database.remoteBindingDao(),
+            sourceBridgeRepository = appContainer.sourceBridgeRepository,
+        )
+    }
+}
+
+@Composable
+private fun rememberObserveChapters(
+    bookId: String,
+    appContainer: AppContainer,
+    observeBook: Flow<BookRecord?>,
+    observeBinding: Flow<com.wenwentome.reader.core.model.RemoteBinding?>,
+) = remember(bookId, appContainer, observeBook, observeBinding) {
+    observeBook.flatMapLatest { book ->
+        when (book?.originType) {
+            null -> flowOf(emptyList())
+            OriginType.LOCAL -> {
+                flow {
+                    emit(
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                appContainer.localBookContentRepository.loadChapters(bookId)
+                            }
+                        }.getOrElse {
+                            fallbackLocalChapters(book)
+                        }
+                    )
+                }
+            }
+
+            OriginType.WEB, OriginType.MIXED ->
+                observeBinding.flatMapLatest { binding ->
+                    if (binding == null) {
+                        flowOf(emptyList())
+                    } else {
+                        flow {
+                            emit(
+                                runCatching {
+                                    withContext(Dispatchers.IO) {
+                                        appContainer.sourceBridgeRepository.fetchToc(
+                                            sourceId = binding.sourceId,
+                                            remoteBookId = binding.remoteBookId,
+                                        ).mapIndexed { index, chapter ->
+                                            ReaderChapter(
+                                                chapterRef = chapter.chapterRef,
+                                                title = chapter.title.ifBlank { "章节 ${index + 1}" },
+                                                orderIndex = index,
+                                                sourceType = BookFormat.WEB,
+                                                locatorHint = chapter.chapterRef,
+                                                isLatest = chapter.chapterRef == binding.latestKnownChapterRef,
+                                            )
+                                        }
+                                    }
+                                }.getOrDefault(emptyList())
+                            )
+                        }
+                    }
+                }
+        }
+    }
+}
+
+@Composable
+private fun rememberObserveLatestChapterRef(
+    observeBook: Flow<BookRecord?>,
+    observeBinding: Flow<com.wenwentome.reader.core.model.RemoteBinding?>,
+) = remember(observeBook, observeBinding) {
+    observeBook.flatMapLatest { book ->
+        when (book?.originType) {
+            OriginType.WEB, OriginType.MIXED ->
+                observeBinding.map { binding ->
+                    binding?.latestKnownChapterRef?.takeIf { it.isNotBlank() }
+                }
+
+            else -> flowOf(null)
+        }
+    }
+}
+
+private suspend fun importManualCover(
+    bookId: String,
+    bytes: ByteArray,
+    mime: String,
+    appContainer: AppContainer,
+) {
+    val bookAssetDao = appContainer.database.bookAssetDao()
+    val currentCover = bookAssetDao.findByRole(bookId, AssetRole.COVER)
+    if (currentCover != null) {
+        appContainer.fileStore.delete(currentCover.storageUri)
+    }
+    val extension = extensionForMime(mime)
+    val storageUri = appContainer.fileStore.persistCover(
+        bookId = bookId,
+        extension = extension,
+        bytes = bytes,
+        manualOverride = true,
+    )
+    bookAssetDao.upsert(
+        BookAssetEntity(
+            bookId = bookId,
+            assetRole = AssetRole.COVER,
+            storageUri = storageUri,
+            mime = mime,
+            size = bytes.size.toLong(),
+            hash = sha256Hex(bytes),
+            syncPath = "books/$bookId/${LocalBookFileStore.MANUAL_COVER_BASE_NAME}.$extension",
+        )
+    )
+}
+
+private suspend fun refreshBookCover(
+    bookId: String,
+    appContainer: AppContainer,
+) {
+    val book = appContainer.database.bookRecordDao().observeById(bookId).first()?.toModel() ?: return
+    when (book.originType) {
+        OriginType.LOCAL -> refreshLocalAutomaticCover(bookId = bookId, appContainer = appContainer)
+        OriginType.WEB, OriginType.MIXED -> refreshRemoteAutomaticCover(book = book, appContainer = appContainer)
+    }
+}
+
+private suspend fun restoreAutomaticCover(
+    bookId: String,
+    appContainer: AppContainer,
+) {
+    val book = appContainer.database.bookRecordDao().observeById(bookId).first()?.toModel() ?: return
+    when (book.originType) {
+        OriginType.LOCAL -> refreshLocalAutomaticCover(bookId = bookId, appContainer = appContainer)
+        OriginType.WEB, OriginType.MIXED -> {
+            refreshRemoteAutomaticCover(book = book, appContainer = appContainer)
+            val currentCover = appContainer.database.bookAssetDao().findByRole(bookId, AssetRole.COVER)
+            if (currentCover != null && isManualCoverAsset(currentCover)) {
+                appContainer.fileStore.delete(currentCover.storageUri)
+                appContainer.database.bookAssetDao().deleteByRole(bookId, AssetRole.COVER)
+            }
+        }
+    }
+}
+
+private suspend fun refreshLocalAutomaticCover(
+    bookId: String,
+    appContainer: AppContainer,
+) {
+    val bookAssetDao = appContainer.database.bookAssetDao()
+    val currentCover = bookAssetDao.findByRole(bookId, AssetRole.COVER)
+    val primaryAsset = bookAssetDao.findPrimaryAsset(bookId)
+    if (currentCover != null) {
+        appContainer.fileStore.delete(currentCover.storageUri)
+    }
+    if (primaryAsset == null) {
+        bookAssetDao.deleteByRole(bookId, AssetRole.COVER)
+        return
+    }
+    if (!primaryAsset.mime.contains("epub")) {
+        bookAssetDao.deleteByRole(bookId, AssetRole.COVER)
+        return
+    }
+    val parsed = withContext(Dispatchers.IO) {
+        appContainer.epubBookParser.parse(
+            name = "book-$bookId.epub",
+            inputStream = appContainer.fileStore.open(primaryAsset.storageUri),
+        )
+    }
+    val coverAsset = parsed.assets.firstOrNull { it.assetRole == AssetRole.COVER }
+    if (coverAsset == null) {
+        bookAssetDao.deleteByRole(bookId, AssetRole.COVER)
+        return
+    }
+    persistAutomaticLocalCover(
+        bookId = bookId,
+        asset = coverAsset,
+        appContainer = appContainer,
+    )
+}
+
+private suspend fun persistAutomaticLocalCover(
+    bookId: String,
+    asset: ParsedAsset,
+    appContainer: AppContainer,
+) {
+    val storageUri = appContainer.fileStore.persistCover(
+        bookId = bookId,
+        extension = asset.extension,
+        bytes = asset.bytes,
+        manualOverride = false,
+    )
+    appContainer.database.bookAssetDao().upsert(
+        BookAssetEntity(
+            bookId = bookId,
+            assetRole = AssetRole.COVER,
+            storageUri = storageUri,
+            mime = asset.mime,
+            size = asset.bytes.size.toLong(),
+            hash = sha256Hex(asset.bytes),
+            syncPath = "books/$bookId/${LocalBookFileStore.AUTO_COVER_BASE_NAME}.${asset.extension}",
+        )
+    )
+}
+
+private suspend fun refreshRemoteAutomaticCover(
+    book: BookRecord,
+    appContainer: AppContainer,
+) {
+    val binding = appContainer.database.remoteBindingDao().observeByBookId(book.id).first()?.toModel() ?: return
+    val detail = appContainer.sourceBridgeRepository.fetchBookDetail(binding.sourceId, binding.remoteBookId)
+    appContainer.database.bookRecordDao().upsert(
+        book.copy(
+            cover = detail.coverUrl,
+            updatedAt = System.currentTimeMillis(),
+        ).toEntity()
+    )
+}
+
+private fun isManualCoverAsset(asset: BookAssetEntity): Boolean =
+    asset.syncPath.substringAfterLast('/').startsWith("${LocalBookFileStore.MANUAL_COVER_BASE_NAME}.")
+
+private fun extensionForMime(mime: String): String =
+    when (mime.lowercase()) {
+        "image/png" -> "png"
+        "image/webp" -> "webp"
+        "image/gif" -> "gif"
+        else -> "jpg"
+    }
+
+private fun sha256Hex(bytes: ByteArray): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(bytes)
+        .joinToString("") { b -> "%02x".format(b.toInt() and 0xff) }
 
 private fun fallbackLocalChapters(book: com.wenwentome.reader.core.model.BookRecord?): List<ReaderChapter> =
     when (book?.primaryFormat) {

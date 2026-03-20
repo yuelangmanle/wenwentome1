@@ -22,6 +22,8 @@ import com.wenwentome.reader.data.localbooks.TxtBookParser
 import com.wenwentome.reader.feature.settings.StoredSyncConfig
 import com.wenwentome.reader.feature.settings.ChangelogRepository
 import com.wenwentome.reader.feature.settings.SyncSettingsConfigStore
+import com.wenwentome.reader.feature.discover.RefreshRemoteBook
+import com.wenwentome.reader.feature.discover.RefreshRemoteBookUseCase
 import com.wenwentome.reader.sync.github.BookAssetSyncStore
 import com.wenwentome.reader.sync.github.BookRecordSyncStore
 import com.wenwentome.reader.sync.github.GitHubContentApi
@@ -67,10 +69,14 @@ class AppContainer(
         )
     }
 
+    val epubBookParser: EpubBookParser by lazy {
+        EpubBookParser()
+    }
+
     private val localBookImportRepository: LocalBookImportRepository by lazy {
         LocalBookImportRepository(
             txtParser = TxtBookParser(),
-            epubParser = EpubBookParser(),
+            epubParser = epubBookParser,
             fileStore = fileStore,
             bookRecordDao = database.bookRecordDao(),
             readingStateDao = database.readingStateDao(),
@@ -109,6 +115,14 @@ class AppContainer(
                             }.getOrNull()
                         }
             },
+        )
+    }
+
+    val refreshRemoteBook: RefreshRemoteBook by lazy {
+        RefreshRemoteBookUseCase(
+            sourceBridgeRepository = sourceBridgeRepository,
+            remoteBindingDao = database.remoteBindingDao(),
+            readingStateDao = database.readingStateDao(),
         )
     }
 

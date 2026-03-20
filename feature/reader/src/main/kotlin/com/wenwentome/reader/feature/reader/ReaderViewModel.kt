@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 class ReaderViewModel(
     private val bookId: String,
@@ -130,20 +129,9 @@ class ReaderViewModel(
     }
 }
 
-private fun formatProgressLabel(progressPercent: Float): String =
-    "${(progressPercent.coerceIn(0f, 1f) * 100).roundToInt()}%"
-
 private fun List<ReaderChapter>.withLatestFlag(latestChapterRef: String?): List<ReaderChapter> {
     if (latestChapterRef.isNullOrBlank()) return this
     return map { chapter ->
         chapter.copy(isLatest = chapter.isLatest || chapter.chapterRef == latestChapterRef)
     }
 }
-
-private fun buildLocatorForChapter(format: BookFormat?, chapterRef: String): String? =
-    when (format) {
-        BookFormat.TXT -> "0"
-        BookFormat.EPUB -> "chapter:$chapterRef#paragraph:0"
-        BookFormat.WEB -> chapterRef
-        null -> chapterRef
-    }

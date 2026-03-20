@@ -27,10 +27,34 @@ class LocalBookFileStore(
         return target.toURI().toString()
     }
 
+    fun persistCover(
+        bookId: String,
+        extension: String,
+        bytes: ByteArray,
+        manualOverride: Boolean,
+    ): String =
+        persistOriginal(
+            bookId = bookId,
+            baseName = if (manualOverride) MANUAL_COVER_BASE_NAME else AUTO_COVER_BASE_NAME,
+            extension = extension,
+            bytes = bytes,
+        )
+
     fun open(storageUri: String): InputStream =
         File(URI(storageUri)).inputStream()
 
+    fun delete(storageUri: String) {
+        runCatching {
+            File(URI(storageUri)).delete()
+        }
+    }
+
     fun deleteBook(bookId: String) {
         File(filesDir, "books/$bookId").deleteRecursively()
+    }
+
+    companion object {
+        const val AUTO_COVER_BASE_NAME = "cover"
+        const val MANUAL_COVER_BASE_NAME = "manual-cover"
     }
 }

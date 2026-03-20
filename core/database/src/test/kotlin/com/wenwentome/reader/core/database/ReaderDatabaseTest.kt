@@ -94,6 +94,29 @@ class ReaderDatabaseTest {
     }
 
     @Test
+    fun bookAssetDao_findAndDeleteByRole_roundTripsCoverAsset() = runTest {
+        val database = testDatabase()
+        database.bookAssetDao().upsert(
+            BookAssetEntity(
+                bookId = "book-1",
+                assetRole = AssetRole.COVER,
+                storageUri = "file:///manual-cover.png",
+                mime = "image/png",
+                size = 12L,
+                hash = "cover-hash",
+                syncPath = "books/book-1/manual-cover.png",
+            )
+        )
+
+        val cover = database.bookAssetDao().findByRole("book-1", AssetRole.COVER)
+        assertEquals("file:///manual-cover.png", cover?.storageUri)
+
+        database.bookAssetDao().deleteByRole("book-1", AssetRole.COVER)
+        val deleted = database.bookAssetDao().findByRole("book-1", AssetRole.COVER)
+        assertEquals(null, deleted)
+    }
+
+    @Test
     fun readingStateDao_getAll_returnsInserted() = runTest {
         val database = testDatabase()
         database.readingStateDao().upsert(ReadingStateEntity(bookId = "book-1", progressPercent = 0.1f))
