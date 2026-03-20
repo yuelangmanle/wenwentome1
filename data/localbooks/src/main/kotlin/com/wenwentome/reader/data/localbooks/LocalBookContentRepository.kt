@@ -72,9 +72,8 @@ class LocalBookContentRepository(
         val catalog = epubCatalogParser.catalog(book)
         val fallbackChapter = catalog.firstOrNull() ?: error("EPUB has no readable chapter")
         val resolvedLocator = resolveEpubLocator(locator, book, catalog, fallbackChapter)
-        val chapter = catalog.firstOrNull { sameChapterRef(it.chapterRef, resolvedLocator.chapterRef) } ?: fallbackChapter
-        val resource = book.resources.getByHref(chapter.chapterRef)
-            ?: book.resources.getByHref(normalizeChapterRef(chapter.chapterRef))
+        val chapter = catalog.firstOrNull { sameChapterRef(book, it.chapterRef, resolvedLocator.chapterRef) } ?: fallbackChapter
+        val resource = resolveResourceByChapterRef(book, chapter.chapterRef)
             ?: error("EPUB resource missing for chapterRef: ${chapter.chapterRef}")
 
         val html = resource.inputStream.use { resourceStream ->
@@ -96,7 +95,7 @@ class LocalBookContentRepository(
         fallbackChapter: ReaderChapter,
     ): EpubLocator {
         parseStructuredEpubLocator(locator)?.let { structured ->
-            val matchedChapter = catalog.firstOrNull { sameChapterRef(it.chapterRef, structured.chapterRef) }
+            val matchedChapter = catalog.firstOrNull { sameChapterRef(book, it.chapterRef, structured.chapterRef) }
             if (matchedChapter != null) {
                 return structured.copy(chapterRef = matchedChapter.chapterRef)
             }
@@ -143,7 +142,7 @@ class LocalBookContentRepository(
             return mapLegacySpineIndexToReadableChapter(book, catalog, spineIndexByRef)
         }
 
-        val resource = book.resources.getByHref(chapterRef) ?: book.resources.getByHref(normalizedChapterRef) ?: return null
+        val resource = resolveResourceByChapterRef(book, normalizedChapterRef) ?: return null
         val spineIndexByResource = findSpineIndexByChapterRef(book, resource.href)
         if (spineIndexByResource < 0) {
             return null
@@ -162,12 +161,12 @@ class LocalBookContentRepository(
         }
         val clampedIndex = legacySpineIndex.coerceIn(0, spineReferences.lastIndex)
 
-        chapterForSpineReference(spineReferences.getOrNull(clampedIndex), catalog)?.let { return it }
+        chapterForSpineReference(book, spineReferences.getOrNull(clampedIndex), catalog)?.let { return it }
         for (index in (clampedIndex + 1)..spineReferences.lastIndex) {
-            chapterForSpineReference(spineReferences.getOrNull(index), catalog)?.let { return it }
+            chapterForSpineReference(book, spineReferences.getOrNull(index), catalog)?.let { return it }
         }
         for (index in (clampedIndex - 1) downTo 0) {
-            chapterForSpineReference(spineReferences.getOrNull(index), catalog)?.let { return it }
+            chapterForSpineReference(book, spineReferences.getOrNull(index), catalog)?.let { return it }
         }
         return null
     }
@@ -181,7 +180,7 @@ class LocalBookContentRepository(
         val spineReferences = spineReferences(book)
         spineReferences.forEachIndexed { index, spineReference ->
             val resource = spineReference.resource ?: return@forEachIndexed
-            if (sameChapterRef(resource.href, normalizedChapterRef)) {
+            if (sameChapterRef(book, resource.href, normalizedChapterRef)) {
                 return index
             }
         }
@@ -194,12 +193,13 @@ class LocalBookContentRepository(
             .filterIsInstance<SpineReference>()
 
     private fun chapterForSpineReference(
+        book: Book,
         spineReference: SpineReference?,
         catalog: List<ReaderChapter>,
     ): ReaderChapter? {
         val resource = spineReference?.resource ?: return null
         return catalog.firstOrNull { chapter ->
-            sameChapterRef(chapter.chapterRef, resource.href)
+            sameChapterRef(book, chapter.chapterRef, resource.href)
         }
     }
 
@@ -234,14 +234,59 @@ class LocalBookContentRepository(
         return chapterIndex to paragraphIndex
     }
 
-    private fun sameChapterRef(left: String, right: String): Boolean =
-        normalizeChapterRef(left) == normalizeChapterRef(right)
+    private fun resolveResourceByChapterRef(book: Book, chapterRef: String): nl.siegmann.epublib.domain.Resource? {
+        val normalizedChapterRef = normalizeChapterRef(chapterRef)
+        if (normalizedChapterRef.isBlank()) {
+            return null
+        }
+        book.resources.getByHref(normalizedChapterRef)?.let { return it }
+        val canonicalChapterRef = canonicalizeChapterRef(book, normalizedChapterRef)
+        return book.resources.getAll().firstOrNull { resource ->
+            canonicalizeChapterRef(book, resource.href) == canonicalChapterRef
+        }
+    }
 
-    private fun normalizeChapterRef(chapterRef: String): String = chapterRef.substringBefore('#')
+    private fun sameChapterRef(book: Book, left: String, right: String): Boolean =
+        canonicalizeChapterRef(book, left) == canonicalizeChapterRef(book, right)
+
+    private fun canonicalizeChapterRef(book: Book, chapterRef: String?): String {
+        val normalizedChapterRef = normalizePath(normalizeChapterRef(chapterRef))
+        if (normalizedChapterRef.isBlank()) {
+            return ""
+        }
+        if (normalizedChapterRef.contains("://")) {
+            return normalizedChapterRef
+        }
+        val opfHref = normalizePath(normalizeChapterRef(book.opfResource?.href))
+        val opfDir = opfHref.substringBeforeLast('/', missingDelimiterValue = "")
+        if (opfDir.isBlank()) {
+            return normalizedChapterRef
+        }
+        return if (normalizedChapterRef == opfDir || normalizedChapterRef.startsWith("$opfDir/")) {
+            normalizedChapterRef
+        } else {
+            normalizePath("$opfDir/$normalizedChapterRef")
+        }
+    }
+
+    private fun normalizeChapterRef(chapterRef: String?): String = chapterRef?.substringBefore('#').orEmpty().removePrefix("/")
+
+    private fun normalizePath(path: String): String {
+        val segments = mutableListOf<String>()
+        path.split('/').forEach { segment ->
+            when (segment) {
+                "", "." -> Unit
+                ".." -> if (segments.isNotEmpty()) segments.removeAt(segments.lastIndex)
+                else -> segments += segment
+            }
+        }
+        return segments.joinToString("/")
+    }
 
     private fun extractParagraphsFromHtml(html: String): List<String> {
-        // 1) 去掉 <script>/<style> 块
+        // 1) 去掉不参与正文定位的 head / script / style 块
         var s = html
+            .replace(Regex("(?is)<head[^>]*>.*?</head>"), " ")
             .replace(Regex("(?is)<script[^>]*>.*?</script>"), " ")
             .replace(Regex("(?is)<style[^>]*>.*?</style>"), " ")
 

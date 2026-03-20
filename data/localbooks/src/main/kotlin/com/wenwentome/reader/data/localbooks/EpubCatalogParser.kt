@@ -14,7 +14,7 @@ class EpubCatalogParser {
 
     fun catalog(book: Book): List<ReaderChapter> =
         resolveReadableEntries(book).mapIndexed { index, entry ->
-            val chapterRef = normalizeHref(entry.resource.href)
+            val chapterRef = canonicalizeHref(book, entry.resource.href)
             ReaderChapter(
                 chapterRef = chapterRef,
                 title = resolveChapterTitle(entry, index),
@@ -54,7 +54,7 @@ class EpubCatalogParser {
         references.forEach { tocReference ->
             val resource = tocReference.resource
             if (resource != null && isReadableResource(resource, book)) {
-                val href = normalizeHref(resource.href)
+                val href = canonicalizeHref(book, resource.href)
                 if (href.isNotBlank()) {
                     entriesByHref.putIfAbsent(
                         href,
@@ -97,7 +97,7 @@ class EpubCatalogParser {
                 if (!isReadableResource(resource, book)) {
                     return@forEach
                 }
-                val normalizedHref = normalizeHref(resource.href)
+                val normalizedHref = canonicalizeHref(book, resource.href)
                 if (normalizedHref.isBlank()) {
                     return@forEach
                 }
@@ -127,7 +127,7 @@ class EpubCatalogParser {
             if (!isReadableResource(resource, book)) {
                 return@forEach
             }
-            val href = normalizeHref(resource.href)
+            val href = canonicalizeHref(book, resource.href)
             if (href.isNotBlank()) {
                 entriesByHref.putIfAbsent(
                     href,
@@ -146,7 +146,15 @@ class EpubCatalogParser {
         if (tocTitle != null) {
             return tocTitle
         }
-        return entry.resource.title?.trim().takeUnless { it.isNullOrEmpty() } ?: "章节 ${index + 1}"
+        val resourceTitle = entry.resource.title?.trim().takeUnless { it.isNullOrEmpty() }
+        if (resourceTitle != null) {
+            return resourceTitle
+        }
+        val htmlTitle = extractHtmlTitle(entry.resource)
+        if (htmlTitle != null) {
+            return htmlTitle
+        }
+        return "章节 ${index + 1}"
     }
 
     private fun isReadableResource(resource: Resource, book: Book): Boolean {
@@ -154,9 +162,9 @@ class EpubCatalogParser {
             return false
         }
 
-        val resourceHref = normalizeHref(resource.href)
-        val coverImageHref = book.coverImage?.href?.let(::normalizeHref)
-        val coverPageHref = book.coverPage?.href?.let(::normalizeHref)
+        val resourceHref = canonicalizeHref(book, resource.href)
+        val coverImageHref = book.coverImage?.href?.let { canonicalizeHref(book, it) }
+        val coverPageHref = book.coverPage?.href?.let { canonicalizeHref(book, it) }
         if (resourceHref == coverImageHref || resourceHref == coverPageHref) {
             return false
         }
@@ -200,16 +208,16 @@ class EpubCatalogParser {
         if (normalizedLinkHref.isBlank()) {
             return null
         }
-        book.resources.getByHref(normalizedLinkHref)?.let { return it }
+        findResourceByHref(book, normalizedLinkHref)?.let { return it }
 
         val resolvedRelativeHref = resolveRelativeHref(
-            baseHref = normalizeHref(navHref),
+            baseHref = canonicalizeHref(book, navHref),
             relativeHref = normalizedLinkHref,
         )
         if (resolvedRelativeHref.isBlank()) {
             return null
         }
-        return book.resources.getByHref(resolvedRelativeHref)
+        return findResourceByHref(book, resolvedRelativeHref)
     }
 
     private fun resolveRelativeHref(baseHref: String, relativeHref: String): String {
@@ -263,6 +271,51 @@ class EpubCatalogParser {
         return TOC_NAV_BLOCK_REGEX.containsMatchIn(content)
     }
 
+    private fun extractHtmlTitle(resource: Resource): String? {
+        val html = runCatching {
+            resource.inputStream.use { inputStream ->
+                inputStream.readBytes().decodeToString()
+            }
+        }.getOrNull() ?: return null
+        TITLE_TAG_REGEX.find(html)?.groupValues?.get(1)
+            ?.let(::stripTags)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+        H1_TAG_REGEX.find(html)?.groupValues?.get(1)
+            ?.let(::stripTags)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+        return null
+    }
+
+    private fun findResourceByHref(book: Book, href: String): Resource? {
+        book.resources.getByHref(href)?.let { return it }
+        val canonicalHref = canonicalizeHref(book, href)
+        return book.resources.getAll().firstOrNull { resource ->
+            canonicalizeHref(book, resource.href) == canonicalHref
+        }
+    }
+
+    private fun canonicalizeHref(book: Book, href: String?): String {
+        val normalizedHref = normalizePath(normalizeHref(href))
+        if (normalizedHref.isBlank()) {
+            return ""
+        }
+        if (normalizedHref.contains("://")) {
+            return normalizedHref
+        }
+        val opfHref = normalizePath(normalizeHref(book.opfResource?.href))
+        val opfDir = opfHref.substringBeforeLast('/', missingDelimiterValue = "")
+        if (opfDir.isBlank()) {
+            return normalizedHref
+        }
+        return if (normalizedHref == opfDir || normalizedHref.startsWith("$opfDir/")) {
+            normalizedHref
+        } else {
+            normalizePath("$opfDir/$normalizedHref")
+        }
+    }
+
     private fun normalizeHref(href: String?): String = href?.substringBefore('#').orEmpty()
 
     private companion object {
@@ -270,6 +323,8 @@ class EpubCatalogParser {
             "(?is)<nav\\b[^>]*(?:epub:type|type|role)\\s*=\\s*['\"][^'\"]*(?:toc|doc-toc)[^'\"]*['\"][^>]*>.*?</nav>",
         )
         private val ANCHOR_TAG_REGEX = Regex("(?is)<a\\b[^>]*href\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>(.*?)</a>")
+        private val TITLE_TAG_REGEX = Regex("(?is)<title\\b[^>]*>(.*?)</title>")
+        private val H1_TAG_REGEX = Regex("(?is)<h1\\b[^>]*>(.*?)</h1>")
     }
 
     private data class ReadableEntry(
