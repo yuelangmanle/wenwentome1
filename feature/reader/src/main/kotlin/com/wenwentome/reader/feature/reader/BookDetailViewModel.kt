@@ -45,6 +45,10 @@ class BookDetailViewModel(
         )
 
     val events = mutableEvents.asSharedFlow()
+    private val coverState =
+        combine(observeAutomaticCover, observeManualCover) { automaticCover, manualCover ->
+            automaticCover to manualCover
+        }
 
     val uiState: StateFlow<BookDetailUiState> =
         combine(
@@ -52,9 +56,9 @@ class BookDetailViewModel(
             readingState,
             observeChapters,
             observeLatestChapterRef,
-            observeAutomaticCover,
-            observeManualCover,
-        ) { book, readingState, chapters, latestChapterRef, automaticCover, manualCover ->
+            coverState,
+        ) { book, readingState, chapters, latestChapterRef, coverState ->
+            val (automaticCover, manualCover) = coverState
             val progressPercent = readingState?.progressPercent ?: 0f
             val currentChapterTitle = chapters
                 .firstOrNull { it.chapterRef == readingState?.chapterRef }
