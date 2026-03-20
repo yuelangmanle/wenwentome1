@@ -22,6 +22,7 @@ class LocalBookContentRepositoryTest {
         val content = repository.load(bookId = "epub-book", locator = null)
 
         assertEquals("第一章", content.chapterTitle)
+        assertEquals("OEBPS/chapter1.xhtml", content.chapterRef)
         assertFalse(content.paragraphs.first().contains("Cover"))
         assertTrue(content.paragraphs.any { it.contains("第一章-第一段") })
     }
