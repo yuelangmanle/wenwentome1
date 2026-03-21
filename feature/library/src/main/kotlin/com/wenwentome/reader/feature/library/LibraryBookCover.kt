@@ -165,7 +165,8 @@ private suspend fun loadReadableCoverBitmap(
                 } ?: return@synchronized null
 
                 val bitmap = stream.use { input ->
-                    BitmapFactory.decodeStream(input)?.asImageBitmap()
+                    val bytes = input.readBytes()
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
                 }
                 if (bitmap != null) {
                     LibraryBookCoverBitmapCache.put(coverUri, bitmap)

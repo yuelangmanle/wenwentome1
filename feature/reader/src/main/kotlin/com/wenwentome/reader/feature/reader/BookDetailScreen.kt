@@ -528,7 +528,8 @@ private suspend fun loadLocalCoverBitmap(
         } ?: return@withContext null
 
         stream.use { input ->
-            BitmapFactory.decodeStream(input)?.asImageBitmap()
+            val bytes = input.readBytes()
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
         }
     }
 
