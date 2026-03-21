@@ -31,7 +31,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,9 +43,6 @@ import androidx.compose.ui.unit.sp
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.ReaderMode
 import com.wenwentome.reader.core.model.ReaderTheme
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
 @Composable
@@ -62,14 +58,32 @@ fun ReaderScreen(
     modifier: Modifier = Modifier,
 ) {
     val palette = state.readerPalette()
-    val readerPages = remember(state.book?.primaryFormat, state.chapterRef, state.paragraphs, state.presentation.fontSizeSp, state.readerMode) {
-        state.toReaderPages()
-    }
-    val initialParagraphIndex = remember(state.book?.primaryFormat, state.locator) {
-        paragraphIndexFromLocator(
+    val baseParagraphIndex = remember(state.book?.primaryFormat, state.locator) {
+        windowBaseParagraphIndex(
             format = state.book?.primaryFormat,
             locator = state.locator,
         )
+    }
+    val readerPages = remember(
+        state.book?.primaryFormat,
+        state.chapterRef,
+        state.paragraphs,
+        state.presentation.fontSizeSp,
+        state.readerMode,
+        baseParagraphIndex,
+    ) {
+        state.toReaderPages(baseParagraphIndex = baseParagraphIndex)
+    }
+    val initialParagraphIndex = remember(state.book?.primaryFormat) {
+        when (state.book?.primaryFormat) {
+            BookFormat.TXT,
+            BookFormat.EPUB -> 0
+            BookFormat.WEB,
+            null -> paragraphIndexFromLocator(
+                format = state.book?.primaryFormat,
+                locator = state.locator,
+            )
+        }
     }
     val initialPageIndex = remember(readerPages, state.book?.primaryFormat, state.locator) {
         pageIndexFromLocator(
@@ -102,47 +116,10 @@ fun ReaderScreen(
     }
 
     LaunchedEffect(state.locator, state.readerMode, state.paragraphs.size) {
-        val targetIndex = paragraphIndexFromLocator(
-            format = state.book?.primaryFormat,
-            locator = state.locator,
-        ).coerceIn(0, state.paragraphs.lastIndex.coerceAtLeast(0))
+        val targetIndex = initialParagraphIndex.coerceIn(0, state.paragraphs.lastIndex.coerceAtLeast(0))
         if (state.readerMode == ReaderMode.VERTICAL_SCROLL && verticalListState.firstVisibleItemIndex != targetIndex) {
             verticalListState.scrollToItem(targetIndex)
         }
-    }
-
-    LaunchedEffect(
-        state.readerMode,
-        state.book?.primaryFormat,
-        state.chapterRef,
-        state.locator,
-        readerPages.size,
-        state.paragraphs.size,
-    ) {
-        when (state.readerMode) {
-            ReaderMode.SIMULATED_PAGE_TURN,
-            ReaderMode.HORIZONTAL_PAGING ->
-                snapshotFlow {
-                    pagerViewportPosition(
-                        pages = readerPages,
-                        currentPage = pagerState.currentPage,
-                    )
-                }
-
-            ReaderMode.VERTICAL_SCROLL ->
-                snapshotFlow {
-                    verticalViewportPosition(
-                        state = state,
-                        paragraphIndex = verticalListState.firstVisibleItemIndex,
-                    )
-                }
-        }
-            .drop(1)
-            .distinctUntilChanged()
-            .collect { position ->
-                val locator = position.locator ?: return@collect
-                onLocatorChanged(locator, position.progressPercent)
-            }
     }
 
     val currentPosition = when (state.readerMode) {
@@ -157,6 +134,7 @@ fun ReaderScreen(
             verticalViewportPosition(
                 state = state,
                 paragraphIndex = verticalListState.firstVisibleItemIndex,
+                baseParagraphIndex = baseParagraphIndex,
             )
     }
 
@@ -177,11 +155,11 @@ fun ReaderScreen(
                 modifier = Modifier.testTag("reader-chapter-title"),
             )
             LinearProgressIndicator(
-                progress = { currentPosition.progressPercent.coerceIn(0f, 1f) },
+                progress = { state.progressPercent.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                text = currentPosition.progressLabel,
+                text = state.progressLabel,
                 style = MaterialTheme.typography.labelLarge,
                 color = palette.text,
                 modifier = Modifier.testTag("reader-progress-summary"),
@@ -213,7 +191,7 @@ fun ReaderScreen(
             if (showSettings == 1) {
                 ReaderSettingsSheet(
                     presentation = state.presentation,
-                    progressLabel = currentPosition.progressLabel,
+                    progressLabel = state.progressLabel,
                     onThemeChange = onThemeChange,
                     onFontSizeChange = onFontSizeChange,
                     onLineHeightChange = onLineHeightChange,
@@ -227,7 +205,7 @@ fun ReaderScreen(
                     currentChapterRef = state.tocHighlightedChapterRef ?: state.chapterRef,
                     latestChapterRef = state.latestChapterRef,
                     initialScrollChapterRef = state.chapterRef ?: state.latestChapterRef,
-                    progressLabel = currentPosition.progressLabel,
+                    progressLabel = state.progressLabel,
                     onChapterClick = { chapter ->
                         onChapterSelected(chapter.chapterRef)
                         showToc = 0
@@ -307,7 +285,7 @@ fun ReaderScreen(
             Button(
                 onClick = {
                     val locator = currentPosition.locator ?: state.locatorForSave() ?: return@Button
-                    onLocatorChanged(locator, currentPosition.progressPercent)
+                    onLocatorChanged(locator, state.progressPercent)
                 },
                 enabled = currentPosition.locator != null || state.locatorForSave() != null,
             ) {
@@ -524,22 +502,22 @@ private fun pagerViewportPosition(
 private fun verticalViewportPosition(
     state: ReaderUiState,
     paragraphIndex: Int,
+    baseParagraphIndex: Int,
 ): ReaderViewportPosition {
     val resolvedParagraphIndex = paragraphIndex.coerceAtLeast(0)
-    val progressPercent = progressPercentForParagraphIndex(resolvedParagraphIndex, state.paragraphs.size)
     return ReaderViewportPosition(
         locator = buildLocatorForParagraph(
             format = state.book?.primaryFormat,
             chapterRef = state.chapterRef,
-            paragraphIndex = resolvedParagraphIndex,
+            paragraphIndex = baseParagraphIndex + resolvedParagraphIndex,
             fallbackLocator = state.locatorForSave(),
         ),
-        progressPercent = progressPercent,
-        progressLabel = formatProgressLabel(progressPercent),
+        progressPercent = state.progressPercent,
+        progressLabel = state.progressLabel,
     )
 }
 
-private fun ReaderUiState.toReaderPages(): List<ReaderPageSlice> {
+private fun ReaderUiState.toReaderPages(baseParagraphIndex: Int): List<ReaderPageSlice> {
     if (paragraphs.isEmpty()) {
         return listOf(
             ReaderPageSlice(
@@ -559,7 +537,7 @@ private fun ReaderUiState.toReaderPages(): List<ReaderPageSlice> {
 
     val chunks = paragraphs.chunked(paragraphsPerPage)
     return chunks.mapIndexed { pageIndex, chunk ->
-        val startParagraphIndex = pageIndex * paragraphsPerPage
+        val startParagraphIndex = baseParagraphIndex + (pageIndex * paragraphsPerPage)
         ReaderPageSlice(
             locator = buildLocatorForParagraph(
                 format = book?.primaryFormat,
@@ -572,6 +550,17 @@ private fun ReaderUiState.toReaderPages(): List<ReaderPageSlice> {
         )
     }
 }
+
+private fun windowBaseParagraphIndex(
+    format: BookFormat?,
+    locator: String?,
+): Int =
+    when (format) {
+        BookFormat.TXT,
+        BookFormat.EPUB -> paragraphIndexFromLocator(format, locator)
+        BookFormat.WEB,
+        null -> 0
+    }
 
 private fun buildLocatorForParagraph(
     format: BookFormat?,

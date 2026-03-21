@@ -98,32 +98,6 @@ class ReaderScreenTest {
     }
 
     @Test
-    fun readerScreen_turningPageAutomaticallyPersistsUpdatedLocator() {
-        val locatorChanges = mutableListOf<Pair<String, Float>>()
-
-        composeTestRule.setContent {
-            ReaderScreen(
-                state = sampleState(readerMode = ReaderMode.SIMULATED_PAGE_TURN),
-                onLocatorChanged = { locator, progress -> locatorChanges += locator to progress },
-                onReaderModeChange = {},
-                onThemeChange = {},
-                onFontSizeChange = {},
-                onLineHeightChange = {},
-                onBrightnessChange = {},
-                onChapterSelected = {},
-            )
-        }
-
-        composeTestRule.onNodeWithText("下一页").performClick()
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            locatorChanges.any { (locator, progress) ->
-                locator == "chapter:chapter-3#paragraph:3" &&
-                    kotlin.math.abs(progress - 0.75f) < 0.001f
-            }
-        }
-    }
-
-    @Test
     fun tocSheet_highlightsCurrentChapter_andLatestChapter_withoutResettingLocatorUntilSelect() {
         val locatorChanges = mutableListOf<String>()
 

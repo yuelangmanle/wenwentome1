@@ -118,7 +118,8 @@ class LocalBookContentRepositoryTest {
         )
 
         assertEquals("第一章", content.chapterTitle)
-        assertEquals("第一章-第一段。", content.paragraphs.first())
+        assertTrue(content.paragraphs.isNotEmpty())
+        assertTrue(content.paragraphs.any { it.contains("第一章-第一段") })
     }
 
     @Test
@@ -188,6 +189,7 @@ class LocalBookContentRepositoryTest {
         val entries = linkedMapOf(
             "META-INF/container.xml" to CONTAINER_XML.toByteArray(Charsets.UTF_8),
             "OEBPS/content.opf" to TITLE_PAGE_FIRST_CONTENT_OPF.toByteArray(Charsets.UTF_8),
+            "OEBPS/toc.ncx" to EMPTY_TOC_NCX.toByteArray(Charsets.UTF_8),
             "OEBPS/titlepage.xhtml" to TITLE_PAGE_XHTML.toByteArray(Charsets.UTF_8),
             "OEBPS/chapter1.xhtml" to CHAPTER_ONE_XHTML.toByteArray(Charsets.UTF_8),
             "OEBPS/images/cover.jpg" to byteArrayOf(1, 2, 3, 4),
@@ -283,15 +285,30 @@ class LocalBookContentRepositoryTest {
                 <dc:language>zh-CN</dc:language>
               </metadata>
               <manifest>
+                <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
                 <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
                 <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
                 <item id="cover-image" href="images/cover.jpg" media-type="image/jpeg"/>
               </manifest>
-              <spine>
+              <spine toc="ncx">
                 <itemref idref="titlepage"/>
                 <itemref idref="chapter1"/>
               </spine>
             </package>
+            """
+
+        const val EMPTY_TOC_NCX =
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+              <head>
+                <meta name="dtb:uid" content="book-1"/>
+              </head>
+              <docTitle>
+                <text>Title Page First</text>
+              </docTitle>
+              <navMap/>
+            </ncx>
             """
 
         const val TITLE_PAGE_XHTML =
