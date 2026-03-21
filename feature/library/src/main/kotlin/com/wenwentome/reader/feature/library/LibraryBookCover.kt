@@ -32,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URI
+import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -159,6 +160,16 @@ internal suspend fun loadReadableCoverBitmap(
 
                     coverUri.startsWith("file:") ->
                         runCatching { File(URI(coverUri)).inputStream() }.getOrNull()
+
+                    coverUri.startsWith("http://") || coverUri.startsWith("https://") ->
+                        runCatching {
+                            URL(coverUri)
+                                .openConnection()
+                                .apply {
+                                    connectTimeout = 5_000
+                                    readTimeout = 5_000
+                                }.getInputStream()
+                        }.getOrNull()
 
                     else ->
                         runCatching { File(coverUri).takeIf { it.canRead() }?.inputStream() }.getOrNull()

@@ -50,6 +50,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URI
+import java.net.URL
 
 @Composable
 fun BookDetailScreen(
@@ -453,7 +454,7 @@ private fun BookCoverArt(
 ) {
     val context = LocalContext.current
     val coverBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, coverUri) {
-        value = loadLocalCoverBitmap(context, coverUri)
+        value = loadDetailCoverBitmap(context, coverUri)
     }
 
     Card(
@@ -511,7 +512,7 @@ private fun BookCoverArt(
     }
 }
 
-private suspend fun loadLocalCoverBitmap(
+private suspend fun loadDetailCoverBitmap(
     context: Context,
     coverUri: String?,
 ): androidx.compose.ui.graphics.ImageBitmap? =
@@ -523,6 +524,16 @@ private suspend fun loadLocalCoverBitmap(
 
             coverUri.startsWith("file:") ->
                 runCatching { File(URI(coverUri)).inputStream() }.getOrNull()
+
+            coverUri.startsWith("http://") || coverUri.startsWith("https://") ->
+                runCatching {
+                    URL(coverUri)
+                        .openConnection()
+                        .apply {
+                            connectTimeout = 5_000
+                            readTimeout = 5_000
+                        }.getInputStream()
+                }.getOrNull()
 
             else -> null
         } ?: return@withContext null

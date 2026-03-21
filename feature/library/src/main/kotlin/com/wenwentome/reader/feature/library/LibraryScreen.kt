@@ -32,6 +32,9 @@ fun LibraryScreen(
     onContinueReadingClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
     onRefreshCatalog: (String) -> Unit,
+    onRefreshCover: (String) -> Unit,
+    onImportPhoto: (String) -> Unit,
+    onRestoreAutomaticCover: (String) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(16.dp),
 ) {
@@ -117,6 +120,15 @@ fun LibraryScreen(
             onOpenDetail = { actionTarget?.let { onBookClick(it.book.id) } },
             onRefreshCatalog = actionTarget?.takeIf { it.book.originType != com.wenwentome.reader.core.model.OriginType.LOCAL }?.let { item ->
                 { onRefreshCatalog(item.book.id) }
+            },
+            onRefreshCover = actionTarget?.let { item ->
+                { onRefreshCover(item.book.id) }
+            },
+            onImportPhoto = actionTarget?.let { item ->
+                { onImportPhoto(item.book.id) }
+            },
+            onRestoreAutomaticCover = actionTarget?.takeIf { it.canRestoreAutomaticCover }?.let { item ->
+                { onRestoreAutomaticCover(item.book.id) }
             },
         )
     }

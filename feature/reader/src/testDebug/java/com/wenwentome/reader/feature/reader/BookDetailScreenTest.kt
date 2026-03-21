@@ -1,7 +1,10 @@
 package com.wenwentome.reader.feature.reader
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -18,7 +21,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okio.Buffer
 import org.robolectric.RobolectricTestRunner
+import java.io.ByteArrayOutputStream
 
 @RunWith(RobolectricTestRunner::class)
 class BookDetailScreenTest {
@@ -150,6 +157,43 @@ class BookDetailScreenTest {
             .assertExistsCompat()
     }
 
+    @Test
+    fun detailScreen_remoteCoverUriDoesNotRemainOnPlaceholder() {
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse()
+                .setHeader("Content-Type", "image/png")
+                .setBody(Buffer().write(createPngBytes()))
+        )
+        server.start()
+        try {
+            val remoteCover = server.url("/detail-cover.png").toString()
+            val baseState = sampleState()
+            composeTestRule.setContent {
+                BookDetailScreen(
+                    state = baseState.copy(
+                        book = baseState.book?.copy(cover = remoteCover),
+                        effectiveCover = remoteCover,
+                    ),
+                    onReadClick = {},
+                    onToggleCatalog = {},
+                    onChapterClick = {},
+                    onRefreshCatalogClick = {},
+                    onJumpToLatestClick = {},
+                    onRefreshCoverClick = {},
+                    onImportPhotoClick = {},
+                    onRestoreAutomaticCoverClick = {},
+                )
+            }
+
+            composeTestRule.waitUntil(timeoutMillis = 5_000) {
+                composeTestRule.onAllNodesWithText("封面待同步").fetchSemanticsNodes().isEmpty()
+            }
+        } finally {
+            server.shutdown()
+        }
+    }
+
     private fun sampleState() =
         BookDetailUiState(
             book = BookRecord(
@@ -192,6 +236,17 @@ class BookDetailScreenTest {
                 ),
             ),
         )
+
+    private fun createPngBytes(): ByteArray {
+        val bitmap = Bitmap.createBitmap(16, 24, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(182, 122, 74))
+        }
+        return ByteArrayOutputStream().use { output ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+            bitmap.recycle()
+            output.toByteArray()
+        }
+    }
 }
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
