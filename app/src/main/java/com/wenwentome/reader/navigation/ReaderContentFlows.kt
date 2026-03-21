@@ -4,8 +4,10 @@ import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.core.database.dao.RemoteBindingDao
 import com.wenwentome.reader.core.database.toModel
 import com.wenwentome.reader.core.model.BookRecord
+import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReadingState
+import com.wenwentome.reader.core.model.resolveReaderChapterRef
 import com.wenwentome.reader.data.localbooks.LocalBookContentRepository
 import com.wenwentome.reader.data.localbooks.ReaderContent
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +69,7 @@ fun readerContentFlow(
                             runCatching {
                                 val chapterRef =
                                     state?.chapterRef?.takeIf { it.isNotBlank() }
+                                        ?: resolveReaderChapterRef(BookFormat.WEB, state?.locator)
                                         ?: binding.latestKnownChapterRef?.takeIf { it.isNotBlank() }
                                         ?: withContext(Dispatchers.IO) {
                                             sourceBridgeRepository.fetchToc(

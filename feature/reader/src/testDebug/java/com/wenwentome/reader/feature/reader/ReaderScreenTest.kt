@@ -15,6 +15,7 @@ import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.core.model.ReaderMode
 import com.wenwentome.reader.core.model.ReaderPresentationPrefs
+import com.wenwentome.reader.core.model.buildReaderParagraphLocator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -182,6 +183,41 @@ class ReaderScreenTest {
 
         assertEquals(1, progressChanges.size)
         assertTrue(progressChanges.single() > 0f)
+    }
+
+    @Test
+    fun readerScreen_webLocatorRestoresHorizontalPageFromParagraphIndex() {
+        val chapterRef = "https://example.com/chapter-9"
+        val webState =
+            sampleState(readerMode = ReaderMode.HORIZONTAL_PAGING).copy(
+                book = BookRecord(
+                    id = "book-web",
+                    title = "测试网文",
+                    author = "测试作者",
+                    originType = OriginType.WEB,
+                    primaryFormat = BookFormat.WEB,
+                ),
+                chapterRef = chapterRef,
+                locator = buildReaderParagraphLocator(BookFormat.WEB, chapterRef, 4),
+                chapterTitle = "第九章",
+                paragraphs = (1..8).map { index -> "正文第${index}段" },
+            )
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = webState,
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+            )
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("reader-page-indicator").assertTextContains("2 / 2")
     }
 
     private fun sampleState(

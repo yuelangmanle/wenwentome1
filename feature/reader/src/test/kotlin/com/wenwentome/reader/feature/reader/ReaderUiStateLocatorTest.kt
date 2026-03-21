@@ -3,6 +3,7 @@ package com.wenwentome.reader.feature.reader
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
+import com.wenwentome.reader.core.model.buildReaderChapterLocator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -36,7 +37,10 @@ class ReaderUiStateLocatorTest {
             chapterRef = "https://example.com/chapter-9",
         )
 
-        assertEquals("https://example.com/chapter-9", state.locatorForSave())
+        assertEquals(
+            buildReaderChapterLocator(BookFormat.WEB, "https://example.com/chapter-9"),
+            state.locatorForSave(),
+        )
     }
 
     @Test

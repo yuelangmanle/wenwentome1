@@ -8,6 +8,7 @@ import com.wenwentome.reader.core.model.ReaderPresentationPrefs
 import com.wenwentome.reader.core.model.ReaderTheme
 import com.wenwentome.reader.core.model.ReadingBookmark
 import com.wenwentome.reader.core.model.ReadingState
+import com.wenwentome.reader.core.model.buildReaderChapterLocator
 import com.wenwentome.reader.data.localbooks.ReaderContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -231,6 +232,71 @@ class ReaderViewModelTest {
         advanceUntilIdle()
 
         assertEquals("chapter:chapter-8#paragraph:0", persistedState?.locator)
+        assertEquals("chapter-8", persistedState?.chapterRef)
+        assertEquals(0f, persistedState?.progressPercent)
+    }
+
+    @Test
+    fun jumpToChapter_webBookPersistsStructuredChapterStartLocator() = runTest {
+        var persistedState: ReadingState? = null
+        val chapterLocator = buildReaderChapterLocator(BookFormat.WEB, "chapter-8")
+        val viewModel = ReaderViewModel(
+            bookId = "book-web",
+            observeReadingState = flowOf(
+                ReadingState(
+                    bookId = "book-web",
+                    locator = buildReaderChapterLocator(BookFormat.WEB, "chapter-3"),
+                    chapterRef = "chapter-3",
+                    progressPercent = 0.42f,
+                )
+            ),
+            observeBook = flowOf(
+                BookRecord(
+                    id = "book-web",
+                    title = "雪中悍刀行",
+                    author = "烽火戏诸侯",
+                    originType = com.wenwentome.reader.core.model.OriginType.WEB,
+                    primaryFormat = BookFormat.WEB,
+                )
+            ),
+            observeContent = flowOf(
+                ReaderContent(
+                    chapterTitle = "第三章",
+                    paragraphs = listOf("正文第一段"),
+                    chapterRef = "chapter-3",
+                )
+            ),
+            observeReaderMode = MutableStateFlow(ReaderMode.SIMULATED_PAGE_TURN),
+            observePresentationPrefs = MutableStateFlow(ReaderPresentationPrefs()),
+            observeChapters = flowOf(
+                listOf(
+                    ReaderChapter(
+                        chapterRef = "chapter-3",
+                        title = "第三章",
+                        orderIndex = 0,
+                        sourceType = BookFormat.WEB,
+                        locatorHint = buildReaderChapterLocator(BookFormat.WEB, "chapter-3"),
+                    ),
+                    ReaderChapter(
+                        chapterRef = "chapter-8",
+                        title = "第八章",
+                        orderIndex = 1,
+                        sourceType = BookFormat.WEB,
+                        locatorHint = chapterLocator,
+                    ),
+                )
+            ),
+            observeLatestChapterRef = flowOf("chapter-8"),
+            saveReaderMode = {},
+            savePresentationPrefs = {},
+            updateReadingState = { state -> persistedState = state },
+        )
+
+        viewModel.uiState.first { it.book != null }
+        viewModel.jumpToChapter(chapterRef = "chapter-8")
+        advanceUntilIdle()
+
+        assertEquals(chapterLocator, persistedState?.locator)
         assertEquals("chapter-8", persistedState?.chapterRef)
         assertEquals(0f, persistedState?.progressPercent)
     }

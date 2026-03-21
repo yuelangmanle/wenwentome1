@@ -27,6 +27,7 @@ import com.wenwentome.reader.core.model.AssetRole
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReaderChapter
+import com.wenwentome.reader.core.model.buildReaderChapterLocator
 import com.wenwentome.reader.di.AppContainer
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
@@ -543,7 +544,7 @@ private fun rememberObserveChapters(
                                                 title = chapter.title.ifBlank { "章节 ${index + 1}" },
                                                 orderIndex = index,
                                                 sourceType = BookFormat.WEB,
-                                                locatorHint = chapter.chapterRef,
+                                                locatorHint = buildReaderChapterLocator(BookFormat.WEB, chapter.chapterRef),
                                                 isLatest = chapter.chapterRef == binding.latestKnownChapterRef,
                                             )
                                         }

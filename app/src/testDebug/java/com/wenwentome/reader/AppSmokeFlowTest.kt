@@ -24,6 +24,7 @@ import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.RemoteBinding
+import com.wenwentome.reader.core.model.buildReaderChapterLocator
 import com.wenwentome.reader.di.AppContainer
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -261,7 +262,7 @@ class AppSmokeFlowTest {
         val savedState = runBlocking {
             database.readingStateDao().observeByBookId(bookId).first()
         }
-        assertEquals(chapterRef, savedState?.locator)
+        assertEquals(buildReaderChapterLocator(BookFormat.WEB, chapterRef), savedState?.locator)
         assertEquals(chapterRef, savedState?.chapterRef)
     }
 }

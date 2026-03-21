@@ -5,6 +5,7 @@ import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.core.model.ReadingState
+import com.wenwentome.reader.core.model.buildReaderChapterLocator
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,7 +79,7 @@ class BookDetailViewModelTest {
                 ReadingState(
                     bookId = "book-1",
                     chapterRef = "chapter-5",
-                    locator = "chapter-5",
+                    locator = buildReaderChapterLocator(BookFormat.WEB, "chapter-5"),
                     progressPercent = 0.42f,
                 )
             ),
@@ -95,7 +96,7 @@ class BookDetailViewModelTest {
         advanceUntilIdle()
 
         assertEquals("chapter-12", persistedState?.chapterRef)
-        assertEquals("chapter-12", persistedState?.locator)
+        assertEquals(buildReaderChapterLocator(BookFormat.WEB, "chapter-12"), persistedState?.locator)
         assertEquals(0f, persistedState?.progressPercent)
         assertEquals(
             BookDetailEvent.OpenReader(bookId = "book-1"),
@@ -230,7 +231,7 @@ class BookDetailViewModelTest {
                 title = "第十二章",
                 orderIndex = 2,
                 sourceType = BookFormat.WEB,
-                locatorHint = "chapter-12",
+                locatorHint = buildReaderChapterLocator(BookFormat.WEB, "chapter-12"),
                 isLatest = true,
             ),
         )

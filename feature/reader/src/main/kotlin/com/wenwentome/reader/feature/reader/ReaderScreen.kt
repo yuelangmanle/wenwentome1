@@ -43,6 +43,9 @@ import androidx.compose.ui.unit.sp
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.ReaderMode
 import com.wenwentome.reader.core.model.ReaderTheme
+import com.wenwentome.reader.core.model.buildReaderChapterLocator
+import com.wenwentome.reader.core.model.buildReaderParagraphLocator
+import com.wenwentome.reader.core.model.resolveReaderParagraphIndex
 import kotlinx.coroutines.launch
 
 @Composable
@@ -74,7 +77,7 @@ fun ReaderScreen(
     ) {
         state.toReaderPages(baseParagraphIndex = baseParagraphIndex)
     }
-    val initialParagraphIndex = remember(state.book?.primaryFormat) {
+    val initialParagraphIndex = remember(state.book?.primaryFormat, state.locator) {
         when (state.book?.primaryFormat) {
             BookFormat.TXT,
             BookFormat.EPUB -> 0
@@ -469,10 +472,11 @@ private fun ReaderPageSurface(
 internal fun ReaderUiState.locatorForSave(): String? =
     locator?.takeIf { it.isNotBlank() }
         ?: when (book?.primaryFormat) {
-            BookFormat.TXT -> "0"
-            BookFormat.EPUB -> chapterRef?.takeIf { it.isNotBlank() }?.let { "chapter:$it#paragraph:0" }
-            BookFormat.WEB -> chapterRef?.takeIf { it.isNotBlank() }
-            null -> chapterRef?.takeIf { it.isNotBlank() }
+            BookFormat.TXT -> buildReaderChapterLocator(BookFormat.TXT, "")
+            else ->
+                chapterRef
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { buildReaderChapterLocator(book?.primaryFormat, it) }
         }
 
 private data class ReaderPageSlice(
@@ -573,31 +577,30 @@ private fun buildLocatorForParagraph(
     fallbackLocator: String?,
 ): String? =
     when (format) {
-        BookFormat.TXT -> paragraphIndex.coerceAtLeast(0).toString()
-        BookFormat.EPUB -> chapterRef?.takeIf { it.isNotBlank() }?.let { "chapter:$it#paragraph:${paragraphIndex.coerceAtLeast(0)}" }
-        BookFormat.WEB -> chapterRef?.takeIf { it.isNotBlank() } ?: fallbackLocator
+        BookFormat.TXT ->
+            buildReaderParagraphLocator(format, chapterRef.orEmpty(), paragraphIndex)
+
+        BookFormat.EPUB,
+        BookFormat.WEB ->
+            chapterRef
+                ?.takeIf { it.isNotBlank() }
+                ?.let { buildReaderParagraphLocator(format, it, paragraphIndex) }
+                ?: fallbackLocator
+
         null -> chapterRef?.takeIf { it.isNotBlank() } ?: fallbackLocator
     }
 
 private fun paragraphIndexFromLocator(
     format: BookFormat?,
     locator: String?,
-): Int {
-    val value = locator?.trim().orEmpty()
-    if (value.isBlank()) return 0
-    return when (format) {
-        BookFormat.TXT -> value.toIntOrNull()?.coerceAtLeast(0) ?: 0
-        BookFormat.EPUB -> STRUCTURED_EPUB_LOCATOR.matchEntire(value)?.groupValues?.getOrNull(2)?.toIntOrNull()?.coerceAtLeast(0) ?: 0
-        BookFormat.WEB, null -> 0
-    }
-}
+): Int = resolveReaderParagraphIndex(format, locator)
 
 private fun pageIndexFromLocator(
     pages: List<ReaderPageSlice>,
     format: BookFormat?,
     locator: String?,
 ): Int {
-    if (format == BookFormat.WEB || format == null) return 0
+    if (format == null) return 0
     val paragraphIndex = paragraphIndexFromLocator(format, locator)
     return pages.indexOfLast { page ->
         val pageParagraphIndex = paragraphIndexFromLocator(format, page.locator)
@@ -638,5 +641,3 @@ private fun ReaderUiState.readerPalette(): ReaderPalette =
                 text = Color(0xFFE8E4DA),
             )
     }
-
-private val STRUCTURED_EPUB_LOCATOR = Regex("^chapter:(.+)#paragraph:(\\d+)$")
