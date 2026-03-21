@@ -597,6 +597,7 @@ private fun pageIndexFromLocator(
     format: BookFormat?,
     locator: String?,
 ): Int {
+    if (format == BookFormat.WEB || format == null) return 0
     val paragraphIndex = paragraphIndexFromLocator(format, locator)
     return pages.indexOfLast { page ->
         val pageParagraphIndex = paragraphIndexFromLocator(format, page.locator)
