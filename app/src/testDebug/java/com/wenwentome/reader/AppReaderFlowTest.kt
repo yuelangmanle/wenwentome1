@@ -17,6 +17,7 @@ import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
 import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
+import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.model.BookFormat
