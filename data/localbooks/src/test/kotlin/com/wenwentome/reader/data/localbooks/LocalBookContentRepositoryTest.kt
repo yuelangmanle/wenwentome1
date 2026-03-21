@@ -12,9 +12,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 class LocalBookContentRepositoryTest {
@@ -144,9 +146,12 @@ class LocalBookContentRepositoryTest {
 
         val chapters = repository.loadChapters(bookId = "epub-book")
 
-        assertEquals(1, chapters.size)
-        assertEquals("第一章", chapters.single().title)
-        assertEquals("OEBPS/chapter1.xhtml", chapters.single().chapterRef)
+        assertEquals(2, chapters.size)
+        assertEquals("第一章", chapters.first().title)
+        assertEquals("OEBPS/chapter1.xhtml", chapters.first().chapterRef)
+        assertEquals("第二章", chapters[1].title)
+        assertEquals("OEBPS/chapter2.xhtml", chapters[1].chapterRef)
+        assertFalse(chapters.any { it.chapterRef.contains("titlepage") })
     }
 
     private fun createRepository(
@@ -186,18 +191,46 @@ class LocalBookContentRepositoryTest {
     private fun fixtureBytes(name: String): ByteArray = fixture(name).use { it.readBytes() }
 
     private fun createTitlePageFirstEpubBytes(): ByteArray {
-        val entries = linkedMapOf(
-            "META-INF/container.xml" to CONTAINER_XML.toByteArray(Charsets.UTF_8),
-            "OEBPS/content.opf" to TITLE_PAGE_FIRST_CONTENT_OPF.toByteArray(Charsets.UTF_8),
-            "OEBPS/toc.ncx" to EMPTY_TOC_NCX.toByteArray(Charsets.UTF_8),
-            "OEBPS/titlepage.xhtml" to TITLE_PAGE_XHTML.toByteArray(Charsets.UTF_8),
-            "OEBPS/chapter1.xhtml" to CHAPTER_ONE_XHTML.toByteArray(Charsets.UTF_8),
-            "OEBPS/images/cover.jpg" to byteArrayOf(1, 2, 3, 4),
-        )
+        val entries = unzipEntries(fixtureBytes("sample-cover-first.epub")).toMutableMap()
+        val coverPage = requireNotNull(entries.remove("OEBPS/cover.xhtml")) {
+            "sample-cover-first.epub missing OEBPS/cover.xhtml"
+        }
+        entries["OEBPS/titlepage.xhtml"] = coverPage
+        entries["OEBPS/content.opf"] =
+            entries.getValue("OEBPS/content.opf")
+                .decodeToString()
+                .replace("cover.xhtml", "titlepage.xhtml")
+                .replace(
+                    Regex("""<itemref idref="chapter2"/>\s*<itemref idref="chapter1"/>"""),
+                    "<itemref idref=\"chapter1\"/>\n    <itemref idref=\"chapter2\"/>",
+                )
+                .replace(Regex("""\s*<reference type="cover" title="Cover" href="titlepage.xhtml"/>\s*"""), "")
+                .toByteArray(Charsets.UTF_8)
+        entries["OEBPS/nav.xhtml"] =
+            entries.getValue("OEBPS/nav.xhtml")
+                .decodeToString()
+                .replace("epub:type=\"toc\"", "epub:type=\"landmarks\"")
+                .toByteArray(Charsets.UTF_8)
 
-        return java.io.ByteArrayOutputStream().use { output ->
+        return zipEntries(entries)
+    }
+
+    private fun unzipEntries(bytes: ByteArray): LinkedHashMap<String, ByteArray> {
+        val entries = LinkedHashMap<String, ByteArray>()
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                entries[entry.name] = zip.readBytes()
+                zip.closeEntry()
+            }
+        }
+        return entries
+    }
+
+    private fun zipEntries(entries: Map<String, ByteArray>): ByteArray =
+        java.io.ByteArrayOutputStream().use { output ->
             ZipOutputStream(output).use { zip ->
-                val mimeBytes = "application/epub+zip".toByteArray(Charsets.UTF_8)
+                val mimeBytes = requireNotNull(entries["mimetype"]) { "EPUB missing mimetype entry" }
                 val crc = CRC32().apply { update(mimeBytes) }.value
                 zip.putNextEntry(
                     ZipEntry("mimetype").apply {
@@ -211,6 +244,7 @@ class LocalBookContentRepositoryTest {
                 zip.closeEntry()
 
                 entries.forEach { (path, bytes) ->
+                    if (path == "mimetype") return@forEach
                     zip.putNextEntry(ZipEntry(path))
                     zip.write(bytes)
                     zip.closeEntry()
@@ -218,7 +252,6 @@ class LocalBookContentRepositoryTest {
             }
             output.toByteArray()
         }
-    }
 
     private class FakeBookAssetDao(
         primaryAsset: BookAssetEntity,
@@ -264,78 +297,4 @@ class LocalBookContentRepositoryTest {
         }
     }
 
-    private companion object {
-        const val CONTAINER_XML =
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-              <rootfiles>
-                <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-              </rootfiles>
-            </container>
-            """
-
-        const val TITLE_PAGE_FIRST_CONTENT_OPF =
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="BookId">
-              <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-                <dc:title>Title Page First</dc:title>
-                <dc:identifier id="BookId">book-1</dc:identifier>
-                <dc:language>zh-CN</dc:language>
-              </metadata>
-              <manifest>
-                <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-                <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
-                <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
-                <item id="cover-image" href="images/cover.jpg" media-type="image/jpeg"/>
-              </manifest>
-              <spine toc="ncx">
-                <itemref idref="titlepage"/>
-                <itemref idref="chapter1"/>
-              </spine>
-            </package>
-            """
-
-        const val EMPTY_TOC_NCX =
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-              <head>
-                <meta name="dtb:uid" content="book-1"/>
-              </head>
-              <docTitle>
-                <text>Title Page First</text>
-              </docTitle>
-              <navMap/>
-            </ncx>
-            """
-
-        const val TITLE_PAGE_XHTML =
-            """
-            <?xml version="1.0" encoding="utf-8"?>
-            <!DOCTYPE html>
-            <html xmlns="http://www.w3.org/1999/xhtml">
-              <head><title>Cover</title></head>
-              <body>
-                <div class="hero"><img src="images/cover.jpg" alt="Cover"/></div>
-                <p>Cover</p>
-              </body>
-            </html>
-            """
-
-        const val CHAPTER_ONE_XHTML =
-            """
-            <?xml version="1.0" encoding="utf-8"?>
-            <!DOCTYPE html>
-            <html xmlns="http://www.w3.org/1999/xhtml">
-              <head><title>第一章</title></head>
-              <body>
-                <h1>第一章</h1>
-                <p>第一章-第一段。</p>
-                <p>第一章-第二段。</p>
-              </body>
-            </html>
-            """
-    }
 }
