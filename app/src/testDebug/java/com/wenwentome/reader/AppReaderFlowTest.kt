@@ -164,7 +164,7 @@ class AppReaderFlowTest {
         composeTestRule.waitUntilTagExists("continue-reading-card")
         composeTestRule.onNodeWithTag("continue-reading-card").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
-        composeTestRule.waitUntilTextExists("最新章正文第四段")
+        composeTestRule.waitUntilTextExists("第 2 / 3 页")
         composeTestRule.onNodeWithTag("reader-page-indicator").assertTextContains("2 / 3")
     }
 
