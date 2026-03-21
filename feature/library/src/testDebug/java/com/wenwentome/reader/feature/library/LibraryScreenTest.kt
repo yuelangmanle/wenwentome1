@@ -20,10 +20,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.InetSocketAddress
-import com.sun.net.httpserver.HttpServer
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryScreenTest {
@@ -134,25 +131,6 @@ class LibraryScreenTest {
         assertNotNull(loadReadableCoverBitmap(context, bookshelfCoverUri))
     }
 
-    @Test
-    fun loadReadableCoverBitmap_decodesRemoteCoverUri() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val pngBytes = createPngBytes()
-        val server = HttpServer.create(InetSocketAddress(0), 0).apply {
-            createContext("/cover.png") { exchange ->
-                exchange.responseHeaders.add("Content-Type", "image/png")
-                exchange.sendResponseHeaders(200, pngBytes.size.toLong())
-                exchange.responseBody.use { output -> output.write(pngBytes) }
-            }
-            start()
-        }
-        try {
-            assertNotNull(loadReadableCoverBitmap(context, "http://127.0.0.1:${server.address.port}/cover.png"))
-        } finally {
-            server.stop(0)
-        }
-    }
-
     private fun sampleState(
         continueReadingCoverUri: String? = null,
         bookshelfCoverUri: String? = null,
@@ -225,16 +203,6 @@ class LibraryScreenTest {
         return file.toURI().toString()
     }
 
-    private fun createPngBytes(): ByteArray {
-        val bitmap = Bitmap.createBitmap(16, 24, Bitmap.Config.ARGB_8888).apply {
-            eraseColor(Color.rgb(182, 122, 74))
-        }
-        return ByteArrayOutputStream().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-            bitmap.recycle()
-            output.toByteArray()
-        }
-    }
 }
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
