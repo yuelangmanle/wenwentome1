@@ -1,7 +1,5 @@
 package com.wenwentome.reader.feature.library
 
-import android.graphics.Bitmap
-import android.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -17,6 +15,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
+import java.util.Base64
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryScreenTest {
@@ -174,16 +173,15 @@ class LibraryScreenTest {
 
     private fun createReadableLocalCoverUri(): String {
         val file = File.createTempFile("library-cover", ".png")
-        val bitmap = Bitmap.createBitmap(2, 3, Bitmap.Config.ARGB_8888).apply {
-            eraseColor(Color.rgb(182, 122, 74))
-        }
-        file.outputStream().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-        }
-        bitmap.recycle()
+        file.deleteOnExit()
+        file.writeBytes(Base64.getDecoder().decode(SAMPLE_COVER_PNG_BASE64))
         return file.toURI().toString()
     }
 }
+
+private const val SAMPLE_COVER_PNG_BASE64 =
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAYAAACtWR5OAAAAFElEQVR42mP8z8Dwn4GBgYGJAQoA" +
+        "HxcCAr7+QY0AAAAASUVORK5CYII="
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
     fetchSemanticsNode()
