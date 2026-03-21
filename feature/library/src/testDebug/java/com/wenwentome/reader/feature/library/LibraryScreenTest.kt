@@ -18,7 +18,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
-import java.util.Base64
+import java.awt.Color
+import java.awt.image.BufferedImage
+import javax.imageio.ImageIO
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryScreenTest {
@@ -147,20 +149,17 @@ class LibraryScreenTest {
 
     private fun createReadableLocalCoverUri(prefix: String): String {
         val cacheDir = ApplicationProvider.getApplicationContext<android.content.Context>().cacheDir
-        val file = File.createTempFile("library-cover-$prefix", ".jpg", cacheDir)
+        val file = File.createTempFile("library-cover-$prefix", ".png", cacheDir)
         file.deleteOnExit()
-        file.writeBytes(Base64.getDecoder().decode(SAMPLE_COVER_JPEG_BASE64))
+        val image = BufferedImage(16, 24, BufferedImage.TYPE_INT_RGB)
+        val graphics = image.createGraphics()
+        graphics.color = Color(182, 122, 74)
+        graphics.fillRect(0, 0, image.width, image.height)
+        graphics.dispose()
+        ImageIO.write(image, "png", file)
         return file.toURI().toString()
     }
 }
-
-private const val SAMPLE_COVER_JPEG_BASE64 =
-    "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////" +
-        "////////////////////////////////2wBDAf//////////////////////////////////////////////////" +
-        "////////////////////////////////////wAARCAAQABADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAA" +
-        "AAf/xAAXAQEAAwAAAAAAAAAAAAAAAAABAgME/9oADAMBAAIQAxAAAAGjQf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/" +
-        "2gAIAQEAAQUCcf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8BP//EABQRAQAAAAAAAAAAAAAAAAAAAAD/" +
-        "2gAIAQIBAT8BP//Z"
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
     fetchSemanticsNode()

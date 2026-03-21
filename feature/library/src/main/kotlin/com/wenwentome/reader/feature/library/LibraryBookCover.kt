@@ -166,7 +166,9 @@ internal suspend fun loadReadableCoverBitmap(
 
                 val bitmap = stream.use { input ->
                     val bytes = input.readBytes()
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                    runCatching {
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                    }.getOrNull()
                 }
                 if (bitmap != null) {
                     LibraryBookCoverBitmapCache.put(coverUri, bitmap)
