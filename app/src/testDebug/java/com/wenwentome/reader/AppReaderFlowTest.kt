@@ -11,6 +11,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.ComposeNavigator
+import androidx.navigation.compose.DialogNavigator
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
@@ -103,9 +106,18 @@ class AppReaderFlowTest {
     @Test
     fun appReaderFlow_savedReaderProgressFlowsBackToBookshelf() {
         val appContainer = createWebReaderAppContainer()
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val navController =
+            NavHostController(application).apply {
+                navigatorProvider.addNavigator(ComposeNavigator())
+                navigatorProvider.addNavigator(DialogNavigator())
+            }
 
         composeTestRule.setContent {
-            ReaderApp(appContainer = appContainer)
+            ReaderApp(
+                appContainer = appContainer,
+                navController = navController,
+            )
         }
 
         composeTestRule.onNodeWithTag("book-cover-card-book-web-flow").performClick()
@@ -126,7 +138,9 @@ class AppReaderFlowTest {
                     ?.let { it > 0.4f } == true
             }
         }
-        composeTestRule.onNodeWithTag("nav-bookshelf").performClick()
+        composeTestRule.runOnIdle {
+            navController.navigate("bookshelf")
+        }
         composeTestRule.waitUntilTagExists("library-screen")
         composeTestRule.waitUntilTextExists("已读 43%")
     }
