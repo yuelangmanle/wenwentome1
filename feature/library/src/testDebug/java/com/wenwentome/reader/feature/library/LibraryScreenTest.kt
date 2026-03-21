@@ -78,8 +78,12 @@ class LibraryScreenTest {
 
     @Test
     fun libraryScreen_prefersReadableLocalCoverOverPlaceholder() {
-        val readableCoverUri = createReadableLocalCoverUri()
-        val state = sampleState(readableCoverUri)
+        val continueReadingCoverUri = createReadableLocalCoverUri("continue-reading")
+        val bookshelfCoverUri = createReadableLocalCoverUri("bookshelf")
+        val state = sampleState(
+            continueReadingCoverUri = continueReadingCoverUri,
+            bookshelfCoverUri = bookshelfCoverUri,
+        )
 
         composeTestRule.setContent {
             LibraryScreen(
@@ -117,7 +121,10 @@ class LibraryScreenTest {
         ).assertDoesNotExistCompat()
     }
 
-    private fun sampleState(readableCoverUri: String? = null) =
+    private fun sampleState(
+        continueReadingCoverUri: String? = null,
+        bookshelfCoverUri: String? = null,
+    ) =
         LibraryUiState(
             continueReading = LibraryBookItem(
                 book = BookRecord(
@@ -127,7 +134,7 @@ class LibraryScreenTest {
                     originType = OriginType.LOCAL,
                     primaryFormat = BookFormat.EPUB,
                 ),
-                effectiveCover = readableCoverUri,
+                effectiveCover = continueReadingCoverUri,
                 progressPercent = 0.42f,
                 progressLabel = "42%",
                 hasUpdates = false,
@@ -162,7 +169,7 @@ class LibraryScreenTest {
                             originType = OriginType.WEB,
                             primaryFormat = BookFormat.WEB,
                         ),
-                        effectiveCover = readableCoverUri ?: "https://example.com/cover.jpg",
+                        effectiveCover = bookshelfCoverUri ?: "https://example.com/cover.jpg",
                         progressPercent = 0.66f,
                         progressLabel = "66%",
                         hasUpdates = true,
@@ -172,9 +179,9 @@ class LibraryScreenTest {
             },
         )
 
-    private fun createReadableLocalCoverUri(): String {
+    private fun createReadableLocalCoverUri(prefix: String): String {
         val cacheDir = ApplicationProvider.getApplicationContext<android.content.Context>().cacheDir
-        val file = File.createTempFile("library-cover", ".jpg", cacheDir)
+        val file = File.createTempFile("library-cover-$prefix", ".jpg", cacheDir)
         file.deleteOnExit()
         file.writeBytes(Base64.getDecoder().decode(SAMPLE_COVER_JPEG_BASE64))
         return file.toURI().toString()
