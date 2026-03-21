@@ -13,6 +13,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate release metadata pack
+        run: python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:

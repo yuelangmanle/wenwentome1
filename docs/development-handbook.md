@@ -46,3 +46,5 @@ WenwenToMe 是一个统一支持本地书和网文的 Android 阅读器，第一
 - 本地不做正式打包
 - 正式版通过 GitHub Actions 产出
 - 版本号、tag、CHANGELOG、App 内 changelog 必须保持一致
+- GitHub Pages 发布页源文件统一放在 `site/`
+- 发版前先跑 `python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md`

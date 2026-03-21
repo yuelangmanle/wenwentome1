@@ -2,7 +2,7 @@
 
 ## 目标
 
-正式版本只在 `main` 分支打 tag 时发布，GitHub Actions 自动构建签名 `release APK` 并创建 GitHub Release。
+正式版本只在 `main` 分支打 tag 时发布，GitHub Actions 自动构建签名 `release APK`、创建 GitHub Release，并可同步更新 GitHub Pages 发布页。
 
 ## Secrets
 
@@ -20,8 +20,10 @@
 1. 更新 `app/build.gradle.kts` 中的 `versionCode` 与 `versionName`
 2. 更新 `CHANGELOG.md`
 3. 更新 `app/src/main/assets/changelog.json`
-4. 确认 README 和文档无需同步修订
-5. 确认代码已合并到 `main`
+4. 更新 `README.md` 中的当前正式版本
+5. 运行 `python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md`
+6. 确认 README 和文档无需同步修订
+7. 确认代码已合并到 `main`
 
 ## 正式发版步骤
 
@@ -31,6 +33,7 @@
 4. 推送 tag
 5. 等待 GitHub Actions 的 `android-release` workflow 完成
 6. 在 GitHub Releases 页面检查 Release 标题、说明和 APK 附件
+7. 如果本次修改了 `site/`，确认 `github-pages` workflow 已把发布页同步到线上
 
 ## 手动触发当前版本发版
 
@@ -54,10 +57,28 @@
 - 例如 `versionName = 1.0` 时，tag 必须是 `v1.0`
 - tag 对应提交必须来自 `main`
 - 手动触发当前版本 release 时也必须显式填写 `tag_name`
+- `versionCode` 必须符合迭代规则，例如 `1.1 -> 110`
+- `CHANGELOG.md`、`app/src/main/assets/changelog.json` 和 `README.md` 中的正式版本号必须与 `versionName` 一致
+
+## 无本地 Java 时的云端验证
+
+如果当前机器没有 Java 运行时，不在本地强行打包，改走 GitHub 云端验证：
+
+1. 提交并推送当前分支
+2. 运行 `gh run watch --workflow android-ci --exit-status`
+3. 成功后在 Actions 页面下载 `debug-apk` artifact
+4. 如果下载时出现 `EOF`，优先回到对应 run 重试，或直接在浏览器中下载 artifact
+
+说明：
+
+- `android-ci` 不依赖 release secrets，只负责测试和 `debug APK`
+- `android-release` 依赖 `ANDROID_KEYSTORE_*` secrets，只在正式发版时使用
+- GitHub Pages 发布页与 Android 打包相互独立，可单独部署
 
 ## 失败排查
 
 - 缺 Secret：workflow 会直接失败并提示缺失项
 - tag 与版本不一致：`scripts/release_metadata.py check-tag` 失败
+- 文档与 changelog 不一致：`scripts/release_metadata.py validate-pack` 失败
 - changelog 缺对应版本：`scripts/release_metadata.py notes` 失败
 - 签名失败：检查 PKCS12 签名文件、alias 和密码
