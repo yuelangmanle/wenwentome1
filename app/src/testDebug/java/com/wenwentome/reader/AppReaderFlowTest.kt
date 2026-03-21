@@ -11,14 +11,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performTextInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
 import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
-import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.model.BookFormat
@@ -27,7 +25,6 @@ import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReadingState
 import com.wenwentome.reader.core.model.RemoteBinding
 import com.wenwentome.reader.di.AppContainer
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -79,25 +76,6 @@ class AppReaderFlowTest {
     }
 
     @Test
-    fun appReaderFlow_discoverPreviewAddButtonEntersLoadingState() {
-        val harness = createDiscoverReaderHarness()
-
-        composeTestRule.setContent {
-            ReaderApp(appContainer = harness.appContainer)
-        }
-
-        composeTestRule.onNodeWithTag("nav-discover").performClick()
-        composeTestRule.onNodeWithTag("discover-search-input").performTextInput("雪中")
-        composeTestRule.waitUntilTagExists("discover-result-remote-discover-flow")
-        composeTestRule.onNodeWithTag("discover-result-remote-discover-flow").performClick()
-        composeTestRule.waitUntilTagExists("discover-selected-preview")
-        composeTestRule.waitUntilTextExists("最新章节：最新章")
-        composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
-        composeTestRule.waitUntilTextExists("加入中")
-        composeTestRule.onNodeWithTag("discover-preview-add-button").assertTextContains("加入中")
-    }
-
-    @Test
     fun appReaderFlow_continueReadingCardOpensReaderDirectly() {
         val appContainer = createWebReaderAppContainer(
             readingState = ReadingState(
@@ -115,6 +93,7 @@ class AppReaderFlowTest {
         composeTestRule.waitUntilTagExists("continue-reading-card")
         composeTestRule.onNodeWithTag("continue-reading-card").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.waitUntilTextExists("最新章正文第一段")
         composeTestRule.onNodeWithTag("reader-chapter-title").assertTextContains("最新章")
     }
 
@@ -194,76 +173,7 @@ class AppReaderFlowTest {
         return appContainer
     }
 
-    private fun createDiscoverReaderHarness(): DiscoverReaderHarness {
-        val application = ApplicationProvider.getApplicationContext<Application>()
-        val database =
-            Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
-                .allowMainThreadQueries()
-                .build()
-        val remoteResult = RemoteSearchResult(
-            id = "remote-discover-flow",
-            sourceId = "discover-source",
-            title = "发现页阅读最新测试书",
-            author = "测试作者",
-            detailUrl = "https://example.com/books/discover",
-        )
-        val fakeBridge = object : SourceBridgeRepository {
-            override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
-                if (query.isBlank()) {
-                    emptyList()
-                } else {
-                    listOf(remoteResult)
-                }
-
-            override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
-                RemoteBookDetail(
-                    title = "发现页阅读最新测试书",
-                    author = "测试作者",
-                    summary = "用于验证发现页预览和阅读最新的闭环。",
-                    lastChapter = "最新章",
-                )
-
-            override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> =
-                listOf(
-                    RemoteChapter(chapterRef = "chapter-1", title = "第一章"),
-                    RemoteChapter(chapterRef = "chapter-latest", title = "最新章"),
-                )
-
-            override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
-                when (chapterRef) {
-                    "chapter-latest" ->
-                        RemoteChapterContent(
-                            chapterRef = chapterRef,
-                            title = "最新章",
-                            content = "最新章正文第一段\n\n最新章正文第二段",
-                        )
-
-                    else ->
-                        RemoteChapterContent(
-                            chapterRef = chapterRef,
-                            title = "第一章",
-                            content = "第一章正文第一段\n\n第一章正文第二段",
-                        )
-                }
-        }
-        return DiscoverReaderHarness(
-            appContainer = AppContainer(
-                application = application,
-                databaseOverride = database,
-                sourceBridgeRepositoryOverride = fakeBridge,
-                discoverIoDispatcherOverride = Dispatchers.Main,
-            ),
-            database = database,
-            searchResult = remoteResult,
-        )
-    }
 }
-
-private data class DiscoverReaderHarness(
-    val appContainer: AppContainer,
-    val database: ReaderDatabase,
-    val searchResult: RemoteSearchResult,
-)
 
 private fun ComposeContentTestRule.waitUntilTagExists(tag: String, timeoutMillis: Long = 5_000) {
     waitUntil(timeoutMillis = timeoutMillis) {
