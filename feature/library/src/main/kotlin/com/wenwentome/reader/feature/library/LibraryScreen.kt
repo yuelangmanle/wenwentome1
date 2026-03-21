@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 fun LibraryScreen(
     state: LibraryUiState,
     onImportClick: () -> Unit,
+    onContinueReadingClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
     onImportPhoto: (String) -> Unit,
     onRefreshCover: (String) -> Unit,
@@ -66,7 +67,7 @@ fun LibraryScreen(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     ContinueReadingCard(
                         item = item,
-                        onClick = { onBookClick(item.book.id) },
+                        onClick = { onContinueReadingClick(item.book.id) },
                         modifier = Modifier.testTag("continue-reading-card"),
                     )
                 }

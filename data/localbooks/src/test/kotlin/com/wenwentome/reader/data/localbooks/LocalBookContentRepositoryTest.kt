@@ -13,6 +13,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.InputStream
+import java.util.zip.CRC32
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class LocalBookContentRepositoryTest {
     @Test
@@ -105,10 +108,53 @@ class LocalBookContentRepositoryTest {
         assertTrue(content.paragraphs.any { it.contains("第一章-secondary-nav-第一段") })
     }
 
-    private fun createRepository(epubFixture: String): LocalBookContentRepository {
+    @Test
+    fun load_epubOutOfRangeParagraphLocator_fallsBackToChapterStart() = runTest {
+        val repository = createRepository(epubFixture = "sample-cover-first.epub")
+
+        val content = repository.load(
+            bookId = "epub-book",
+            locator = "chapter:OEBPS/chapter1.xhtml#paragraph:99",
+        )
+
+        assertEquals("第一章", content.chapterTitle)
+        assertEquals("第一章-第一段。", content.paragraphs.first())
+    }
+
+    @Test
+    fun load_epubWithoutToc_skipsTitlePageFrontMatterAndOpensFirstReadableChapter() = runTest {
+        val repository = createRepository(
+            generatedEpubBytes = createTitlePageFirstEpubBytes(),
+        )
+
+        val content = repository.load(bookId = "epub-book", locator = null)
+
+        assertEquals("第一章", content.chapterTitle)
+        assertEquals("OEBPS/chapter1.xhtml", content.chapterRef)
+        assertTrue(content.paragraphs.any { it.contains("第一章-第一段") })
+        assertFalse(content.paragraphs.any { it.contains("Cover") })
+    }
+
+    @Test
+    fun loadChapters_epubWithoutToc_skipsTitlePageFrontMatterInCatalog() = runTest {
+        val repository = createRepository(
+            generatedEpubBytes = createTitlePageFirstEpubBytes(),
+        )
+
+        val chapters = repository.loadChapters(bookId = "epub-book")
+
+        assertEquals(1, chapters.size)
+        assertEquals("第一章", chapters.single().title)
+        assertEquals("OEBPS/chapter1.xhtml", chapters.single().chapterRef)
+    }
+
+    private fun createRepository(
+        epubFixture: String? = null,
+        generatedEpubBytes: ByteArray? = null,
+    ): LocalBookContentRepository {
         val filesDir = createTempDir(prefix = "localbooks-content-test-")
         val fileStore = LocalBookFileStore(filesDir = filesDir)
-        val bytes = fixtureBytes(epubFixture)
+        val bytes = generatedEpubBytes ?: fixtureBytes(requireNotNull(epubFixture))
         val storageUri = fileStore.persistOriginal(
             bookId = "epub-book",
             extension = "epub",
@@ -137,6 +183,40 @@ class LocalBookContentRepositoryTest {
         }
 
     private fun fixtureBytes(name: String): ByteArray = fixture(name).use { it.readBytes() }
+
+    private fun createTitlePageFirstEpubBytes(): ByteArray {
+        val entries = linkedMapOf(
+            "META-INF/container.xml" to CONTAINER_XML.toByteArray(Charsets.UTF_8),
+            "OEBPS/content.opf" to TITLE_PAGE_FIRST_CONTENT_OPF.toByteArray(Charsets.UTF_8),
+            "OEBPS/titlepage.xhtml" to TITLE_PAGE_XHTML.toByteArray(Charsets.UTF_8),
+            "OEBPS/chapter1.xhtml" to CHAPTER_ONE_XHTML.toByteArray(Charsets.UTF_8),
+            "OEBPS/images/cover.jpg" to byteArrayOf(1, 2, 3, 4),
+        )
+
+        return java.io.ByteArrayOutputStream().use { output ->
+            ZipOutputStream(output).use { zip ->
+                val mimeBytes = "application/epub+zip".toByteArray(Charsets.UTF_8)
+                val crc = CRC32().apply { update(mimeBytes) }.value
+                zip.putNextEntry(
+                    ZipEntry("mimetype").apply {
+                        method = ZipEntry.STORED
+                        size = mimeBytes.size.toLong()
+                        compressedSize = mimeBytes.size.toLong()
+                        this.crc = crc
+                    }
+                )
+                zip.write(mimeBytes)
+                zip.closeEntry()
+
+                entries.forEach { (path, bytes) ->
+                    zip.putNextEntry(ZipEntry(path))
+                    zip.write(bytes)
+                    zip.closeEntry()
+                }
+            }
+            output.toByteArray()
+        }
+    }
 
     private class FakeBookAssetDao(
         primaryAsset: BookAssetEntity,
@@ -180,5 +260,65 @@ class LocalBookContentRepositoryTest {
             clearAll()
             upsertAll(entities)
         }
+    }
+
+    private companion object {
+        const val CONTAINER_XML =
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+              <rootfiles>
+                <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+              </rootfiles>
+            </container>
+            """
+
+        const val TITLE_PAGE_FIRST_CONTENT_OPF =
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="BookId">
+              <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                <dc:title>Title Page First</dc:title>
+                <dc:identifier id="BookId">book-1</dc:identifier>
+                <dc:language>zh-CN</dc:language>
+              </metadata>
+              <manifest>
+                <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
+                <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+                <item id="cover-image" href="images/cover.jpg" media-type="image/jpeg"/>
+              </manifest>
+              <spine>
+                <itemref idref="titlepage"/>
+                <itemref idref="chapter1"/>
+              </spine>
+            </package>
+            """
+
+        const val TITLE_PAGE_XHTML =
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!DOCTYPE html>
+            <html xmlns="http://www.w3.org/1999/xhtml">
+              <head><title>Cover</title></head>
+              <body>
+                <div class="hero"><img src="images/cover.jpg" alt="Cover"/></div>
+                <p>Cover</p>
+              </body>
+            </html>
+            """
+
+        const val CHAPTER_ONE_XHTML =
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!DOCTYPE html>
+            <html xmlns="http://www.w3.org/1999/xhtml">
+              <head><title>第一章</title></head>
+              <body>
+                <h1>第一章</h1>
+                <p>第一章-第一段。</p>
+                <p>第一章-第二段。</p>
+              </body>
+            </html>
+            """
     }
 }

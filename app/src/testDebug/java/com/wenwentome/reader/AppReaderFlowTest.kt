@@ -24,9 +24,9 @@ import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
+import com.wenwentome.reader.core.model.ReadingState
 import com.wenwentome.reader.core.model.RemoteBinding
 import com.wenwentome.reader.di.AppContainer
-import com.wenwentome.reader.feature.discover.AddRemoteBookToShelfUseCase
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -91,15 +91,12 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("discover-result-remote-discover-flow").performClick()
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
-        val addedBookId = runBlocking {
-            AddRemoteBookToShelfUseCase(
-                sourceBridgeRepository = harness.appContainer.sourceBridgeRepository,
-                bookRecordDao = harness.database.bookRecordDao(),
-                remoteBindingDao = harness.database.remoteBindingDao(),
-            )(harness.searchResult)
-        }
+        composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            runBlocking { harness.database.bookRecordDao().getAll().any { it.id == addedBookId } }
+            runBlocking { harness.database.bookRecordDao().getAll().any { it.title == harness.searchResult.title } }
+        }
+        val addedBookId = runBlocking {
+            harness.database.bookRecordDao().getAll().single { it.title == harness.searchResult.title }.id
         }
 
         composeTestRule.onNodeWithTag("nav-bookshelf").performClick()
@@ -108,7 +105,30 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("book-cover-card-$addedBookId").assertExistsCompat()
     }
 
-    private fun createWebReaderAppContainer(): AppContainer {
+    @Test
+    fun appReaderFlow_continueReadingCardOpensReaderDirectly() {
+        val appContainer = createWebReaderAppContainer(
+            readingState = ReadingState(
+                bookId = "book-web-flow",
+                locator = "chapter-latest",
+                chapterRef = "chapter-latest",
+                progressPercent = 0.66f,
+            ),
+        )
+
+        composeTestRule.setContent {
+            ReaderApp(appContainer = appContainer)
+        }
+
+        composeTestRule.waitUntilTagExists("continue-reading-card")
+        composeTestRule.onNodeWithTag("continue-reading-card").performClick()
+        composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.onNodeWithTag("reader-chapter-title").assertTextContains("最新章")
+    }
+
+    private fun createWebReaderAppContainer(
+        readingState: ReadingState? = null,
+    ): AppContainer {
         val application = ApplicationProvider.getApplicationContext<Application>()
         val database =
             Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
@@ -176,6 +196,7 @@ class AppReaderFlowTest {
                     latestKnownChapterRef = "chapter-latest",
                 ).toEntity()
             )
+            readingState?.let { database.readingStateDao().upsert(it.toEntity()) }
         }
 
         return appContainer

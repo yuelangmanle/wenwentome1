@@ -80,10 +80,14 @@ class LocalBookContentRepository(
             resourceStream.readBytes().decodeToString()
         }
         val allParagraphs = extractParagraphsFromHtml(html)
+        val visibleParagraphs = allParagraphs
+            .drop(resolvedLocator.paragraphIndex)
+            .take(60)
+            .ifEmpty { allParagraphs.take(60) }
 
         return ReaderContent(
             chapterTitle = chapter.title,
-            paragraphs = allParagraphs.drop(resolvedLocator.paragraphIndex).take(60),
+            paragraphs = visibleParagraphs,
             chapterRef = chapter.chapterRef,
         )
     }

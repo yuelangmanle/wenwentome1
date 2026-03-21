@@ -170,7 +170,10 @@ class EpubCatalogParser {
         }
 
         val fileName = resourceHref.substringAfterLast('/').substringBeforeLast('.').lowercase()
-        if (fileName == "cover" || fileName == "nav" || fileName == "toc") {
+        if (isFrontMatterFileName(fileName)) {
+            return false
+        }
+        if (looksLikeFrontMatterPage(resource)) {
             return false
         }
         return true
@@ -288,6 +291,36 @@ class EpubCatalogParser {
         return null
     }
 
+    private fun isFrontMatterFileName(fileName: String): Boolean =
+        EXACT_FRONT_MATTER_FILE_NAMES.contains(fileName) ||
+            PARTIAL_FRONT_MATTER_FILE_TOKENS.any { token -> fileName.contains(token) }
+
+    private fun looksLikeFrontMatterPage(resource: Resource): Boolean {
+        val html = runCatching {
+            resource.inputStream.use { inputStream ->
+                inputStream.readBytes().decodeToString()
+            }
+        }.getOrNull() ?: return false
+
+        val normalizedText = stripTags(html).lowercase()
+        if (normalizedText.isBlank()) {
+            return true
+        }
+        val shortText = normalizedText.length <= 40
+        if (!shortText) {
+            return false
+        }
+
+        val hasImage = IMAGE_TAG_REGEX.containsMatchIn(html)
+        if (hasImage) {
+            return true
+        }
+
+        return FRONT_MATTER_TEXT_TOKENS.any { token ->
+            normalizedText == token || normalizedText.contains(" $token ") || normalizedText.startsWith("$token ")
+        }
+    }
+
     private fun findResourceByHref(book: Book, href: String): Resource? {
         book.resources.getByHref(href)?.let { return it }
         val canonicalHref = canonicalizeHref(book, href)
@@ -325,6 +358,30 @@ class EpubCatalogParser {
         private val ANCHOR_TAG_REGEX = Regex("(?is)<a\\b[^>]*href\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>(.*?)</a>")
         private val TITLE_TAG_REGEX = Regex("(?is)<title\\b[^>]*>(.*?)</title>")
         private val H1_TAG_REGEX = Regex("(?is)<h1\\b[^>]*>(.*?)</h1>")
+        private val IMAGE_TAG_REGEX = Regex("(?is)<img\\b")
+        private val EXACT_FRONT_MATTER_FILE_NAMES = setOf(
+            "cover",
+            "coverpage",
+            "cover-page",
+            "titlepage",
+            "title-page",
+            "nav",
+            "toc",
+        )
+        private val PARTIAL_FRONT_MATTER_FILE_TOKENS = setOf(
+            "frontmatter",
+            "copyright",
+            "imprint",
+            "title_page",
+            "cover_page",
+        )
+        private val FRONT_MATTER_TEXT_TOKENS = setOf(
+            "cover",
+            "title page",
+            "封面",
+            "扉页",
+            "版权页",
+        )
     }
 
     private data class ReadableEntry(

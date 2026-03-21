@@ -5,32 +5,49 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.ReaderMode
 import com.wenwentome.reader.core.model.ReaderTheme
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 
 @Composable
 fun ReaderScreen(
@@ -44,11 +61,104 @@ fun ReaderScreen(
     onChapterSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val saveLocator = state.locatorForSave()
     val palette = state.readerPalette()
-    var showModePicker by remember { mutableStateOf(false) }
-    var showSettings by remember { mutableStateOf(false) }
-    var showToc by remember { mutableStateOf(false) }
+    val readerPages = remember(state.book?.primaryFormat, state.chapterRef, state.paragraphs, state.presentation.fontSizeSp, state.readerMode) {
+        state.toReaderPages()
+    }
+    val initialParagraphIndex = remember(state.book?.primaryFormat, state.locator) {
+        paragraphIndexFromLocator(
+            format = state.book?.primaryFormat,
+            locator = state.locator,
+        )
+    }
+    val initialPageIndex = remember(readerPages, state.book?.primaryFormat, state.locator) {
+        pageIndexFromLocator(
+            pages = readerPages,
+            format = state.book?.primaryFormat,
+            locator = state.locator,
+        )
+    }
+    val pagerState = rememberPagerState(
+        initialPage = initialPageIndex.coerceIn(0, readerPages.lastIndex),
+        pageCount = { readerPages.size },
+    )
+    val verticalListState = rememberLazyListState(
+        initialFirstVisibleItemIndex = initialParagraphIndex.coerceIn(0, state.paragraphs.lastIndex.coerceAtLeast(0)),
+    )
+    val pagerScope = rememberCoroutineScope()
+    var showModePicker by remember { mutableIntStateOf(0) }
+    var showSettings by remember { mutableIntStateOf(0) }
+    var showToc by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(state.locator, state.readerMode, readerPages.size) {
+        val targetPage = pageIndexFromLocator(
+            pages = readerPages,
+            format = state.book?.primaryFormat,
+            locator = state.locator,
+        ).coerceIn(0, readerPages.lastIndex)
+        if (state.readerMode != ReaderMode.VERTICAL_SCROLL && pagerState.currentPage != targetPage) {
+            pagerState.scrollToPage(targetPage)
+        }
+    }
+
+    LaunchedEffect(state.locator, state.readerMode, state.paragraphs.size) {
+        val targetIndex = paragraphIndexFromLocator(
+            format = state.book?.primaryFormat,
+            locator = state.locator,
+        ).coerceIn(0, state.paragraphs.lastIndex.coerceAtLeast(0))
+        if (state.readerMode == ReaderMode.VERTICAL_SCROLL && verticalListState.firstVisibleItemIndex != targetIndex) {
+            verticalListState.scrollToItem(targetIndex)
+        }
+    }
+
+    LaunchedEffect(
+        state.readerMode,
+        state.book?.primaryFormat,
+        state.chapterRef,
+        state.locator,
+        readerPages.size,
+        state.paragraphs.size,
+    ) {
+        when (state.readerMode) {
+            ReaderMode.SIMULATED_PAGE_TURN,
+            ReaderMode.HORIZONTAL_PAGING ->
+                snapshotFlow {
+                    pagerViewportPosition(
+                        pages = readerPages,
+                        currentPage = pagerState.currentPage,
+                    )
+                }
+
+            ReaderMode.VERTICAL_SCROLL ->
+                snapshotFlow {
+                    verticalViewportPosition(
+                        state = state,
+                        paragraphIndex = verticalListState.firstVisibleItemIndex,
+                    )
+                }
+        }
+            .drop(1)
+            .distinctUntilChanged()
+            .collect { position ->
+                val locator = position.locator ?: return@collect
+                onLocatorChanged(locator, position.progressPercent)
+            }
+    }
+
+    val currentPosition = when (state.readerMode) {
+        ReaderMode.SIMULATED_PAGE_TURN,
+        ReaderMode.HORIZONTAL_PAGING ->
+            pagerViewportPosition(
+                pages = readerPages,
+                currentPage = pagerState.currentPage,
+            )
+
+        ReaderMode.VERTICAL_SCROLL ->
+            verticalViewportPosition(
+                state = state,
+                paragraphIndex = verticalListState.firstVisibleItemIndex,
+            )
+    }
 
     Column(
         modifier = modifier
@@ -67,11 +177,11 @@ fun ReaderScreen(
                 modifier = Modifier.testTag("reader-chapter-title"),
             )
             LinearProgressIndicator(
-                progress = { state.progressPercent.coerceIn(0f, 1f) },
+                progress = { currentPosition.progressPercent.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                text = state.progressLabel,
+                text = currentPosition.progressLabel,
                 style = MaterialTheme.typography.labelLarge,
                 color = palette.text,
                 modifier = Modifier.testTag("reader-progress-summary"),
@@ -80,30 +190,30 @@ fun ReaderScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                TextButton(onClick = { showModePicker = !showModePicker }) {
+                TextButton(onClick = { showModePicker = 1 - showModePicker }) {
                     Text("模式")
                 }
-                TextButton(onClick = { showToc = !showToc }) {
+                TextButton(onClick = { showToc = 1 - showToc }) {
                     Text("目录")
                 }
-                TextButton(onClick = { showSettings = !showSettings }) {
+                TextButton(onClick = { showSettings = 1 - showSettings }) {
                     Text("设置")
                 }
             }
-            if (showModePicker) {
+            if (showModePicker == 1) {
                 ReaderModePicker(
                     selectedMode = state.readerMode,
                     onModeSelected = { mode ->
                         onReaderModeChange(mode)
-                        showModePicker = false
+                        showModePicker = 0
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            if (showSettings) {
+            if (showSettings == 1) {
                 ReaderSettingsSheet(
                     presentation = state.presentation,
-                    progressLabel = state.progressLabel,
+                    progressLabel = currentPosition.progressLabel,
                     onThemeChange = onThemeChange,
                     onFontSizeChange = onFontSizeChange,
                     onLineHeightChange = onLineHeightChange,
@@ -111,16 +221,16 @@ fun ReaderScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            if (showToc) {
+            if (showToc == 1) {
                 ReaderTocSheet(
                     chapters = state.chapters,
                     currentChapterRef = state.tocHighlightedChapterRef ?: state.chapterRef,
                     latestChapterRef = state.latestChapterRef,
                     initialScrollChapterRef = state.chapterRef ?: state.latestChapterRef,
-                    progressLabel = state.progressLabel,
+                    progressLabel = currentPosition.progressLabel,
                     onChapterClick = { chapter ->
                         onChapterSelected(chapter.chapterRef)
-                        showToc = false
+                        showToc = 0
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -128,6 +238,7 @@ fun ReaderScreen(
                 )
             }
         }
+
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -135,40 +246,70 @@ fun ReaderScreen(
         ) {
             when (state.readerMode) {
                 ReaderMode.SIMULATED_PAGE_TURN ->
-                    ReaderParagraphBody(
-                        state = state,
+                    ReaderSimulatedPager(
+                        pages = readerPages,
+                        pagerState = pagerState,
                         palette = palette,
-                        modifier = Modifier.background(palette.background),
+                        presentation = state.presentation,
+                        modifier = Modifier.fillMaxSize(),
+                        onPrev = {
+                            if (pagerState.currentPage > 0) {
+                                pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                            }
+                        },
+                        onNext = {
+                            if (pagerState.currentPage < readerPages.lastIndex) {
+                                pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                            }
+                        },
                     )
 
                 ReaderMode.HORIZONTAL_PAGING ->
-                    ReaderParagraphBody(
-                        state = state,
+                    ReaderHorizontalPager(
+                        pages = readerPages,
+                        pagerState = pagerState,
                         palette = palette,
-                        modifier = Modifier.background(palette.background),
+                        presentation = state.presentation,
+                        modifier = Modifier.fillMaxSize(),
                     )
 
                 ReaderMode.VERTICAL_SCROLL ->
-                    ReaderParagraphBody(
+                    ReaderVerticalScrollBody(
                         state = state,
                         palette = palette,
-                        modifier = Modifier.background(palette.background),
+                        listState = verticalListState,
+                        modifier = Modifier.fillMaxSize(),
                     )
             }
         }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (state.readerMode != ReaderMode.VERTICAL_SCROLL) {
+                Text(
+                    text = "第 ${pagerState.currentPage + 1} / ${readerPages.size} 页",
+                    color = palette.text,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.testTag("reader-page-indicator"),
+                )
+            } else {
+                Text(
+                    text = "段落 ${verticalListState.firstVisibleItemIndex + 1}",
+                    color = palette.text,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
             Button(
                 onClick = {
-                    saveLocator?.let { locator ->
-                        onLocatorChanged(locator, state.progressPercent)
-                    }
+                    val locator = currentPosition.locator ?: state.locatorForSave() ?: return@Button
+                    onLocatorChanged(locator, currentPosition.progressPercent)
                 },
-                enabled = saveLocator != null,
+                enabled = currentPosition.locator != null || state.locatorForSave() != null,
             ) {
                 Text("保存进度")
             }
@@ -177,37 +318,170 @@ fun ReaderScreen(
 }
 
 @Composable
-private fun ReaderParagraphBody(
-    state: ReaderUiState,
+private fun ReaderSimulatedPager(
+    pages: List<ReaderPageSlice>,
+    pagerState: androidx.compose.foundation.pager.PagerState,
     palette: ReaderPalette,
+    presentation: com.wenwentome.reader.core.model.ReaderPresentationPrefs,
     modifier: Modifier = Modifier,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
 ) {
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .testTag("reader-body"),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp)
+            .testTag("reader-simulated-pager"),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        if (state.paragraphs.isEmpty()) {
-            item {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 18.dp),
+            pageSpacing = 14.dp,
+        ) { pageIndex ->
+            ReaderPageSurface(
+                paragraphs = pages[pageIndex].paragraphs,
+                palette = palette,
+                presentation = presentation,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedButton(onClick = onPrev, enabled = pagerState.currentPage > 0) {
+                Text("上一页")
+            }
+            Text(
+                text = "仿真翻页",
+                color = palette.text,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+            )
+            OutlinedButton(onClick = onNext, enabled = pagerState.currentPage < pages.lastIndex) {
+                Text("下一页")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderHorizontalPager(
+    pages: List<ReaderPageSlice>,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    palette: ReaderPalette,
+    presentation: com.wenwentome.reader.core.model.ReaderPresentationPrefs,
+    modifier: Modifier = Modifier,
+) {
+    HorizontalPager(
+        state = pagerState,
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 10.dp)
+            .testTag("reader-horizontal-pager"),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        pageSpacing = 12.dp,
+    ) { pageIndex ->
+        ReaderPageSurface(
+            paragraphs = pages[pageIndex].paragraphs,
+            palette = palette,
+            presentation = presentation,
+            modifier = Modifier.fillMaxSize(),
+            containerColor = palette.background.copy(alpha = 0.92f),
+        )
+    }
+}
+
+@Composable
+private fun ReaderVerticalScrollBody(
+    state: ReaderUiState,
+    palette: ReaderPalette,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("reader-vertical-scroll"),
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("reader-body"),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            if (state.paragraphs.isEmpty()) {
+                item {
+                    Text(
+                        text = "暂无正文内容",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = palette.text,
+                    )
+                }
+            } else {
+                items(state.paragraphs) { paragraph ->
+                    SelectionContainer {
+                        Text(
+                            text = paragraph,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = state.presentation.fontSizeSp.sp,
+                                lineHeight = (state.presentation.fontSizeSp * state.presentation.lineHeightMultiplier).sp,
+                                color = palette.text,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderPageSurface(
+    paragraphs: List<String>,
+    palette: ReaderPalette,
+    presentation: com.wenwentome.reader.core.model.ReaderPresentationPrefs,
+    modifier: Modifier = Modifier,
+    containerColor: Color = Color(0xFFFFFCF8),
+) {
+    Card(
+        modifier = modifier
+            .padding(vertical = 6.dp)
+            .clip(RoundedCornerShape(28.dp)),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+        shape = RoundedCornerShape(28.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(containerColor)
+                .padding(horizontal = 22.dp, vertical = 26.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (paragraphs.isEmpty()) {
                 Text(
                     text = "暂无正文内容",
                     style = MaterialTheme.typography.bodyMedium,
                     color = palette.text,
                 )
-            }
-        } else {
-            items(state.paragraphs) { paragraph ->
-                SelectionContainer {
-                    Text(
-                        text = paragraph,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = state.presentation.fontSizeSp.sp,
-                            lineHeight = (state.presentation.fontSizeSp * state.presentation.lineHeightMultiplier).sp,
-                            color = palette.text,
-                        ),
-                    )
+            } else {
+                paragraphs.forEach { paragraph ->
+                    SelectionContainer {
+                        Text(
+                            text = paragraph,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = presentation.fontSizeSp.sp,
+                                lineHeight = (presentation.fontSizeSp * presentation.lineHeightMultiplier).sp,
+                                color = palette.text,
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -222,6 +496,128 @@ internal fun ReaderUiState.locatorForSave(): String? =
             BookFormat.WEB -> chapterRef?.takeIf { it.isNotBlank() }
             null -> chapterRef?.takeIf { it.isNotBlank() }
         }
+
+private data class ReaderPageSlice(
+    val locator: String?,
+    val progressPercent: Float,
+    val paragraphs: List<String>,
+)
+
+private data class ReaderViewportPosition(
+    val locator: String?,
+    val progressPercent: Float,
+    val progressLabel: String,
+)
+
+private fun pagerViewportPosition(
+    pages: List<ReaderPageSlice>,
+    currentPage: Int,
+): ReaderViewportPosition {
+    val page = pages.getOrElse(currentPage) { pages.first() }
+    return ReaderViewportPosition(
+        locator = page.locator,
+        progressPercent = page.progressPercent,
+        progressLabel = formatProgressLabel(page.progressPercent),
+    )
+}
+
+private fun verticalViewportPosition(
+    state: ReaderUiState,
+    paragraphIndex: Int,
+): ReaderViewportPosition {
+    val resolvedParagraphIndex = paragraphIndex.coerceAtLeast(0)
+    val progressPercent = progressPercentForParagraphIndex(resolvedParagraphIndex, state.paragraphs.size)
+    return ReaderViewportPosition(
+        locator = buildLocatorForParagraph(
+            format = state.book?.primaryFormat,
+            chapterRef = state.chapterRef,
+            paragraphIndex = resolvedParagraphIndex,
+            fallbackLocator = state.locatorForSave(),
+        ),
+        progressPercent = progressPercent,
+        progressLabel = formatProgressLabel(progressPercent),
+    )
+}
+
+private fun ReaderUiState.toReaderPages(): List<ReaderPageSlice> {
+    if (paragraphs.isEmpty()) {
+        return listOf(
+            ReaderPageSlice(
+                locator = locatorForSave(),
+                progressPercent = progressPercent,
+                paragraphs = emptyList(),
+            )
+        )
+    }
+
+    val paragraphsPerPage = when {
+        presentation.fontSizeSp >= 24 -> 2
+        presentation.fontSizeSp >= 20 -> 3
+        readerMode == ReaderMode.SIMULATED_PAGE_TURN -> 3
+        else -> 4
+    }
+
+    val chunks = paragraphs.chunked(paragraphsPerPage)
+    return chunks.mapIndexed { pageIndex, chunk ->
+        val startParagraphIndex = pageIndex * paragraphsPerPage
+        ReaderPageSlice(
+            locator = buildLocatorForParagraph(
+                format = book?.primaryFormat,
+                chapterRef = chapterRef,
+                paragraphIndex = startParagraphIndex,
+                fallbackLocator = locatorForSave(),
+            ),
+            progressPercent = progressPercentForParagraphIndex(startParagraphIndex, paragraphs.size),
+            paragraphs = chunk,
+        )
+    }
+}
+
+private fun buildLocatorForParagraph(
+    format: BookFormat?,
+    chapterRef: String?,
+    paragraphIndex: Int,
+    fallbackLocator: String?,
+): String? =
+    when (format) {
+        BookFormat.TXT -> paragraphIndex.coerceAtLeast(0).toString()
+        BookFormat.EPUB -> chapterRef?.takeIf { it.isNotBlank() }?.let { "chapter:$it#paragraph:${paragraphIndex.coerceAtLeast(0)}" }
+        BookFormat.WEB -> chapterRef?.takeIf { it.isNotBlank() } ?: fallbackLocator
+        null -> chapterRef?.takeIf { it.isNotBlank() } ?: fallbackLocator
+    }
+
+private fun paragraphIndexFromLocator(
+    format: BookFormat?,
+    locator: String?,
+): Int {
+    val value = locator?.trim().orEmpty()
+    if (value.isBlank()) return 0
+    return when (format) {
+        BookFormat.TXT -> value.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        BookFormat.EPUB -> STRUCTURED_EPUB_LOCATOR.matchEntire(value)?.groupValues?.getOrNull(2)?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        BookFormat.WEB, null -> 0
+    }
+}
+
+private fun pageIndexFromLocator(
+    pages: List<ReaderPageSlice>,
+    format: BookFormat?,
+    locator: String?,
+): Int {
+    val paragraphIndex = paragraphIndexFromLocator(format, locator)
+    return pages.indexOfLast { page ->
+        val pageParagraphIndex = paragraphIndexFromLocator(format, page.locator)
+        pageParagraphIndex <= paragraphIndex
+    }.takeIf { it >= 0 } ?: 0
+}
+
+private fun progressPercentForParagraphIndex(
+    paragraphIndex: Int,
+    paragraphCount: Int,
+): Float {
+    if (paragraphCount <= 1) return 0f
+    return paragraphIndex.coerceIn(0, paragraphCount - 1) / (paragraphCount - 1).toFloat()
+}
 
 private data class ReaderPalette(
     val background: Color,
@@ -248,3 +644,5 @@ private fun ReaderUiState.readerPalette(): ReaderPalette =
                 text = Color(0xFFE8E4DA),
             )
     }
+
+private val STRUCTURED_EPUB_LOCATOR = Regex("^chapter:(.+)#paragraph:(\\d+)$")

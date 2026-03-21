@@ -199,6 +199,9 @@ fun AppNavHost(
                 onImportClick = {
                     importLauncher.launch(arrayOf("text/plain", "application/epub+zip"))
                 },
+                onContinueReadingClick = { bookId ->
+                    navController.navigate("reader/$bookId")
+                },
                 onBookClick = { bookId ->
                     navController.navigate("book/$bookId")
                 },

@@ -24,6 +24,7 @@ class LibraryScreenTest {
             LibraryScreen(
                 state = sampleState(),
                 onImportClick = {},
+                onContinueReadingClick = {},
                 onBookClick = {},
                 onImportPhoto = {},
                 onRefreshCover = {},

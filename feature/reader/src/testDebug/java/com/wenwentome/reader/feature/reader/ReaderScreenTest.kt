@@ -49,6 +49,81 @@ class ReaderScreenTest {
     }
 
     @Test
+    fun readerScreen_rendersDedicatedContainersForEveryReaderMode() {
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(readerMode = ReaderMode.SIMULATED_PAGE_TURN),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+            )
+        }
+
+        composeTestRule.assertTagExists("reader-simulated-pager")
+        composeTestRule.onNodeWithTag("reader-page-indicator").assertTextContains("第 1 /")
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(readerMode = ReaderMode.HORIZONTAL_PAGING),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+            )
+        }
+
+        composeTestRule.assertTagExists("reader-horizontal-pager")
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(readerMode = ReaderMode.VERTICAL_SCROLL),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+            )
+        }
+
+        composeTestRule.assertTagExists("reader-vertical-scroll")
+    }
+
+    @Test
+    fun readerScreen_turningPageAutomaticallyPersistsUpdatedLocator() {
+        val locatorChanges = mutableListOf<Pair<String, Float>>()
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(readerMode = ReaderMode.SIMULATED_PAGE_TURN),
+                onLocatorChanged = { locator, progress -> locatorChanges += locator to progress },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("下一页").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            locatorChanges.any { (locator, progress) ->
+                locator == "chapter:chapter-3#paragraph:3" &&
+                    kotlin.math.abs(progress - 0.75f) < 0.001f
+            }
+        }
+    }
+
+    @Test
     fun tocSheet_highlightsCurrentChapter_andLatestChapter_withoutResettingLocatorUntilSelect() {
         val locatorChanges = mutableListOf<String>()
 
@@ -68,11 +143,13 @@ class ReaderScreenTest {
         composeTestRule.onNodeWithText("目录").performClick()
         composeTestRule.assertTagExists("toc-current-chapter")
         composeTestRule.assertTagExists("toc-latest-chapter")
-        composeTestRule.onNodeWithTag("reader-progress-label").assertTextContains("42%")
+        composeTestRule.onNodeWithTag("reader-progress-label").assertTextContains("50%")
         assertEquals(emptyList<String>(), locatorChanges)
     }
 
-    private fun sampleState() =
+    private fun sampleState(
+        readerMode: ReaderMode = ReaderMode.SIMULATED_PAGE_TURN,
+    ) =
         ReaderUiState(
             book = BookRecord(
                 id = "book-1",
@@ -81,7 +158,7 @@ class ReaderScreenTest {
                 originType = OriginType.LOCAL,
                 primaryFormat = BookFormat.EPUB,
             ),
-            readerMode = ReaderMode.SIMULATED_PAGE_TURN,
+            readerMode = readerMode,
             presentation = ReaderPresentationPrefs(),
             chapters = listOf(
                 ReaderChapter(
@@ -103,11 +180,17 @@ class ReaderScreenTest {
             chapterRef = "chapter-3",
             latestChapterRef = "chapter-8",
             tocHighlightedChapterRef = "chapter-3",
-            locator = "chapter:chapter-3#paragraph:0",
-            progressPercent = 0.42f,
-            progressLabel = "42%",
+            locator = "chapter:chapter-3#paragraph:2",
+            progressPercent = 0.5f,
+            progressLabel = "50%",
             chapterTitle = "第三章",
-            paragraphs = listOf("正文第一段"),
+            paragraphs = listOf(
+                "正文第一段",
+                "正文第二段",
+                "正文第三段",
+                "正文第四段",
+                "正文第五段",
+            ),
         )
 }
 
