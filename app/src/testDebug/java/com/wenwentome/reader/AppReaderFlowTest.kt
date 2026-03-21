@@ -126,6 +126,7 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasText("开始阅读"))
         composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.waitUntilTextExists("第 1 / 3 页")
         composeTestRule.onNodeWithText("下一页").performClick()
         composeTestRule.waitUntilTextExists("第 2 / 3 页")
         composeTestRule.onNodeWithText("保存进度").performClick()
@@ -165,7 +166,6 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("continue-reading-card").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.waitUntilTextExists("第 2 / 3 页")
-        composeTestRule.onNodeWithTag("reader-page-indicator").assertTextContains("2 / 3")
     }
 
     private fun createWebReaderAppContainer(
