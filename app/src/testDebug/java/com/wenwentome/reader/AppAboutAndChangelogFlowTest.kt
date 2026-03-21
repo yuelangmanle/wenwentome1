@@ -36,8 +36,8 @@ class AppAboutAndChangelogFlowTest {
 
         composeTestRule.onNodeWithTag("nav-settings").performClick()
         composeTestRule.onNodeWithText("关于与项目").assertTextEquals("关于与项目")
-        composeTestRule.onNodeWithText("作者：月亮满了").assertTextEquals("作者：月亮满了")
-        composeTestRule.onNodeWithText("版本 ${BuildConfig.VERSION_NAME}")
+        composeTestRule.onNodeWithTag("project-author-text").assertTextEquals("作者：月亮满了")
+        composeTestRule.onNodeWithTag("project-version-text")
             .assertTextEquals("版本 ${BuildConfig.VERSION_NAME}")
         composeTestRule.onNodeWithTag("open-changelog-button").performScrollTo().performClick()
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
