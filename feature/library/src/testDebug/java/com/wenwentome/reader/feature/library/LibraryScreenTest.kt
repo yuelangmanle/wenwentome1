@@ -19,12 +19,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import okio.Buffer
 import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.InetSocketAddress
+import com.sun.net.httpserver.HttpServer
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryScreenTest {
@@ -138,17 +137,19 @@ class LibraryScreenTest {
     @Test
     fun loadReadableCoverBitmap_decodesRemoteCoverUri() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val server = MockWebServer()
-        server.enqueue(
-            MockResponse()
-                .setHeader("Content-Type", "image/png")
-                .setBody(Buffer().write(createPngBytes()))
-        )
-        server.start()
+        val pngBytes = createPngBytes()
+        val server = HttpServer.create(InetSocketAddress(0), 0).apply {
+            createContext("/cover.png") { exchange ->
+                exchange.responseHeaders.add("Content-Type", "image/png")
+                exchange.sendResponseHeaders(200, pngBytes.size.toLong())
+                exchange.responseBody.use { output -> output.write(pngBytes) }
+            }
+            start()
+        }
         try {
-            assertNotNull(loadReadableCoverBitmap(context, server.url("/cover.png").toString()))
+            assertNotNull(loadReadableCoverBitmap(context, "http://127.0.0.1:${server.address.port}/cover.png"))
         } finally {
-            server.shutdown()
+            server.stop(0)
         }
     }
 
