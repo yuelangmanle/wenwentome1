@@ -72,15 +72,11 @@ class AddRemoteBookToShelfUseCase(
     private val remoteBindingDao: RemoteBindingDao,
 ) : AddRemoteBookToShelf {
     override suspend fun invoke(result: RemoteSearchResult): String {
-        println("AddRemoteBookToShelfUseCase:start resultId=${result.id}")
         val existingBinding = remoteBindingDao.getByRemoteBook(result.sourceId, result.id)
         if (existingBinding != null) {
-            println("AddRemoteBookToShelfUseCase:existingBinding bookId=${existingBinding.bookId}")
             return existingBinding.bookId
         }
-        println("AddRemoteBookToShelfUseCase:fetchDetail resultId=${result.id}")
         val detail = sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
-        println("AddRemoteBookToShelfUseCase:fetchToc resultId=${result.id}")
         val toc = sourceBridgeRepository.fetchToc(result.sourceId, result.id)
         val latestKnownChapterRef = resolveLatestKnownChapterRefForAdd(detail, toc)
         val bookId = UUID.randomUUID().toString()
@@ -93,9 +89,7 @@ class AddRemoteBookToShelfUseCase(
             cover = detail.coverUrl,
             summary = detail.summary,
         )
-        println("AddRemoteBookToShelfUseCase:upsertBook bookId=$bookId")
         bookRecordDao.upsert(book.toEntity())
-        println("AddRemoteBookToShelfUseCase:upsertBinding bookId=$bookId latestKnownChapterRef=$latestKnownChapterRef")
         remoteBindingDao.upsert(
             RemoteBinding(
                 bookId = book.id,
@@ -106,7 +100,6 @@ class AddRemoteBookToShelfUseCase(
                 latestKnownChapterRef = latestKnownChapterRef,
             ).toEntity()
         )
-        println("AddRemoteBookToShelfUseCase:success bookId=$bookId")
         return book.id
     }
 }
