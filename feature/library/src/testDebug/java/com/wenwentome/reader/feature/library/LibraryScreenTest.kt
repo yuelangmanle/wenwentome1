@@ -91,18 +91,30 @@ class LibraryScreenTest {
             )
         }
 
-        composeTestRule.waitUntilTagExists("continue-reading-real-cover")
-        composeTestRule.waitUntilTagGone("continue-reading-placeholder-cover")
-        composeTestRule.onNodeWithTag("continue-reading-real-cover").assertExistsCompat()
-        composeTestRule.onNodeWithTag("continue-reading-placeholder-cover").assertDoesNotExistCompat()
+        composeTestRule.waitUntilTagExists("continue-reading-real-cover", useUnmergedTree = true)
+        composeTestRule.waitUntilTagGone("continue-reading-placeholder-cover", useUnmergedTree = true)
+        composeTestRule.onNodeWithTag(
+            "continue-reading-real-cover",
+            useUnmergedTree = true,
+        ).assertExistsCompat()
+        composeTestRule.onNodeWithTag(
+            "continue-reading-placeholder-cover",
+            useUnmergedTree = true,
+        ).assertDoesNotExistCompat()
 
         val book1Index = state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
         assertTrue("预期 sampleState.visibleBooks 中包含 book-1", book1Index >= 0)
         composeTestRule.onNodeWithTag("library-grid-section").performScrollToIndex(book1Index)
-        composeTestRule.waitUntilTagExists("book-cover-real-cover-book-1")
-        composeTestRule.waitUntilTagGone("book-cover-placeholder-book-1")
-        composeTestRule.onNodeWithTag("book-cover-real-cover-book-1").assertExistsCompat()
-        composeTestRule.onNodeWithTag("book-cover-placeholder-book-1").assertDoesNotExistCompat()
+        composeTestRule.waitUntilTagExists("book-cover-real-cover-book-1", useUnmergedTree = true)
+        composeTestRule.waitUntilTagGone("book-cover-placeholder-book-1", useUnmergedTree = true)
+        composeTestRule.onNodeWithTag(
+            "book-cover-real-cover-book-1",
+            useUnmergedTree = true,
+        ).assertExistsCompat()
+        composeTestRule.onNodeWithTag(
+            "book-cover-placeholder-book-1",
+            useUnmergedTree = true,
+        ).assertDoesNotExistCompat()
     }
 
     private fun sampleState(readableCoverUri: String? = null) =
@@ -186,17 +198,19 @@ private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertDoesNotExist
 private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.waitUntilTagExists(
     tag: String,
     timeoutMillis: Long = 5_000L,
+    useUnmergedTree: Boolean = false,
 ) {
     waitUntil(timeoutMillis) {
-        runCatching { onNodeWithTag(tag).fetchSemanticsNode() }.isSuccess
+        runCatching { onNodeWithTag(tag, useUnmergedTree = useUnmergedTree).fetchSemanticsNode() }.isSuccess
     }
 }
 
 private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.waitUntilTagGone(
     tag: String,
     timeoutMillis: Long = 5_000L,
+    useUnmergedTree: Boolean = false,
 ) {
     waitUntil(timeoutMillis) {
-        runCatching { onNodeWithTag(tag).fetchSemanticsNode() }.isFailure
+        runCatching { onNodeWithTag(tag, useUnmergedTree = useUnmergedTree).fetchSemanticsNode() }.isFailure
     }
 }
