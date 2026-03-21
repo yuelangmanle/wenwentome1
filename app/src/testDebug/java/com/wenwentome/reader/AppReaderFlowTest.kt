@@ -92,9 +92,8 @@ class AppReaderFlowTest {
         composeTestRule.waitUntilTagExists("discover-selected-preview")
         composeTestRule.waitUntilTextExists("最新章节：最新章")
         composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            runBlocking { harness.database.bookRecordDao().getAll().any { it.title == harness.searchResult.title } }
-        }
+        composeTestRule.waitUntilTextExists("已加入书库：${harness.searchResult.title}")
+        composeTestRule.waitForIdle()
         val addedBookId = runBlocking {
             harness.database.bookRecordDao().getAll().single { it.title == harness.searchResult.title }.id
         }
