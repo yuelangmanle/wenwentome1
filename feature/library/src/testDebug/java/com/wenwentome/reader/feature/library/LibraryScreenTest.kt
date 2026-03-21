@@ -40,6 +40,31 @@ class LibraryScreenTest {
         composeTestRule.onNodeWithText("恢复自动封面").assertExistsCompat()
     }
 
+    @Test
+    fun libraryScreen_locksHeroGridAndMenuBoundaries() {
+        composeTestRule.setContent {
+            LibraryScreen(
+                state = sampleState(),
+                onImportClick = {},
+                onContinueReadingClick = {},
+                onBookClick = {},
+                onImportPhoto = {},
+                onRefreshCover = {},
+                onRestoreAutomaticCover = {},
+                onRefreshCatalog = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("library-hero-section").assertExistsCompat()
+        composeTestRule.onNodeWithTag("library-grid-section").assertExistsCompat()
+        composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("打开详情").assertExistsCompat()
+        composeTestRule.onNodeWithText("刷新目录").assertExistsCompat()
+        composeTestRule.onNodeWithText("导入照片").assertDoesNotExist()
+        composeTestRule.onNodeWithText("刷新封面").assertDoesNotExist()
+        composeTestRule.onNodeWithText("恢复自动封面").assertDoesNotExist()
+    }
+
     private fun sampleState() =
         LibraryUiState(
             continueReading = LibraryBookItem(

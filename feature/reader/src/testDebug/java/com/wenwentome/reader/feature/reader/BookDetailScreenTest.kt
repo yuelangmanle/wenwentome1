@@ -69,6 +69,30 @@ class BookDetailScreenTest {
         composeTestRule.onNodeWithTag("detail-progress-label").assertTextContains("42%")
     }
 
+    @Test
+    fun detailScreen_locksSectionStructure() {
+        composeTestRule.setContent {
+            BookDetailScreen(
+                state = sampleState(),
+                onReadClick = {},
+                onToggleCatalog = {},
+                onChapterClick = {},
+                onRefreshCatalogClick = {},
+                onJumpToLatestClick = {},
+                onRefreshCoverClick = {},
+                onImportPhotoClick = {},
+                onRestoreAutomaticCoverClick = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("detail-hero-section").assertExistsCompat()
+        composeTestRule.onNodeWithTag("detail-reading-status-section").assertExistsCompat()
+        composeTestRule.onNodeWithTag("detail-cover-management-section").assertExistsCompat()
+        composeTestRule.onNodeWithTag("detail-catalog-section").assertExistsCompat()
+        composeTestRule.onNodeWithTag("detail-read-button").assertExistsCompat()
+        composeTestRule.onNodeWithTag("detail-progress-label").assertExistsCompat()
+    }
+
     private fun sampleState() =
         BookDetailUiState(
             book = BookRecord(
