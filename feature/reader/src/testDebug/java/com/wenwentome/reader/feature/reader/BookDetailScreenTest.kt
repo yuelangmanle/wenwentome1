@@ -1,6 +1,8 @@
 package com.wenwentome.reader.feature.reader
 
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -96,6 +98,47 @@ class BookDetailScreenTest {
         composeTestRule.onNodeWithTag("detail-progress-label").assertExistsCompat()
     }
 
+    @Test
+    fun detailScreen_groupsContentIntoFourSemanticSections() {
+        composeTestRule.setContent {
+            BookDetailScreen(
+                state = sampleState(),
+                onReadClick = {},
+                onToggleCatalog = {},
+                onChapterClick = {},
+                onRefreshCatalogClick = {},
+                onJumpToLatestClick = {},
+                onRefreshCoverClick = {},
+                onImportPhotoClick = {},
+                onRestoreAutomaticCoverClick = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("detail-hero-section")
+            .assert(hasAnyDescendant(hasTextExactlyCompat("测试书")))
+            .assert(hasAnyDescendant(hasTextExactlyCompat("测试作者")))
+            .assert(hasAnyDescendant(hasTextExactlyCompat("一段用于详情页测试的简介。")))
+            .assert(hasAnyDescendant(hasTextExactlyCompat("上次读到 第三章")))
+
+        composeTestRule.onNodeWithTag("detail-reading-status-section")
+            .assert(hasAnyDescendant(hasTestTag("detail-read-button")))
+            .assert(hasAnyDescendant(hasTestTag("detail-progress-label")))
+            .assert(hasAnyDescendant(hasTextExactlyCompat("当前阅读 第三章")))
+
+        composeTestRule.onNodeWithTag("book-detail")
+            .performScrollToNode(hasTestTag("detail-cover-management-section"))
+        composeTestRule.onNodeWithTag("detail-cover-management-section")
+            .assert(hasAnyDescendant(hasTestTag("cover-import-photo-button")))
+
+        composeTestRule.onNodeWithTag("book-detail")
+            .performScrollToNode(hasTestTag("detail-catalog-section"))
+        composeTestRule.onNodeWithText("查看目录").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("detail-catalog-section")
+            .assert(hasAnyDescendant(hasTextExactlyCompat("目录")))
+            .assert(hasAnyDescendant(hasTextExactlyCompat("第八章")))
+    }
+
     private fun sampleState() =
         BookDetailUiState(
             book = BookRecord(
@@ -111,6 +154,8 @@ class BookDetailScreenTest {
             readActionLabel = "继续阅读",
             progressPercent = 0.42f,
             progressLabel = "42%",
+            currentChapterRef = "chapter-3",
+            currentChapterTitle = "第三章",
             lastReadLabel = "上次读到 第三章",
             showTocAction = true,
             showRefreshCatalogAction = true,
@@ -141,3 +186,5 @@ class BookDetailScreenTest {
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
     fetchSemanticsNode()
 }
+
+private fun hasTextExactlyCompat(text: String) = androidx.compose.ui.test.hasText(text, substring = false)

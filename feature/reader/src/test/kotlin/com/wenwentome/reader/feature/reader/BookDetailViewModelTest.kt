@@ -187,6 +187,8 @@ class BookDetailViewModelTest {
         assertEquals("继续阅读", state.readActionLabel)
         assertTrue(state.showTocAction)
         assertEquals("42%", state.progressLabel)
+        assertEquals("第三章", state.currentChapterTitle)
+        assertEquals("上次读到 第三章", state.lastReadLabel)
     }
 
     private fun sampleLocalBook(): BookRecord =

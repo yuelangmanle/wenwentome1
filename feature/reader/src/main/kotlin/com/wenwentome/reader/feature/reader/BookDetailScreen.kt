@@ -66,6 +66,7 @@ fun BookDetailScreen(
 ) {
     var showCatalog by rememberSaveable { mutableStateOf(false) }
     val book = state.book
+    val sourceLabel = book?.originType?.toSourceLabel()
 
     LazyColumn(
         modifier = modifier
@@ -83,182 +84,294 @@ fun BookDetailScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            Card(
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFFFBF6),
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+            HeroSection(
+                title = book?.title ?: "书籍加载中",
+                author = book?.author ?: "未知作者",
+                summary = book?.summary,
+                coverUri = state.effectiveCover,
+                sourceLabel = sourceLabel,
+                lastReadLabel = state.lastReadLabel,
+            )
+        }
+
+        item {
+            ReadingStatusSection(
+                state = state,
+                showCatalog = showCatalog,
+                onReadClick = onReadClick,
+                onToggleCatalog = {
+                    showCatalog = !showCatalog
+                    onToggleCatalog()
+                },
+                onRefreshCatalogClick = onRefreshCatalogClick,
+                onJumpToLatestClick = onJumpToLatestClick,
+            )
+        }
+
+        item {
+            Box(modifier = Modifier.testTag("detail-cover-management-section")) {
+                BookCoverActionSheet(
+                    onRefreshCover = onRefreshCoverClick,
+                    onImportPhoto = onImportPhotoClick,
+                    onRestoreAutomaticCover = if (state.canRestoreAutomaticCover) {
+                        onRestoreAutomaticCoverClick
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+
+        item {
+            CatalogSection(
+                state = state,
+                showCatalog = showCatalog,
+                onChapterClick = onChapterClick,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroSection(
+    title: String,
+    author: String,
+    summary: String?,
+    coverUri: String?,
+    sourceLabel: String?,
+    lastReadLabel: String?,
+) {
+    Card(
+        modifier = Modifier.testTag("detail-hero-section"),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFFBF6),
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            BookCoverArt(
+                title = title,
+                coverUri = coverUri,
+                modifier = Modifier.width(176.dp),
+            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = author,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                sourceLabel?.let { label ->
+                    HeroChip(
+                        label = label,
+                        backgroundColor = Color(0xFFE9D2B7),
+                        contentColor = Color(0xFF80542D),
+                    )
+                }
+                lastReadLabel?.let { label ->
+                    HeroChip(
+                        label = label,
+                        backgroundColor = Color(0xFFF1E3D1),
+                        contentColor = Color(0xFF6A4B2F),
+                    )
+                }
+            }
+            summary?.takeIf { it.isNotBlank() }?.let { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroChip(
+    label: String,
+    backgroundColor: Color,
+    contentColor: Color,
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = backgroundColor,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelLarge,
+            color = contentColor,
+        )
+    }
+}
+
+@Composable
+private fun ReadingStatusSection(
+    state: BookDetailUiState,
+    showCatalog: Boolean,
+    onReadClick: () -> Unit,
+    onToggleCatalog: () -> Unit,
+    onRefreshCatalogClick: () -> Unit,
+    onJumpToLatestClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.testTag("detail-reading-status-section"),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "阅读状态",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            state.currentChapterTitle?.let { chapterTitle ->
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF8F1E8),
+                ) {
+                    Text(
+                        text = "当前阅读 $chapterTitle",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF6A4B2F),
+                    )
+                }
+            }
+            state.lastReadLabel?.let { label ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            LinearProgressIndicator(
+                progress = { state.progressPercent.coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = state.progressLabel,
+                modifier = Modifier.testTag("detail-progress-label"),
+                style = MaterialTheme.typography.titleLarge,
+                color = Color(0xFF8B5E34),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Button(
+                    onClick = onReadClick,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        .weight(1f)
+                        .testTag("detail-read-button"),
                 ) {
-                    BookCoverArt(
-                        title = book?.title.orEmpty(),
-                        coverUri = state.effectiveCover,
-                        modifier = Modifier.width(124.dp),
-                    )
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            text = book?.title ?: "书籍加载中",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = book?.author ?: "未知作者",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        state.lastReadLabel?.let { label ->
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = Color(0xFFF1E3D1),
-                            ) {
-                                Text(
-                                    text = label,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = Color(0xFF6A4B2F),
-                                )
-                            }
-                        }
-                        book?.summary?.takeIf { it.isNotBlank() }?.let { summary ->
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 4,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    Text(state.readActionLabel)
+                }
+                OutlinedButton(
+                    onClick = onToggleCatalog,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (showCatalog) "收起目录" else "查看目录")
                 }
             }
-        }
-
-        item {
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = "阅读进度",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    LinearProgressIndicator(
-                        progress = { state.progressPercent.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        text = state.progressLabel,
-                        modifier = Modifier.testTag("detail-progress-label"),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color(0xFF8B5E34),
-                    )
-                }
-            }
-        }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (state.showRefreshCatalogAction || state.showJumpToLatestAction) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Button(
-                        onClick = onReadClick,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("detail-read-button"),
-                    ) {
-                        Text(state.readActionLabel)
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            showCatalog = !showCatalog
-                            onToggleCatalog()
-                        },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("查看目录")
-                    }
-                }
-                if (state.showRefreshCatalogAction || state.showJumpToLatestAction) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        if (state.showRefreshCatalogAction) {
-                            OutlinedButton(
-                                onClick = onRefreshCatalogClick,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text("刷新目录")
-                            }
+                    if (state.showRefreshCatalogAction) {
+                        OutlinedButton(
+                            onClick = onRefreshCatalogClick,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("刷新目录")
                         }
-                        if (state.showJumpToLatestAction) {
-                            OutlinedButton(
-                                onClick = onJumpToLatestClick,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text("跳转最新章")
-                            }
+                    }
+                    if (state.showJumpToLatestAction) {
+                        OutlinedButton(
+                            onClick = onJumpToLatestClick,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("跳转最新章")
                         }
                     }
                 }
             }
         }
+    }
+}
 
-        item {
-            BookCoverActionSheet(
-                onRefreshCover = onRefreshCoverClick,
-                onImportPhoto = onImportPhotoClick,
-                onRestoreAutomaticCover = if (state.canRestoreAutomaticCover) {
-                    onRestoreAutomaticCoverClick
-                } else {
-                    null
-                },
+@Composable
+private fun CatalogSection(
+    state: BookDetailUiState,
+    showCatalog: Boolean,
+    onChapterClick: (String) -> Unit,
+) {
+    Card(
+        modifier = Modifier.testTag("detail-catalog-section"),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "目录",
+                style = MaterialTheme.typography.titleMedium,
             )
-        }
+            state.latestChapterTitle?.let { latest ->
+                Text(
+                    text = "最新更新 $latest",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF8B5E34),
+                )
+            }
+            when {
+                !state.showTocAction ->
+                    Text(
+                        text = "当前作品暂无目录信息",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
 
-        if (showCatalog && state.showTocAction) {
-            item {
-                Card(
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = "目录",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        state.latestChapterTitle?.let { latest ->
-                            Text(
-                                text = "最新更新 $latest",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF8B5E34),
-                            )
-                        }
-                        CatalogList(
-                            chapters = state.chapters,
-                            latestChapterRef = state.latestChapterRef,
-                            onChapterClick = onChapterClick,
-                        )
-                    }
-                }
+                showCatalog ->
+                    CatalogList(
+                        chapters = state.chapters,
+                        latestChapterRef = state.latestChapterRef,
+                        onChapterClick = onChapterClick,
+                    )
+
+                else ->
+                    Text(
+                        text = "点击上方“查看目录”展开章节列表",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
             }
         }
     }
@@ -395,4 +508,11 @@ private suspend fun loadLocalCoverBitmap(
         stream.use { input ->
             BitmapFactory.decodeStream(input)?.asImageBitmap()
         }
+    }
+
+private fun com.wenwentome.reader.core.model.OriginType.toSourceLabel(): String =
+    when (this) {
+        com.wenwentome.reader.core.model.OriginType.LOCAL -> "本地书籍"
+        com.wenwentome.reader.core.model.OriginType.WEB -> "网页来源"
+        com.wenwentome.reader.core.model.OriginType.MIXED -> "混合来源"
     }

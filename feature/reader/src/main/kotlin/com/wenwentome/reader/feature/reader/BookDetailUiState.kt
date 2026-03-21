@@ -10,6 +10,7 @@ data class BookDetailUiState(
     val progressPercent: Float = 0f,
     val progressLabel: String = "0%",
     val currentChapterRef: String? = null,
+    val currentChapterTitle: String? = null,
     val lastReadLabel: String? = null,
     val showTocAction: Boolean = true,
     val showRefreshCatalogAction: Boolean = false,

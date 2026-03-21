@@ -70,6 +70,7 @@ class BookDetailViewModel(
                 progressPercent = progressPercent,
                 progressLabel = formatProgressLabel(progressPercent),
                 currentChapterRef = readingState?.chapterRef,
+                currentChapterTitle = currentChapterTitle,
                 lastReadLabel = currentChapterTitle?.let { "上次读到 $it" },
                 showTocAction = chapters.isNotEmpty(),
                 showRefreshCatalogAction = book?.originType == OriginType.WEB || book?.originType == OriginType.MIXED,
