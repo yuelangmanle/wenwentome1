@@ -32,7 +32,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Library feature 内部使用的封面 helper。
+ * 暂时明确留在 feature/library，避免过早抽成跨模块图片层。
+ */
 @Composable
 internal fun LibraryBookCover(
     title: String,
@@ -141,19 +146,65 @@ private suspend fun loadReadableCoverBitmap(
 ): androidx.compose.ui.graphics.ImageBitmap? =
     withContext(Dispatchers.IO) {
         if (coverUri.isNullOrBlank()) return@withContext null
+        LibraryBookCoverBitmapCache.get(coverUri)?.let { return@withContext it }
 
-        val stream = when {
-            coverUri.startsWith("content://") ->
-                context.contentResolver.openInputStream(Uri.parse(coverUri))
+        val decodeLock = LibraryBookCoverBitmapCache.lockFor(coverUri)
+        try {
+            synchronized(decodeLock) {
+                LibraryBookCoverBitmapCache.get(coverUri)?.let { return@synchronized it }
 
-            coverUri.startsWith("file:") ->
-                runCatching { File(URI(coverUri)).inputStream() }.getOrNull()
+                val stream = when {
+                    coverUri.startsWith("content://") ->
+                        context.contentResolver.openInputStream(Uri.parse(coverUri))
 
-            else ->
-                runCatching { File(coverUri).takeIf { it.canRead() }?.inputStream() }.getOrNull()
-        } ?: return@withContext null
+                    coverUri.startsWith("file:") ->
+                        runCatching { File(URI(coverUri)).inputStream() }.getOrNull()
 
-        stream.use { input ->
-            BitmapFactory.decodeStream(input)?.asImageBitmap()
+                    else ->
+                        runCatching { File(coverUri).takeIf { it.canRead() }?.inputStream() }.getOrNull()
+                } ?: return@synchronized null
+
+                val bitmap = stream.use { input ->
+                    BitmapFactory.decodeStream(input)?.asImageBitmap()
+                }
+                if (bitmap != null) {
+                    LibraryBookCoverBitmapCache.put(coverUri, bitmap)
+                }
+                bitmap
+            }
+        } finally {
+            LibraryBookCoverBitmapCache.unlock(coverUri, decodeLock)
         }
     }
+
+private object LibraryBookCoverBitmapCache {
+    private const val maxEntries = 24
+    private val bitmaps =
+        object : LinkedHashMap<String, androidx.compose.ui.graphics.ImageBitmap>(maxEntries, 0.75f, true) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<String, androidx.compose.ui.graphics.ImageBitmap>?,
+            ): Boolean = size > maxEntries
+        }
+    private val decodeLocks = ConcurrentHashMap<String, Any>()
+
+    fun get(coverUri: String): androidx.compose.ui.graphics.ImageBitmap? =
+        synchronized(bitmaps) { bitmaps[coverUri] }
+
+    fun put(
+        coverUri: String,
+        bitmap: androidx.compose.ui.graphics.ImageBitmap,
+    ) {
+        synchronized(bitmaps) {
+            bitmaps[coverUri] = bitmap
+        }
+    }
+
+    fun lockFor(coverUri: String): Any = decodeLocks.computeIfAbsent(coverUri) { Any() }
+
+    fun unlock(
+        coverUri: String,
+        lock: Any,
+    ) {
+        decodeLocks.remove(coverUri, lock)
+    }
+}

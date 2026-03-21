@@ -92,12 +92,16 @@ class LibraryScreenTest {
             )
         }
 
+        composeTestRule.waitUntilTagExists("continue-reading-real-cover")
+        composeTestRule.waitUntilTagGone("continue-reading-placeholder-cover")
         composeTestRule.onNodeWithTag("continue-reading-real-cover").assertExistsCompat()
         composeTestRule.onNodeWithTag("continue-reading-placeholder-cover").assertDoesNotExist()
 
         val book1Index = state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
         assertTrue("预期 sampleState.visibleBooks 中包含 book-1", book1Index >= 0)
         composeTestRule.onNodeWithTag("library-grid-section").performScrollToIndex(book1Index)
+        composeTestRule.waitUntilTagExists("book-cover-real-cover-book-1")
+        composeTestRule.waitUntilTagGone("book-cover-placeholder-book-1")
         composeTestRule.onNodeWithTag("book-cover-real-cover-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-placeholder-book-1").assertDoesNotExist()
     }
@@ -172,4 +176,22 @@ class LibraryScreenTest {
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
     fetchSemanticsNode()
+}
+
+private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.waitUntilTagExists(
+    tag: String,
+    timeoutMillis: Long = 5_000L,
+) {
+    waitUntil(timeoutMillis) {
+        runCatching { onNodeWithTag(tag).fetchSemanticsNode() }.isSuccess
+    }
+}
+
+private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.waitUntilTagGone(
+    tag: String,
+    timeoutMillis: Long = 5_000L,
+) {
+    waitUntil(timeoutMillis) {
+        runCatching { onNodeWithTag(tag).fetchSemanticsNode() }.isFailure
+    }
 }
