@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
+import androidx.test.core.app.ApplicationProvider
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
@@ -172,16 +173,21 @@ class LibraryScreenTest {
         )
 
     private fun createReadableLocalCoverUri(): String {
-        val file = File.createTempFile("library-cover", ".png")
+        val cacheDir = ApplicationProvider.getApplicationContext<android.content.Context>().cacheDir
+        val file = File.createTempFile("library-cover", ".jpg", cacheDir)
         file.deleteOnExit()
-        file.writeBytes(Base64.getDecoder().decode(SAMPLE_COVER_PNG_BASE64))
+        file.writeBytes(Base64.getDecoder().decode(SAMPLE_COVER_JPEG_BASE64))
         return file.toURI().toString()
     }
 }
 
-private const val SAMPLE_COVER_PNG_BASE64 =
-    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAYAAACtWR5OAAAAFElEQVR42mP8z8Dwn4GBgYGJAQoA" +
-        "HxcCAr7+QY0AAAAASUVORK5CYII="
+private const val SAMPLE_COVER_JPEG_BASE64 =
+    "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////" +
+        "////////////////////////////////2wBDAf//////////////////////////////////////////////////" +
+        "////////////////////////////////////wAARCAAQABADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAA" +
+        "AAf/xAAXAQEAAwAAAAAAAAAAAAAAAAABAgME/9oADAMBAAIQAxAAAAGjQf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/" +
+        "2gAIAQEAAQUCcf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8BP//EABQRAQAAAAAAAAAAAAAAAAAAAAD/" +
+        "2gAIAQIBAT8BP//Z"
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
     fetchSemanticsNode()
