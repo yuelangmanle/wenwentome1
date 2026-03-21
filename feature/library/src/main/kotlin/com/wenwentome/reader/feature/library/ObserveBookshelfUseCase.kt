@@ -49,6 +49,7 @@ fun interface ObserveBookshelfUseCase {
                             progressLabel = formatProgressLabel(readingState?.progressPercent ?: 0f),
                             hasUpdates = hasUpdates,
                             canRestoreAutomaticCover = hasManualCover(bookAssets),
+                            lastReadAt = readingState?.updatedAt ?: 0L,
                         )
                     }
                 }

@@ -19,7 +19,12 @@ class LibraryViewModel(
             .map { items ->
                 LibraryUiState(
                     filter = filter,
-                    continueReading = items.firstOrNull { it.progressPercent > 0f },
+                    continueReading = items
+                        .filter { it.progressPercent > 0f }
+                        .maxWithOrNull(
+                            compareBy<LibraryBookItem> { it.lastReadAt }
+                                .thenBy { it.progressPercent }
+                        ),
                     visibleBooks = filter.apply(items),
                 )
             }.stateIn(

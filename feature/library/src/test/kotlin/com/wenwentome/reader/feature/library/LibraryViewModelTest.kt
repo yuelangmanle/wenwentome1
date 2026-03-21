@@ -102,6 +102,42 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun continueReading_prefersMostRecentlyReadItemOverListOrder() = runTest {
+        val viewModel = LibraryViewModel(
+            observeBookshelf = fakeObserveBookshelfUseCase(
+                flowOf(
+                    listOf(
+                        sampleItem(
+                            book = BookRecord.newLocal("旧进度", "作者甲", BookFormat.EPUB),
+                            progressPercent = 0.65f,
+                            progressLabel = "65%",
+                            lastReadAt = 1_000L,
+                        ),
+                        sampleItem(
+                            book = BookRecord(
+                                id = "book-newer",
+                                title = "新进度",
+                                author = "作者乙",
+                                originType = OriginType.LOCAL,
+                                primaryFormat = BookFormat.EPUB,
+                            ),
+                            progressPercent = 0.2f,
+                            progressLabel = "20%",
+                            lastReadAt = 5_000L,
+                        ),
+                    )
+                )
+            ),
+            importLocalBook = { _ -> },
+            refreshCatalogAction = {},
+        )
+
+        advanceUntilIdle()
+
+        assertEquals("book-newer", viewModel.uiState.value.continueReading?.book?.id)
+    }
+
+    @Test
     fun refreshCatalog_updatesHasUpdatesBadgeAfterLatestChapterChanges() = runTest {
         val bookshelf = MutableStateFlow(
             listOf(
@@ -144,6 +180,7 @@ class LibraryViewModelTest {
         progressLabel: String = "0%",
         hasUpdates: Boolean = false,
         canRestoreAutomaticCover: Boolean = false,
+        lastReadAt: Long = 0L,
     ) = LibraryBookItem(
         book = book,
         effectiveCover = book.cover,
@@ -151,6 +188,7 @@ class LibraryViewModelTest {
         progressLabel = progressLabel,
         hasUpdates = hasUpdates,
         canRestoreAutomaticCover = canRestoreAutomaticCover,
+        lastReadAt = lastReadAt,
     )
 }
 

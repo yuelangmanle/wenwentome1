@@ -9,6 +9,7 @@ data class LibraryBookItem(
     val progressLabel: String,
     val hasUpdates: Boolean,
     val canRestoreAutomaticCover: Boolean,
+    val lastReadAt: Long = 0L,
 )
 
 data class LibraryUiState(
