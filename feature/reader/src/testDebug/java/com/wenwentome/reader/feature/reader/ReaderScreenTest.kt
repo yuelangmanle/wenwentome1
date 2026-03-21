@@ -216,7 +216,7 @@ class ReaderScreenTest {
             )
         }
 
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntilTextExists("第 2 / 2 页")
         composeTestRule.onNodeWithTag("reader-page-indicator").assertTextContains("2 / 2")
     }
 
