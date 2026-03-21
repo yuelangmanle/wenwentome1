@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
 import com.wenwentome.reader.core.model.BookFormat
@@ -21,9 +22,10 @@ class LibraryScreenTest {
 
     @Test
     fun rendersContinueReadingCardAndBookActionsMenu() {
+        val state = sampleState()
         composeTestRule.setContent {
             LibraryScreen(
-                state = sampleState(),
+                state = state,
                 onImportClick = {},
                 onContinueReadingClick = {},
                 onBookClick = {},
@@ -35,6 +37,9 @@ class LibraryScreenTest {
         }
 
         composeTestRule.onNodeWithTag("continue-reading-card").assertExistsCompat()
+        composeTestRule.onNodeWithTag("library-grid-section").performScrollToIndex(
+            state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
+        )
         composeTestRule.onNodeWithTag("book-cover-card-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
         composeTestRule.onNodeWithText("书籍操作").assertExistsCompat()
@@ -42,9 +47,10 @@ class LibraryScreenTest {
 
     @Test
     fun libraryScreen_exposesSectionTagsAndMenuBoundaries() {
+        val state = sampleState()
         composeTestRule.setContent {
             LibraryScreen(
-                state = sampleState(),
+                state = state,
                 onImportClick = {},
                 onContinueReadingClick = {},
                 onBookClick = {},
@@ -57,6 +63,10 @@ class LibraryScreenTest {
 
         composeTestRule.onNodeWithTag("library-hero-section").assertExistsCompat()
         composeTestRule.onNodeWithTag("library-grid-section").assertExistsCompat()
+        composeTestRule.onNodeWithTag("library-grid-section").performScrollToIndex(
+            state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
+        )
+        composeTestRule.onNodeWithTag("book-cover-card-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
         composeTestRule.onNodeWithText("打开详情").assertExistsCompat()
         composeTestRule.onNodeWithText("刷新目录").assertExistsCompat()
@@ -81,22 +91,43 @@ class LibraryScreenTest {
                 hasUpdates = false,
                 canRestoreAutomaticCover = false,
             ),
-            visibleBooks = listOf(
-                LibraryBookItem(
-                    book = BookRecord(
-                        id = "book-1",
-                        title = "雪中悍刀行",
-                        author = "烽火戏诸侯",
-                        originType = OriginType.WEB,
-                        primaryFormat = BookFormat.WEB,
-                    ),
-                    effectiveCover = "https://example.com/cover.jpg",
-                    progressPercent = 0.66f,
-                    progressLabel = "66%",
-                    hasUpdates = true,
-                    canRestoreAutomaticCover = true,
+            // 让 book-1 位于列表靠后位置，测试用例必须通过 library-grid-section 滚动才能触达它。
+            visibleBooks = buildList {
+                for (i in 3..52) {
+                    add(
+                        LibraryBookItem(
+                            book = BookRecord(
+                                id = "book-$i",
+                                title = "示例书籍 $i",
+                                author = "作者 $i",
+                                originType = OriginType.LOCAL,
+                                primaryFormat = BookFormat.EPUB,
+                            ),
+                            effectiveCover = null,
+                            progressPercent = 0f,
+                            progressLabel = "0%",
+                            hasUpdates = false,
+                            canRestoreAutomaticCover = false,
+                        )
+                    )
+                }
+                add(
+                    LibraryBookItem(
+                        book = BookRecord(
+                            id = "book-1",
+                            title = "雪中悍刀行",
+                            author = "烽火戏诸侯",
+                            originType = OriginType.WEB,
+                            primaryFormat = BookFormat.WEB,
+                        ),
+                        effectiveCover = "https://example.com/cover.jpg",
+                        progressPercent = 0.66f,
+                        progressLabel = "66%",
+                        hasUpdates = true,
+                        canRestoreAutomaticCover = true,
+                    )
                 )
-            ),
+            },
         )
 }
 
