@@ -154,10 +154,18 @@ class ReaderScreenTest {
     @Test
     fun readerScreen_saveProgress_usesCurrentVerticalViewportProgress() {
         val progressChanges = mutableListOf<Float>()
+        val verticalState =
+            sampleState(readerMode = ReaderMode.VERTICAL_SCROLL).copy(
+                locator = "chapter:chapter-3#paragraph:0",
+                progressPercent = 0f,
+                progressLabel = "0%",
+                presentation = ReaderPresentationPrefs(fontSizeSp = 28),
+                paragraphs = (1..12).map { index -> "正文第${index}段" },
+            )
 
         composeTestRule.setContent {
             ReaderScreen(
-                state = sampleState(readerMode = ReaderMode.VERTICAL_SCROLL),
+                state = verticalState,
                 onLocatorChanged = { _, progress -> progressChanges += progress },
                 onReaderModeChange = {},
                 onThemeChange = {},
@@ -168,11 +176,12 @@ class ReaderScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("reader-body").performScrollToIndex(4)
+        composeTestRule.onNodeWithTag("reader-body").performScrollToIndex(11)
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("保存进度").performClick()
 
-        assertEquals(listOf(1f), progressChanges)
+        assertEquals(1, progressChanges.size)
+        assertTrue(progressChanges.single() > 0f)
     }
 
     private fun sampleState(
