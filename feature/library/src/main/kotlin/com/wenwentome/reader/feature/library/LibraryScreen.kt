@@ -2,6 +2,7 @@ package com.wenwentome.reader.feature.library
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -46,7 +47,9 @@ fun LibraryScreen(
     ) { innerPadding ->
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 148.dp),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("library-grid-section"),
             contentPadding = PaddingValues(
                 start = 16.dp,
                 top = 16.dp,
@@ -57,19 +60,24 @@ fun LibraryScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = "书库",
-                    modifier = Modifier.testTag("screen"),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-            }
-            state.continueReading?.let { item ->
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    ContinueReadingCard(
-                        item = item,
-                        onClick = { onContinueReadingClick(item.book.id) },
-                        modifier = Modifier.testTag("continue-reading-card"),
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("library-hero-section"),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "书库",
+                        modifier = Modifier.testTag("screen"),
+                        style = MaterialTheme.typography.headlineSmall,
                     )
+                    state.continueReading?.let { item ->
+                        ContinueReadingCard(
+                            item = item,
+                            onClick = { onContinueReadingClick(item.book.id) },
+                            modifier = Modifier.testTag("continue-reading-card"),
+                        )
+                    }
                 }
             }
             if (state.visibleBooks.isEmpty()) {
@@ -98,11 +106,6 @@ fun LibraryScreen(
             visible = actionTarget != null,
             onDismiss = { actionTarget = null },
             onOpenDetail = { actionTarget?.let { onBookClick(it.book.id) } },
-            onImportPhoto = { actionTarget?.let { onImportPhoto(it.book.id) } },
-            onRefreshCover = { actionTarget?.let { onRefreshCover(it.book.id) } },
-            onRestoreAutomaticCover = actionTarget?.takeIf { it.canRestoreAutomaticCover }?.let { item ->
-                { onRestoreAutomaticCover(item.book.id) }
-            },
             onRefreshCatalog = actionTarget?.takeIf { it.book.originType != com.wenwentome.reader.core.model.OriginType.LOCAL }?.let { item ->
                 { onRefreshCatalog(item.book.id) }
             },

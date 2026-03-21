@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,13 +46,13 @@ fun ContinueReadingCard(
         ) {
             Box(
                 modifier = Modifier
-                    .width(92.dp)
-                    .height(132.dp)
+                    .width(124.dp)
+                    .height(176.dp)
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(Color(0xFFB67A4A), Color(0xFF6D4125)),
                         ),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(26.dp),
                     )
                     .padding(14.dp),
             ) {
@@ -93,6 +95,10 @@ fun ContinueReadingCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Spacer(modifier = Modifier.height(2.dp))
+                FilledTonalButton(onClick = onClick) {
+                    Text(text = "继续阅读")
+                }
             }
         }
     }

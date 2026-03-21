@@ -17,9 +17,6 @@ fun BookActionsMenu(
     visible: Boolean,
     onDismiss: () -> Unit,
     onOpenDetail: () -> Unit,
-    onImportPhoto: () -> Unit,
-    onRefreshCover: () -> Unit,
-    onRestoreAutomaticCover: (() -> Unit)?,
     onRefreshCatalog: (() -> Unit)?,
 ) {
     if (!visible) return
@@ -41,20 +38,6 @@ fun BookActionsMenu(
                 ActionButton("打开详情") {
                     onDismiss()
                     onOpenDetail()
-                }
-                ActionButton("刷新封面") {
-                    onDismiss()
-                    onRefreshCover()
-                }
-                ActionButton("导入照片") {
-                    onDismiss()
-                    onImportPhoto()
-                }
-                onRestoreAutomaticCover?.let { restore ->
-                    ActionButton("恢复自动封面") {
-                        onDismiss()
-                        restore()
-                    }
                 }
                 onRefreshCatalog?.let { refresh ->
                     ActionButton("刷新目录") {
