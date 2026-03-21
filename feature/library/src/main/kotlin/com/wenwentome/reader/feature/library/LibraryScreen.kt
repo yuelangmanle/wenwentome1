@@ -75,19 +75,19 @@ fun LibraryScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 148.dp),
+                columns = GridCells.Adaptive(minSize = 132.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .testTag("library-grid-section"),
                 contentPadding = PaddingValues(
                     start = 16.dp,
-                    top = 12.dp,
+                    top = 8.dp,
                     end = 16.dp,
                     bottom = contentPadding.calculateBottomPadding(),
                 ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (state.visibleBooks.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {

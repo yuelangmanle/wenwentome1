@@ -1,5 +1,7 @@
 package com.wenwentome.reader.feature.library
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -15,6 +17,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryScreenTest {
@@ -74,7 +77,32 @@ class LibraryScreenTest {
         composeTestRule.onNodeWithText("恢复自动封面").assertDoesNotExist()
     }
 
-    private fun sampleState() =
+    @Test
+    fun libraryScreen_prefersReadableLocalCoverOverPlaceholder() {
+        val readableCoverUri = createReadableLocalCoverUri()
+        val state = sampleState(readableCoverUri)
+
+        composeTestRule.setContent {
+            LibraryScreen(
+                state = state,
+                onImportClick = {},
+                onContinueReadingClick = {},
+                onBookClick = {},
+                onRefreshCatalog = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("continue-reading-real-cover").assertExistsCompat()
+        composeTestRule.onNodeWithTag("continue-reading-placeholder-cover").assertDoesNotExist()
+
+        val book1Index = state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
+        assertTrue("预期 sampleState.visibleBooks 中包含 book-1", book1Index >= 0)
+        composeTestRule.onNodeWithTag("library-grid-section").performScrollToIndex(book1Index)
+        composeTestRule.onNodeWithTag("book-cover-real-cover-book-1").assertExistsCompat()
+        composeTestRule.onNodeWithTag("book-cover-placeholder-book-1").assertDoesNotExist()
+    }
+
+    private fun sampleState(readableCoverUri: String? = null) =
         LibraryUiState(
             continueReading = LibraryBookItem(
                 book = BookRecord(
@@ -84,7 +112,7 @@ class LibraryScreenTest {
                     originType = OriginType.LOCAL,
                     primaryFormat = BookFormat.EPUB,
                 ),
-                effectiveCover = null,
+                effectiveCover = readableCoverUri,
                 progressPercent = 0.42f,
                 progressLabel = "42%",
                 hasUpdates = false,
@@ -119,7 +147,7 @@ class LibraryScreenTest {
                             originType = OriginType.WEB,
                             primaryFormat = BookFormat.WEB,
                         ),
-                        effectiveCover = "https://example.com/cover.jpg",
+                        effectiveCover = readableCoverUri ?: "https://example.com/cover.jpg",
                         progressPercent = 0.66f,
                         progressLabel = "66%",
                         hasUpdates = true,
@@ -128,6 +156,18 @@ class LibraryScreenTest {
                 )
             },
         )
+
+    private fun createReadableLocalCoverUri(): String {
+        val file = File.createTempFile("library-cover", ".png")
+        val bitmap = Bitmap.createBitmap(2, 3, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(182, 122, 74))
+        }
+        file.outputStream().use { output ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
+        bitmap.recycle()
+        return file.toURI().toString()
+    }
 }
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {

@@ -1,0 +1,159 @@
+package com.wenwentome.reader.feature.library
+
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.matchParentSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URI
+
+@Composable
+internal fun LibraryBookCover(
+    title: String,
+    coverUri: String?,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(22.dp),
+    elevation: Dp = 12.dp,
+    realCoverTag: String? = null,
+    placeholderTag: String? = null,
+    placeholderContent: @Composable BoxScope.() -> Unit = {},
+) {
+    val context = LocalContext.current
+    val coverBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, coverUri) {
+        value = loadReadableCoverBitmap(context, coverUri)
+    }
+
+    Box(
+        modifier = modifier.shadow(
+            elevation = elevation,
+            shape = shape,
+            ambientColor = Color(0x3328150A),
+            spotColor = Color(0x3328150A),
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(shape)
+                .background(Color(0xFFF3E7DA)),
+        ) {
+            if (coverBitmap != null) {
+                Image(
+                    bitmap = requireNotNull(coverBitmap),
+                    contentDescription = title,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(if (realCoverTag != null) Modifier.testTag(realCoverTag) else Modifier),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(if (placeholderTag != null) Modifier.testTag(placeholderTag) else Modifier)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFFC98C59),
+                                    Color(0xFF8D5732),
+                                    Color(0xFF5E351E),
+                                ),
+                            ),
+                        ),
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .padding(14.dp),
+                    content = placeholderContent,
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(16.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.28f),
+                                Color(0xFFE1C3A4).copy(alpha = 0.65f),
+                                Color.Transparent,
+                            ),
+                        ),
+                    ),
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.16f),
+                                Color.Transparent,
+                                Color(0xFF2A1509).copy(alpha = 0.18f),
+                            ),
+                        ),
+                    ),
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .border(
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = 0.18f),
+                        shape = shape,
+                    ),
+            )
+        }
+    }
+}
+
+private suspend fun loadReadableCoverBitmap(
+    context: Context,
+    coverUri: String?,
+): androidx.compose.ui.graphics.ImageBitmap? =
+    withContext(Dispatchers.IO) {
+        if (coverUri.isNullOrBlank()) return@withContext null
+
+        val stream = when {
+            coverUri.startsWith("content://") ->
+                context.contentResolver.openInputStream(Uri.parse(coverUri))
+
+            coverUri.startsWith("file:") ->
+                runCatching { File(URI(coverUri)).inputStream() }.getOrNull()
+
+            else ->
+                runCatching { File(coverUri).takeIf { it.canRead() }?.inputStream() }.getOrNull()
+        } ?: return@withContext null
+
+        stream.use { input ->
+            BitmapFactory.decodeStream(input)?.asImageBitmap()
+        }
+    }

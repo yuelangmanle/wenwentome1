@@ -1,6 +1,5 @@
 package com.wenwentome.reader.feature.library
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,8 +7,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -17,9 +18,9 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,25 +44,44 @@ fun ContinueReadingCard(
                 .fillMaxWidth()
                 .padding(18.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .width(124.dp)
-                    .height(176.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Color(0xFFB67A4A), Color(0xFF6D4125)),
-                        ),
-                        shape = RoundedCornerShape(26.dp),
-                    )
-                    .padding(14.dp),
-            ) {
-                Text(
-                    text = item.book.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
+            Box(modifier = Modifier.size(width = 118.dp, height = 174.dp)) {
+                LibraryBookCover(
+                    title = item.book.title,
+                    coverUri = item.effectiveCover,
+                    modifier = Modifier.matchParentSize(),
+                    shape = RoundedCornerShape(24.dp),
+                    realCoverTag = "continue-reading-real-cover",
+                    placeholderTag = "continue-reading-placeholder-cover",
+                ) {
+                    Column(
+                        modifier = Modifier.matchParentSize(),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        CoverPill(
+                            text = "继续阅读",
+                            containerColor = Color.White.copy(alpha = 0.18f),
+                            contentColor = Color.White,
+                        )
+                        Text(
+                            text = item.book.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+
+                CoverPill(
+                    text = progressLabel(item),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(10.dp),
+                    containerColor = Color(0xFF24150D).copy(alpha = 0.78f),
+                    contentColor = Color.White,
                 )
             }
 
