@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.FloatingActionButton
@@ -31,9 +32,6 @@ fun LibraryScreen(
     onImportClick: () -> Unit,
     onContinueReadingClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
-    onImportPhoto: (String) -> Unit,
-    onRefreshCover: (String) -> Unit,
-    onRestoreAutomaticCover: (String) -> Unit,
     onRefreshCatalog: (String) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(16.dp),
@@ -92,7 +90,7 @@ fun LibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (state.visibleBooks.isEmpty()) {
-                    item {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
                         Text(
                             text = "暂无书籍",
                             style = MaterialTheme.typography.bodyMedium,

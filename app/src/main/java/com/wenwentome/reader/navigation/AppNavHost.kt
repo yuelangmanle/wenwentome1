@@ -206,22 +206,6 @@ fun AppNavHost(
                 onBookClick = { bookId ->
                     navController.navigate("book/$bookId")
                 },
-                onImportPhoto = { bookId ->
-                    coverImportTargetBookId = bookId
-                    coverPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                onRefreshCover = { bookId ->
-                    importScope.launch {
-                        refreshBookCover(bookId = bookId, appContainer = appContainer)
-                    }
-                },
-                onRestoreAutomaticCover = { bookId ->
-                    importScope.launch {
-                        restoreAutomaticCover(bookId = bookId, appContainer = appContainer)
-                    }
-                },
                 onRefreshCatalog = { bookId ->
                     libraryViewModel.refreshCatalog(bookId)
                 },

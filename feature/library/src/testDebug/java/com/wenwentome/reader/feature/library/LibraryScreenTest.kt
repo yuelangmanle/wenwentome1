@@ -10,6 +10,7 @@ import androidx.compose.ui.test.longClick
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,16 +30,15 @@ class LibraryScreenTest {
                 onImportClick = {},
                 onContinueReadingClick = {},
                 onBookClick = {},
-                onImportPhoto = {},
-                onRefreshCover = {},
-                onRestoreAutomaticCover = {},
                 onRefreshCatalog = {},
             )
         }
 
         composeTestRule.onNodeWithTag("continue-reading-card").assertExistsCompat()
+        val book1Index = state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
+        assertTrue("预期 sampleState.visibleBooks 中包含 book-1", book1Index >= 0)
         composeTestRule.onNodeWithTag("library-grid-section").performScrollToIndex(
-            state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
+            book1Index
         )
         composeTestRule.onNodeWithTag("book-cover-card-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
@@ -54,17 +54,16 @@ class LibraryScreenTest {
                 onImportClick = {},
                 onContinueReadingClick = {},
                 onBookClick = {},
-                onImportPhoto = {},
-                onRefreshCover = {},
-                onRestoreAutomaticCover = {},
                 onRefreshCatalog = {},
             )
         }
 
         composeTestRule.onNodeWithTag("library-hero-section").assertExistsCompat()
         composeTestRule.onNodeWithTag("library-grid-section").assertExistsCompat()
+        val book1Index = state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
+        assertTrue("预期 sampleState.visibleBooks 中包含 book-1", book1Index >= 0)
         composeTestRule.onNodeWithTag("library-grid-section").performScrollToIndex(
-            state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
+            book1Index
         )
         composeTestRule.onNodeWithTag("book-cover-card-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
