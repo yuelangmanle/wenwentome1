@@ -140,7 +140,7 @@ internal fun LibraryBookCover(
     }
 }
 
-private suspend fun loadReadableCoverBitmap(
+internal suspend fun loadReadableCoverBitmap(
     context: Context,
     coverUri: String?,
 ): androidx.compose.ui.graphics.ImageBitmap? =

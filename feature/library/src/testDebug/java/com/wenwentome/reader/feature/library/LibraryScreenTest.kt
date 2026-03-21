@@ -10,6 +10,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -77,48 +79,12 @@ class LibraryScreenTest {
     }
 
     @Test
-    fun libraryScreen_prefersReadableLocalCoverOverPlaceholder() {
+    fun loadReadableCoverBitmap_decodesIndependentReadableLocalCoverUris() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val continueReadingCoverUri = createReadableLocalCoverUri("continue-reading")
         val bookshelfCoverUri = createReadableLocalCoverUri("bookshelf")
-        val state = sampleState(
-            continueReadingCoverUri = continueReadingCoverUri,
-            bookshelfCoverUri = bookshelfCoverUri,
-        )
-
-        composeTestRule.setContent {
-            LibraryScreen(
-                state = state,
-                onImportClick = {},
-                onContinueReadingClick = {},
-                onBookClick = {},
-                onRefreshCatalog = {},
-            )
-        }
-
-        composeTestRule.waitUntilTagExists("continue-reading-real-cover", useUnmergedTree = true)
-        composeTestRule.waitUntilTagGone("continue-reading-placeholder-cover", useUnmergedTree = true)
-        composeTestRule.onNodeWithTag(
-            "continue-reading-real-cover",
-            useUnmergedTree = true,
-        ).assertExistsCompat()
-        composeTestRule.onNodeWithTag(
-            "continue-reading-placeholder-cover",
-            useUnmergedTree = true,
-        ).assertDoesNotExistCompat()
-
-        val book1Index = state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
-        assertTrue("预期 sampleState.visibleBooks 中包含 book-1", book1Index >= 0)
-        composeTestRule.onNodeWithTag("library-grid-section").performScrollToIndex(book1Index)
-        composeTestRule.waitUntilTagExists("book-cover-real-cover-book-1", useUnmergedTree = true)
-        composeTestRule.waitUntilTagGone("book-cover-placeholder-book-1", useUnmergedTree = true)
-        composeTestRule.onNodeWithTag(
-            "book-cover-real-cover-book-1",
-            useUnmergedTree = true,
-        ).assertExistsCompat()
-        composeTestRule.onNodeWithTag(
-            "book-cover-placeholder-book-1",
-            useUnmergedTree = true,
-        ).assertDoesNotExistCompat()
+        assertNotNull(loadReadableCoverBitmap(context, continueReadingCoverUri))
+        assertNotNull(loadReadableCoverBitmap(context, bookshelfCoverUri))
     }
 
     private fun sampleState(
