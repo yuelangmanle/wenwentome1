@@ -217,7 +217,16 @@ class AppReaderFlowTest {
                         RemoteChapterContent(
                             chapterRef = chapterRef,
                             title = "第一章",
-                            content = "第一章正文第一段\n\n第一章正文第二段",
+                            content = listOf(
+                                "第一章正文第一段",
+                                "第一章正文第二段",
+                                "第一章正文第三段",
+                                "第一章正文第四段",
+                                "第一章正文第五段",
+                                "第一章正文第六段",
+                                "第一章正文第七段",
+                                "第一章正文第八段",
+                            ).joinToString(separator = "\n\n"),
                         )
                 }
         }
