@@ -20,12 +20,14 @@ import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.core.database.toEntity
+import com.wenwentome.reader.core.database.toModel
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReadingState
 import com.wenwentome.reader.core.model.RemoteBinding
 import com.wenwentome.reader.di.AppContainer
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -114,9 +116,19 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithText("下一页").performClick()
         composeTestRule.waitUntilTextExists("第 2 / 3 页")
         composeTestRule.onNodeWithText("保存进度").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking {
+                appContainer.database.readingStateDao()
+                    .observeByBookId("book-web-flow")
+                    .first()
+                    ?.toModel()
+                    ?.progressPercent
+                    ?.let { it > 0.4f } == true
+            }
+        }
         composeTestRule.onNodeWithTag("nav-bookshelf").performClick()
-        composeTestRule.waitUntilTagExists("continue-reading-card")
-        composeTestRule.waitUntilTextExists("阅读进度 43%")
+        composeTestRule.waitUntilTagExists("library-screen")
+        composeTestRule.waitUntilTextExists("已读 43%")
     }
 
     private fun createWebReaderAppContainer(
