@@ -1,5 +1,7 @@
 package com.wenwentome.reader.feature.library
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -18,9 +20,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
-import java.awt.Color
-import java.awt.image.BufferedImage
-import javax.imageio.ImageIO
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryScreenTest {
@@ -151,12 +150,13 @@ class LibraryScreenTest {
         val cacheDir = ApplicationProvider.getApplicationContext<android.content.Context>().cacheDir
         val file = File.createTempFile("library-cover-$prefix", ".png", cacheDir)
         file.deleteOnExit()
-        val image = BufferedImage(16, 24, BufferedImage.TYPE_INT_RGB)
-        val graphics = image.createGraphics()
-        graphics.color = Color(182, 122, 74)
-        graphics.fillRect(0, 0, image.width, image.height)
-        graphics.dispose()
-        ImageIO.write(image, "png", file)
+        val bitmap = Bitmap.createBitmap(16, 24, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(182, 122, 74))
+        }
+        file.outputStream().use { output ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
+        bitmap.recycle()
         return file.toURI().toString()
     }
 }
