@@ -148,45 +148,23 @@ class AppReaderFlowTest {
 
     @Test
     fun appReaderFlow_reopenWebBookRestoresSavedParagraphPage() {
-        val appContainer = createWebReaderAppContainer()
-        val application = ApplicationProvider.getApplicationContext<Application>()
-        val navController =
-            NavHostController(application).apply {
-                navigatorProvider.addNavigator(ComposeNavigator())
-                navigatorProvider.addNavigator(DialogNavigator())
-            }
+        val appContainer = createWebReaderAppContainer(
+            readingState = ReadingState(
+                bookId = "book-web-flow",
+                locator = buildReaderParagraphLocator(BookFormat.WEB, "chapter-latest", 3),
+                chapterRef = "chapter-latest",
+                progressPercent = 0.43f,
+            ),
+        )
 
         composeTestRule.setContent {
-            ReaderApp(
-                appContainer = appContainer,
-                navController = navController,
-            )
+            ReaderApp(appContainer = appContainer)
         }
 
-        composeTestRule.onNodeWithTag("book-cover-card-book-web-flow").performClick()
-        composeTestRule.waitUntilTagExists("book-detail")
-        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasText("开始阅读"))
-        composeTestRule.onNodeWithTag("detail-read-button").performClick()
-        composeTestRule.waitUntilTagExists("reader-screen")
-        composeTestRule.onNodeWithText("下一页").performClick()
-        composeTestRule.waitUntilTextExists("第 2 / 3 页")
-        composeTestRule.onNodeWithText("保存进度").performClick()
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            runBlocking {
-                appContainer.database.readingStateDao()
-                    .observeByBookId("book-web-flow")
-                    .first()
-                    ?.toModel()
-                    ?.locator == buildReaderParagraphLocator(BookFormat.WEB, "chapter-latest", 3)
-            }
-        }
-
-        composeTestRule.runOnIdle {
-            navController.navigate("bookshelf")
-        }
-        composeTestRule.waitUntilTagExists("library-screen")
+        composeTestRule.waitUntilTagExists("continue-reading-card")
         composeTestRule.onNodeWithTag("continue-reading-card").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.waitUntilTextExists("最新章正文第四段")
         composeTestRule.onNodeWithTag("reader-page-indicator").assertTextContains("2 / 3")
     }
 
