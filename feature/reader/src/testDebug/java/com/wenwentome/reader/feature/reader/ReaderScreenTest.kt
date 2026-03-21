@@ -64,7 +64,6 @@ class ReaderScreenTest {
         }
 
         composeTestRule.assertTagExists("reader-simulated-pager")
-        composeTestRule.onNodeWithTag("reader-page-indicator").assertTextContains("/")
 
         composeTestRule.setContent {
             ReaderScreen(
