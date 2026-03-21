@@ -70,6 +70,7 @@ fun readerContentFlow(
                                 val chapterRef =
                                     state?.chapterRef?.takeIf { it.isNotBlank() }
                                         ?: resolveReaderChapterRef(BookFormat.WEB, state?.locator)
+                                        ?: binding.tocRef?.takeIf { it.isNotBlank() }
                                         ?: binding.latestKnownChapterRef?.takeIf { it.isNotBlank() }
                                         ?: withContext(Dispatchers.IO) {
                                             sourceBridgeRepository.fetchToc(
