@@ -209,6 +209,22 @@ fun AppNavHost(
                 onRefreshCatalog = { bookId ->
                     libraryViewModel.refreshCatalog(bookId)
                 },
+                onRefreshCover = { bookId ->
+                    importScope.launch {
+                        refreshBookCover(bookId = bookId, appContainer = appContainer)
+                    }
+                },
+                onImportPhoto = { bookId ->
+                    coverImportTargetBookId = bookId
+                    coverPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
+                onRestoreAutomaticCover = { bookId ->
+                    importScope.launch {
+                        restoreAutomaticCover(bookId = bookId, appContainer = appContainer)
+                    }
+                },
             )
         }
         composable(TopLevelDestination.DISCOVER.route) {
