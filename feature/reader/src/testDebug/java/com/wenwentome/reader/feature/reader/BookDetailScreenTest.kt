@@ -70,7 +70,7 @@ class BookDetailScreenTest {
     }
 
     @Test
-    fun detailScreen_locksSectionStructure() {
+    fun detailScreen_exposesSectionTags() {
         composeTestRule.setContent {
             BookDetailScreen(
                 state = sampleState(),
@@ -87,7 +87,10 @@ class BookDetailScreenTest {
 
         composeTestRule.onNodeWithTag("detail-hero-section").assertExistsCompat()
         composeTestRule.onNodeWithTag("detail-reading-status-section").assertExistsCompat()
+        val bookDetailRoot = composeTestRule.onNodeWithTag("book-detail")
+        bookDetailRoot.performScrollToNode(hasTestTag("detail-cover-management-section"))
         composeTestRule.onNodeWithTag("detail-cover-management-section").assertExistsCompat()
+        bookDetailRoot.performScrollToNode(hasTestTag("detail-catalog-section"))
         composeTestRule.onNodeWithTag("detail-catalog-section").assertExistsCompat()
         composeTestRule.onNodeWithTag("detail-read-button").assertExistsCompat()
         composeTestRule.onNodeWithTag("detail-progress-label").assertExistsCompat()

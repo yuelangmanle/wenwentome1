@@ -1,5 +1,6 @@
 package com.wenwentome.reader.feature.library
 
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -36,12 +37,11 @@ class LibraryScreenTest {
         composeTestRule.onNodeWithTag("continue-reading-card").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-card-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
-        composeTestRule.onNodeWithText("导入照片").assertExistsCompat()
-        composeTestRule.onNodeWithText("恢复自动封面").assertExistsCompat()
+        composeTestRule.onNodeWithText("书籍操作").assertExistsCompat()
     }
 
     @Test
-    fun libraryScreen_locksHeroGridAndMenuBoundaries() {
+    fun libraryScreen_exposesSectionTagsAndMenuBoundaries() {
         composeTestRule.setContent {
             LibraryScreen(
                 state = sampleState(),
