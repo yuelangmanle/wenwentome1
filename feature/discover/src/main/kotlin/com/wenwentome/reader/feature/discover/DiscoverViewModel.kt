@@ -97,11 +97,13 @@ class DiscoverViewModel(
     fun addToShelf(result: RemoteSearchResult) {
         if (result.id in mutableUiState.value.addingResultIds) return
         viewModelScope.launch {
+            println("DiscoverViewModel.addToShelf:start resultId=${result.id} title=${result.title}")
             mutableUiState.update { it.copy(addingResultIds = it.addingResultIds + result.id) }
             try {
                 withContext(ioDispatcher) {
                     addRemoteBookToShelf(result)
                 }
+                println("DiscoverViewModel.addToShelf:success resultId=${result.id}")
                 mutableUiState.update {
                     it.copy(
                         addingResultIds = it.addingResultIds - result.id,
@@ -109,6 +111,7 @@ class DiscoverViewModel(
                     )
                 }
             } catch (error: Throwable) {
+                println("DiscoverViewModel.addToShelf:error resultId=${result.id} error=${error::class.qualifiedName}:${error.message}")
                 mutableUiState.update { it.copy(addingResultIds = it.addingResultIds - result.id) }
                 throw error
             }
