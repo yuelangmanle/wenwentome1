@@ -49,7 +49,7 @@ class ReaderScreenTest {
     }
 
     @Test
-    fun readerScreen_rendersDedicatedContainersForEveryReaderMode() {
+    fun readerScreen_rendersSimulatedPagerContainer() {
         composeTestRule.setContent {
             ReaderScreen(
                 state = sampleState(readerMode = ReaderMode.SIMULATED_PAGE_TURN),
@@ -64,7 +64,10 @@ class ReaderScreenTest {
         }
 
         composeTestRule.assertTagExists("reader-simulated-pager")
+    }
 
+    @Test
+    fun readerScreen_rendersHorizontalPagerContainer() {
         composeTestRule.setContent {
             ReaderScreen(
                 state = sampleState(readerMode = ReaderMode.HORIZONTAL_PAGING),
@@ -79,7 +82,10 @@ class ReaderScreenTest {
         }
 
         composeTestRule.assertTagExists("reader-horizontal-pager")
+    }
 
+    @Test
+    fun readerScreen_rendersVerticalScrollContainer() {
         composeTestRule.setContent {
             ReaderScreen(
                 state = sampleState(readerMode = ReaderMode.VERTICAL_SCROLL),
