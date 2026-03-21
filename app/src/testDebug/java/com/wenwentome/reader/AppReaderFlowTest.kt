@@ -98,6 +98,27 @@ class AppReaderFlowTest {
         composeTestRule.onNodeWithTag("reader-chapter-title").assertTextContains("最新章")
     }
 
+    @Test
+    fun appReaderFlow_savedReaderProgressFlowsBackToBookshelf() {
+        val appContainer = createWebReaderAppContainer()
+
+        composeTestRule.setContent {
+            ReaderApp(appContainer = appContainer)
+        }
+
+        composeTestRule.onNodeWithTag("book-cover-card-book-web-flow").performClick()
+        composeTestRule.waitUntilTagExists("book-detail")
+        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasText("开始阅读"))
+        composeTestRule.onNodeWithTag("detail-read-button").performClick()
+        composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.onNodeWithText("下一页").performClick()
+        composeTestRule.waitUntilTextExists("第 2 / 3 页")
+        composeTestRule.onNodeWithText("保存进度").performClick()
+        composeTestRule.onNodeWithTag("nav-bookshelf").performClick()
+        composeTestRule.waitUntilTagExists("continue-reading-card")
+        composeTestRule.waitUntilTextExists("阅读进度 43%")
+    }
+
     private fun createWebReaderAppContainer(
         readingState: ReadingState? = null,
     ): AppContainer {
@@ -130,7 +151,16 @@ class AppReaderFlowTest {
                         RemoteChapterContent(
                             chapterRef = chapterRef,
                             title = "最新章",
-                            content = "最新章正文第一段\n\n最新章正文第二段",
+                            content = listOf(
+                                "最新章正文第一段",
+                                "最新章正文第二段",
+                                "最新章正文第三段",
+                                "最新章正文第四段",
+                                "最新章正文第五段",
+                                "最新章正文第六段",
+                                "最新章正文第七段",
+                                "最新章正文第八段",
+                            ).joinToString(separator = "\n\n"),
                         )
 
                     else ->

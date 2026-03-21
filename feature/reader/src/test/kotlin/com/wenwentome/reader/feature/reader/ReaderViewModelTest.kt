@@ -232,6 +232,7 @@ class ReaderViewModelTest {
 
         assertEquals("chapter:chapter-8#paragraph:0", persistedState?.locator)
         assertEquals("chapter-8", persistedState?.chapterRef)
+        assertEquals(0f, persistedState?.progressPercent)
     }
 
     private fun readerBook(): BookRecord =

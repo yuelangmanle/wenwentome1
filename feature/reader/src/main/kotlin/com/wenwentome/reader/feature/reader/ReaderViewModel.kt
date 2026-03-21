@@ -120,7 +120,7 @@ class ReaderViewModel(
                     bookId = resolvedBookId,
                     locator = resolvedLocator,
                     chapterRef = resolvedChapter.chapterRef,
-                    progressPercent = state.progressPercent,
+                    progressPercent = 0f,
                     bookmarks = state.bookmarks,
                     updatedAt = System.currentTimeMillis(),
                 )

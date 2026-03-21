@@ -96,10 +96,41 @@ class BookDetailViewModelTest {
 
         assertEquals("chapter-12", persistedState?.chapterRef)
         assertEquals("chapter-12", persistedState?.locator)
+        assertEquals(0f, persistedState?.progressPercent)
         assertEquals(
             BookDetailEvent.OpenReader(bookId = "book-1"),
             eventDeferred.await(),
         )
+    }
+
+    @Test
+    fun openChapter_resetsProgressAtSelectedChapterStart() = runTest {
+        var persistedState: ReadingState? = null
+        val viewModel = BookDetailViewModel(
+            bookId = "book-1",
+            observeBook = flowOf(sampleLocalBook()),
+            observeReadingState = flowOf(
+                ReadingState(
+                    bookId = "book-1",
+                    chapterRef = "chapter-3",
+                    locator = "chapter:chapter-3#paragraph:4",
+                    progressPercent = 0.57f,
+                )
+            ),
+            observeChapters = flowOf(sampleChapters()),
+            observeLatestChapterRef = flowOf("chapter-12"),
+            observeAutomaticCover = flowOf(null),
+            observeManualCover = flowOf(null),
+            updateReadingState = { state -> persistedState = state },
+        )
+
+        viewModel.uiState.first { it.book != null }
+        viewModel.openChapter("chapter-5")
+        advanceUntilIdle()
+
+        assertEquals("chapter-5", persistedState?.chapterRef)
+        assertEquals("chapter:chapter-5#paragraph:0", persistedState?.locator)
+        assertEquals(0f, persistedState?.progressPercent)
     }
 
     @Test
