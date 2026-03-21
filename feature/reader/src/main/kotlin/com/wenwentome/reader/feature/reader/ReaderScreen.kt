@@ -285,7 +285,7 @@ fun ReaderScreen(
             Button(
                 onClick = {
                     val locator = currentPosition.locator ?: state.locatorForSave() ?: return@Button
-                    onLocatorChanged(locator, state.progressPercent)
+                    onLocatorChanged(locator, currentPosition.progressPercent)
                 },
                 enabled = currentPosition.locator != null || state.locatorForSave() != null,
             ) {
@@ -505,6 +505,10 @@ private fun verticalViewportPosition(
     baseParagraphIndex: Int,
 ): ReaderViewportPosition {
     val resolvedParagraphIndex = paragraphIndex.coerceAtLeast(0)
+    val progressPercent = progressPercentForParagraphIndex(
+        paragraphIndex = baseParagraphIndex + resolvedParagraphIndex,
+        paragraphCount = state.paragraphs.size,
+    )
     return ReaderViewportPosition(
         locator = buildLocatorForParagraph(
             format = state.book?.primaryFormat,
@@ -512,8 +516,8 @@ private fun verticalViewportPosition(
             paragraphIndex = baseParagraphIndex + resolvedParagraphIndex,
             fallbackLocator = state.locatorForSave(),
         ),
-        progressPercent = state.progressPercent,
-        progressLabel = state.progressLabel,
+        progressPercent = progressPercent,
+        progressLabel = formatProgressLabel(progressPercent),
     )
 }
 

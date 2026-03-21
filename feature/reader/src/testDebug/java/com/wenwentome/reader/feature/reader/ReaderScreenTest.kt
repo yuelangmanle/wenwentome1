@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
@@ -124,6 +125,54 @@ class ReaderScreenTest {
         composeTestRule.assertTagExists("toc-latest-chapter")
         composeTestRule.onNodeWithTag("reader-progress-label").assertTextContains("50%")
         assertEquals(emptyList<String>(), locatorChanges)
+    }
+
+    @Test
+    fun readerScreen_saveProgress_usesCurrentPagedViewportProgress() {
+        val progressChanges = mutableListOf<Float>()
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(readerMode = ReaderMode.SIMULATED_PAGE_TURN),
+                onLocatorChanged = { _, progress -> progressChanges += progress },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("下一页").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("保存进度").performClick()
+
+        assertEquals(listOf(1f), progressChanges)
+    }
+
+    @Test
+    fun readerScreen_saveProgress_usesCurrentVerticalViewportProgress() {
+        val progressChanges = mutableListOf<Float>()
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(readerMode = ReaderMode.VERTICAL_SCROLL),
+                onLocatorChanged = { _, progress -> progressChanges += progress },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("reader-body").performScrollToIndex(4)
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("保存进度").performClick()
+
+        assertEquals(listOf(1f), progressChanges)
     }
 
     private fun sampleState(
