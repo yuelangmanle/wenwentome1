@@ -8,8 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,7 +64,7 @@ internal fun LibraryBookCover(
     ) {
         Box(
             modifier = Modifier
-                .matchParentSize()
+                .fillMaxSize()
                 .clip(shape)
                 .background(Color(0xFFF3E7DA)),
         ) {
@@ -73,14 +73,14 @@ internal fun LibraryBookCover(
                     bitmap = requireNotNull(coverBitmap),
                     contentDescription = title,
                     modifier = Modifier
-                        .matchParentSize()
+                        .fillMaxSize()
                         .then(if (realCoverTag != null) Modifier.testTag(realCoverTag) else Modifier),
                     contentScale = ContentScale.Crop,
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .matchParentSize()
+                        .fillMaxSize()
                         .then(if (placeholderTag != null) Modifier.testTag(placeholderTag) else Modifier)
                         .background(
                             brush = Brush.linearGradient(
@@ -94,7 +94,7 @@ internal fun LibraryBookCover(
                 )
                 Box(
                     modifier = Modifier
-                        .matchParentSize()
+                        .fillMaxSize()
                         .padding(14.dp),
                     content = placeholderContent,
                 )
@@ -116,7 +116,7 @@ internal fun LibraryBookCover(
             )
             Box(
                 modifier = Modifier
-                    .matchParentSize()
+                    .fillMaxSize()
                     .background(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
@@ -129,7 +129,7 @@ internal fun LibraryBookCover(
             )
             Box(
                 modifier = Modifier
-                    .matchParentSize()
+                    .fillMaxSize()
                     .border(
                         width = 1.dp,
                         color = Color.White.copy(alpha = 0.18f),
