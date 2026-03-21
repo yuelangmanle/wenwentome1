@@ -91,6 +91,8 @@ fun BookDetailScreen(
                 coverUri = state.effectiveCover,
                 sourceLabel = sourceLabel,
                 lastReadLabel = state.lastReadLabel,
+                readActionLabel = state.readActionLabel,
+                onReadClick = onReadClick,
             )
         }
 
@@ -98,7 +100,6 @@ fun BookDetailScreen(
             ReadingStatusSection(
                 state = state,
                 showCatalog = showCatalog,
-                onReadClick = onReadClick,
                 onToggleCatalog = {
                     showCatalog = !showCatalog
                     onToggleCatalog()
@@ -126,6 +127,7 @@ fun BookDetailScreen(
             CatalogSection(
                 state = state,
                 showCatalog = showCatalog,
+                currentChapterRef = state.currentChapterRef,
                 onChapterClick = onChapterClick,
             )
         }
@@ -140,6 +142,8 @@ private fun HeroSection(
     coverUri: String?,
     sourceLabel: String?,
     lastReadLabel: String?,
+    readActionLabel: String,
+    onReadClick: () -> Unit,
 ) {
     Card(
         modifier = Modifier.testTag("detail-hero-section"),
@@ -204,6 +208,14 @@ private fun HeroSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Button(
+                onClick = onReadClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("detail-read-button"),
+            ) {
+                Text(readActionLabel)
+            }
         }
     }
 }
@@ -231,7 +243,6 @@ private fun HeroChip(
 private fun ReadingStatusSection(
     state: BookDetailUiState,
     showCatalog: Boolean,
-    onReadClick: () -> Unit,
     onToggleCatalog: () -> Unit,
     onRefreshCatalogClick: () -> Unit,
     onJumpToLatestClick: () -> Unit,
@@ -279,24 +290,11 @@ private fun ReadingStatusSection(
                 style = MaterialTheme.typography.titleLarge,
                 color = Color(0xFF8B5E34),
             )
-            Row(
+            OutlinedButton(
+                onClick = onToggleCatalog,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Button(
-                    onClick = onReadClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("detail-read-button"),
-                ) {
-                    Text(state.readActionLabel)
-                }
-                OutlinedButton(
-                    onClick = onToggleCatalog,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (showCatalog) "收起目录" else "查看目录")
-                }
+                Text(if (showCatalog) "收起目录" else "查看目录")
             }
             if (state.showRefreshCatalogAction || state.showJumpToLatestAction) {
                 Row(
@@ -329,6 +327,7 @@ private fun ReadingStatusSection(
 private fun CatalogSection(
     state: BookDetailUiState,
     showCatalog: Boolean,
+    currentChapterRef: String?,
     onChapterClick: (String) -> Unit,
 ) {
     Card(
@@ -362,6 +361,7 @@ private fun CatalogSection(
                 showCatalog ->
                     CatalogList(
                         chapters = state.chapters,
+                        currentChapterRef = currentChapterRef,
                         latestChapterRef = state.latestChapterRef,
                         onChapterClick = onChapterClick,
                     )
@@ -380,6 +380,7 @@ private fun CatalogSection(
 @Composable
 private fun CatalogList(
     chapters: List<ReaderChapter>,
+    currentChapterRef: String?,
     latestChapterRef: String?,
     onChapterClick: (String) -> Unit,
 ) {
@@ -393,6 +394,7 @@ private fun CatalogList(
         items(chapters, key = { it.chapterRef }) { chapter ->
             Row(
                 modifier = Modifier
+                    .testTag("catalog-chapter-row-${chapter.chapterRef}")
                     .fillMaxWidth()
                     .clickable { onChapterClick(chapter.chapterRef) }
                     .padding(vertical = 6.dp),
@@ -402,20 +404,40 @@ private fun CatalogList(
                     text = chapter.title,
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (chapter.chapterRef == currentChapterRef) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (chapter.chapterRef == latestChapterRef || chapter.isLatest) {
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = Color(0xFFE9D2B7),
-                    ) {
-                        Text(
-                            text = "最新",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF80542D),
-                        )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (chapter.chapterRef == currentChapterRef) {
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = Color(0xFFF1E3D1),
+                        ) {
+                            Text(
+                                text = "当前",
+                                modifier = Modifier
+                                    .testTag("catalog-current-badge-${chapter.chapterRef}")
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color(0xFF6A4B2F),
+                            )
+                        }
+                    }
+                    if (chapter.chapterRef == latestChapterRef || chapter.isLatest) {
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = Color(0xFFE9D2B7),
+                        ) {
+                            Text(
+                                text = "最新",
+                                modifier = Modifier
+                                    .testTag("catalog-latest-badge-${chapter.chapterRef}")
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color(0xFF80542D),
+                            )
+                        }
                     }
                 }
             }

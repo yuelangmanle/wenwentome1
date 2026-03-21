@@ -2,6 +2,7 @@ package com.wenwentome.reader
 
 import android.app.Application
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -53,7 +54,7 @@ class AppReaderFlowTest {
 
         composeTestRule.onNodeWithTag("book-cover-card-book-web-flow").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
-        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasText("开始阅读"))
+        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("detail-read-button"))
         composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.onNodeWithText("目录").performClick()
@@ -123,7 +124,7 @@ class AppReaderFlowTest {
 
         composeTestRule.onNodeWithTag("book-cover-card-book-web-flow").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
-        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasText("开始阅读"))
+        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("detail-read-button"))
         composeTestRule.onNodeWithTag("detail-read-button").performClick()
         composeTestRule.waitUntilTagExists("reader-screen")
         composeTestRule.waitUntilTextExists("第 1 / 3 页")

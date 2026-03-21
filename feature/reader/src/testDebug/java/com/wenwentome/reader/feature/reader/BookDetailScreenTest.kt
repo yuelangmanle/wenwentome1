@@ -119,9 +119,9 @@ class BookDetailScreenTest {
             .assert(hasAnyDescendant(hasTextExactlyCompat("测试作者")))
             .assert(hasAnyDescendant(hasTextExactlyCompat("一段用于详情页测试的简介。")))
             .assert(hasAnyDescendant(hasTextExactlyCompat("上次读到 第三章")))
+            .assert(hasAnyDescendant(hasTestTag("detail-read-button")))
 
         composeTestRule.onNodeWithTag("detail-reading-status-section")
-            .assert(hasAnyDescendant(hasTestTag("detail-read-button")))
             .assert(hasAnyDescendant(hasTestTag("detail-progress-label")))
             .assert(hasAnyDescendant(hasTextExactlyCompat("当前阅读 第三章")))
 
@@ -137,6 +137,10 @@ class BookDetailScreenTest {
         composeTestRule.onNodeWithTag("detail-catalog-section")
             .assert(hasAnyDescendant(hasTextExactlyCompat("目录")))
             .assert(hasAnyDescendant(hasTextExactlyCompat("第八章")))
+        composeTestRule.onNodeWithTag("catalog-chapter-row-chapter-3")
+            .assert(hasAnyDescendant(hasTestTag("catalog-current-badge-chapter-3")))
+        composeTestRule.onNodeWithTag("catalog-chapter-row-chapter-8")
+            .assert(hasAnyDescendant(hasTestTag("catalog-latest-badge-chapter-8")))
     }
 
     private fun sampleState() =
