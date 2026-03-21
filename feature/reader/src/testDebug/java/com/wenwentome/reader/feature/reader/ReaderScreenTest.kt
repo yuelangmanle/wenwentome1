@@ -274,3 +274,9 @@ private fun ComposeContentTestRule.assertTagExists(tag: String) {
 private fun ComposeContentTestRule.assertTextExists(text: String) {
     assertTrue(onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty())
 }
+
+private fun ComposeContentTestRule.waitUntilTextExists(text: String, timeoutMillis: Long = 5_000) {
+    waitUntil(timeoutMillis = timeoutMillis) {
+        onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+    }
+}
