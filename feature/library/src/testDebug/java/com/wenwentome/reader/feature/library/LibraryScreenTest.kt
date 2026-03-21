@@ -2,7 +2,6 @@ package com.wenwentome.reader.feature.library
 
 import android.graphics.Bitmap
 import android.graphics.Color
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -72,9 +71,9 @@ class LibraryScreenTest {
         composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
         composeTestRule.onNodeWithText("打开详情").assertExistsCompat()
         composeTestRule.onNodeWithText("刷新目录").assertExistsCompat()
-        composeTestRule.onNodeWithText("导入照片").assertDoesNotExist()
-        composeTestRule.onNodeWithText("刷新封面").assertDoesNotExist()
-        composeTestRule.onNodeWithText("恢复自动封面").assertDoesNotExist()
+        composeTestRule.onNodeWithText("导入照片").assertDoesNotExistCompat()
+        composeTestRule.onNodeWithText("刷新封面").assertDoesNotExistCompat()
+        composeTestRule.onNodeWithText("恢复自动封面").assertDoesNotExistCompat()
     }
 
     @Test
@@ -95,7 +94,7 @@ class LibraryScreenTest {
         composeTestRule.waitUntilTagExists("continue-reading-real-cover")
         composeTestRule.waitUntilTagGone("continue-reading-placeholder-cover")
         composeTestRule.onNodeWithTag("continue-reading-real-cover").assertExistsCompat()
-        composeTestRule.onNodeWithTag("continue-reading-placeholder-cover").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("continue-reading-placeholder-cover").assertDoesNotExistCompat()
 
         val book1Index = state.visibleBooks.indexOfFirst { it.book.id == "book-1" }
         assertTrue("预期 sampleState.visibleBooks 中包含 book-1", book1Index >= 0)
@@ -103,7 +102,7 @@ class LibraryScreenTest {
         composeTestRule.waitUntilTagExists("book-cover-real-cover-book-1")
         composeTestRule.waitUntilTagGone("book-cover-placeholder-book-1")
         composeTestRule.onNodeWithTag("book-cover-real-cover-book-1").assertExistsCompat()
-        composeTestRule.onNodeWithTag("book-cover-placeholder-book-1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("book-cover-placeholder-book-1").assertDoesNotExistCompat()
     }
 
     private fun sampleState(readableCoverUri: String? = null) =
@@ -176,6 +175,12 @@ class LibraryScreenTest {
 
 private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
     fetchSemanticsNode()
+}
+
+private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertDoesNotExistCompat() {
+    check(runCatching { fetchSemanticsNode() }.isFailure) {
+        "Expected semantics node to be absent, but it still exists."
+    }
 }
 
 private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.waitUntilTagExists(
