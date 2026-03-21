@@ -65,7 +65,9 @@ class BookDetailScreenTest {
             )
         }
 
+        val bookDetailRoot = composeTestRule.onNodeWithTag("book-detail")
         composeTestRule.onNodeWithTag("detail-read-button").performScrollTo().assertExistsCompat()
+        bookDetailRoot.performScrollToNode(hasTestTag("detail-reading-status-section"))
         composeTestRule.onNodeWithText("继续阅读").assertExistsCompat()
         composeTestRule.onNodeWithText("查看目录").assertExistsCompat()
         composeTestRule.onNodeWithTag("detail-progress-label").assertTextContains("42%")
@@ -87,9 +89,10 @@ class BookDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("detail-hero-section").assertExistsCompat()
-        composeTestRule.onNodeWithTag("detail-reading-status-section").assertExistsCompat()
         val bookDetailRoot = composeTestRule.onNodeWithTag("book-detail")
+        composeTestRule.onNodeWithTag("detail-hero-section").assertExistsCompat()
+        bookDetailRoot.performScrollToNode(hasTestTag("detail-reading-status-section"))
+        composeTestRule.onNodeWithTag("detail-reading-status-section").assertExistsCompat()
         bookDetailRoot.performScrollToNode(hasTestTag("detail-cover-management-section"))
         composeTestRule.onNodeWithTag("detail-cover-management-section").assertExistsCompat()
         bookDetailRoot.performScrollToNode(hasTestTag("detail-catalog-section"))
@@ -121,6 +124,8 @@ class BookDetailScreenTest {
             .assert(hasAnyDescendant(hasTextExactlyCompat("上次读到 第三章")))
             .assert(hasAnyDescendant(hasTestTag("detail-read-button")))
 
+        composeTestRule.onNodeWithTag("book-detail")
+            .performScrollToNode(hasTestTag("detail-reading-status-section"))
         composeTestRule.onNodeWithTag("detail-reading-status-section")
             .assert(hasAnyDescendant(hasTestTag("detail-progress-label")))
             .assert(hasAnyDescendant(hasTextExactlyCompat("当前阅读 第三章")))
@@ -131,9 +136,11 @@ class BookDetailScreenTest {
             .assert(hasAnyDescendant(hasTestTag("cover-import-photo-button")))
 
         composeTestRule.onNodeWithTag("book-detail")
-            .performScrollToNode(hasTestTag("detail-catalog-section"))
+            .performScrollToNode(hasTextExactlyCompat("查看目录"))
         composeTestRule.onNodeWithText("查看目录").performClick()
         composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("book-detail")
+            .performScrollToNode(hasTestTag("detail-catalog-section"))
         composeTestRule.onNodeWithTag("detail-catalog-section")
             .assert(hasAnyDescendant(hasTextExactlyCompat("目录")))
             .assert(hasAnyDescendant(hasTextExactlyCompat("第八章")))
