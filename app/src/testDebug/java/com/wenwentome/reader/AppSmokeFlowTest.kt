@@ -129,6 +129,90 @@ class AppSmokeFlowTest {
     }
 
     @Test
+    fun openingWebBook_withoutHistory_prefersTocRefInsteadOfLatestKnownChapterRef() {
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val database =
+            Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+        val firstChapterRef = "https://example.com/chapter-1"
+        val latestChapterRef = "https://example.com/chapter-9"
+        val fakeBridge = object : SourceBridgeRepository {
+            override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
+                throw UnsupportedOperationException("Not needed in this test")
+
+            override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
+                throw UnsupportedOperationException("Not needed in this test")
+
+            override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> =
+                throw UnsupportedOperationException("Not needed in this test")
+
+            override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
+                when (chapterRef) {
+                    firstChapterRef ->
+                        RemoteChapterContent(
+                            chapterRef = chapterRef,
+                            title = "第一章",
+                            content = "第一章正文第一段\n\n第一章正文第二段",
+                        )
+
+                    latestChapterRef ->
+                        RemoteChapterContent(
+                            chapterRef = chapterRef,
+                            title = "第九章",
+                            content = "第九章正文第一段\n\n第九章正文第二段",
+                        )
+
+                    else -> error("unexpected chapterRef: $chapterRef")
+                }
+        }
+        val appContainer = AppContainer(
+            application = application,
+            databaseOverride = database,
+            sourceBridgeRepositoryOverride = fakeBridge,
+        )
+
+        val bookId = "book-web-first-chapter"
+        runBlocking {
+            database.bookRecordDao().upsert(
+                BookRecord(
+                    id = bookId,
+                    title = "首章优先测试书",
+                    author = "测试作者",
+                    originType = OriginType.WEB,
+                    primaryFormat = BookFormat.WEB,
+                    summary = null,
+                ).toEntity()
+            )
+            database.remoteBindingDao().upsert(
+                RemoteBinding(
+                    bookId = bookId,
+                    sourceId = "fake-src",
+                    remoteBookId = "https://example.com/book",
+                    remoteBookUrl = "https://example.com/book",
+                    tocRef = firstChapterRef,
+                    latestKnownChapterRef = latestChapterRef,
+                ).toEntity()
+            )
+        }
+
+        composeTestRule.setContent {
+            ReaderApp(appContainer = appContainer)
+        }
+
+        composeTestRule.onNodeWithTag("book-cover-card-$bookId").performClick()
+        composeTestRule.waitUntilTagExists("book-detail")
+        composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("detail-read-button"))
+        composeTestRule.onNodeWithTag("detail-read-button").performClick()
+        composeTestRule.waitUntilTagExists("reader-screen")
+        composeTestRule.waitUntilTextExists("第一章正文第一段")
+        composeTestRule.onNodeWithTag("reader-chapter-title").assertTextEquals("第一章")
+        assertThrows(AssertionError::class.java) {
+            composeTestRule.onNodeWithText("第九章正文第一段").assertTextEquals("第九章正文第一段")
+        }
+    }
+
+    @Test
     fun openingWebBook_withoutLatestKnownChapterRef_rendersTocFailureMessage() {
         val application = ApplicationProvider.getApplicationContext<Application>()
         val database =
