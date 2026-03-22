@@ -24,6 +24,7 @@ import java.io.File
 import java.io.InputStream
 import java.net.URI
 import java.util.zip.ZipInputStream
+import kotlin.io.path.createTempDirectory
 
 class LocalBookImportRepositoryTest {
     @Test
@@ -133,7 +134,7 @@ class LocalBookImportRepositoryTest {
         readingStateDao: FakeReadingStateDao = FakeReadingStateDao(),
         bookAssetDao: FakeBookAssetDao = FakeBookAssetDao(),
     ): RepositoryContext {
-        val filesDir = createTempDir(prefix = "localbooks-test-")
+        val filesDir = createTempDirectory(prefix = "localbooks-test-").toFile()
         val fileStore = LocalBookFileStore(filesDir = filesDir)
         return RepositoryContext(
             filesDir = filesDir,

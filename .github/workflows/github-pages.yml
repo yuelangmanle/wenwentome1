@@ -11,6 +11,9 @@ on:
       - "app/src/main/assets/changelog.json"
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: read
   pages: write
@@ -29,6 +32,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate release metadata pack
+        run: python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md --site-path site/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

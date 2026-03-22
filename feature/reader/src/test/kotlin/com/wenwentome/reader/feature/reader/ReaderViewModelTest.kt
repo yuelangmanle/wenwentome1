@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+
 package com.wenwentome.reader.feature.reader
 
 import com.wenwentome.reader.core.model.BookFormat
@@ -195,6 +197,49 @@ class ReaderViewModelTest {
         assertEquals("chapter-2", persistedState?.chapterRef)
         assertEquals(0.42f, persistedState?.progressPercent)
         assertEquals(ReaderMode.HORIZONTAL_PAGING, viewModel.uiState.value.readerMode)
+    }
+
+    @Test
+    fun switchingReaderMode_usesResolvedLocalWindowProgressForLegacyEpubLocator() = runTest {
+        val readerMode = MutableStateFlow(ReaderMode.SIMULATED_PAGE_TURN)
+        var persistedState: ReadingState? = null
+        val viewModel = ReaderViewModel(
+            bookId = "book-1",
+            observeReadingState = flowOf(
+                ReadingState(
+                    bookId = "book-1",
+                    locator = "999:999",
+                    progressPercent = 0f,
+                )
+            ),
+            observeBook = flowOf(readerBook()),
+            observeContent = flowOf(
+                ReaderContent(
+                    chapterTitle = "第三章",
+                    paragraphs = listOf("正文第一段"),
+                    chapterRef = "chapter-3",
+                    windowStartParagraphIndex = 20,
+                    totalParagraphCount = 100,
+                )
+            ),
+            observeReaderMode = readerMode,
+            observePresentationPrefs = MutableStateFlow(ReaderPresentationPrefs()),
+            observeChapters = flowOf(readerChapters()),
+            observeLatestChapterRef = flowOf("chapter-8"),
+            saveReaderMode = { mode -> readerMode.value = mode },
+            savePresentationPrefs = {},
+            updateReadingState = { state -> persistedState = state },
+        )
+
+        val state = viewModel.uiState.first { it.book != null }
+        assertEquals(20f / 99f, state.progressPercent, 0.0001f)
+
+        viewModel.setReaderMode(ReaderMode.HORIZONTAL_PAGING)
+        advanceUntilIdle()
+
+        assertEquals("999:999", persistedState?.locator)
+        assertNotNull(persistedState)
+        assertEquals(20f / 99f, persistedState?.progressPercent ?: -1f, 0.0001f)
     }
 
     @Test

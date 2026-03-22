@@ -60,10 +60,18 @@ class LocalBookContentRepository(
                 .filter { it.isNotBlank() }
                 .toList()
         }
-        val startIndex = locator?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val startIndex =
+            if (paragraphs.isEmpty()) {
+                0
+            } else {
+                val resolvedIndex = locator?.toIntOrNull() ?: 0
+                resolvedIndex.takeIf { it in paragraphs.indices } ?: 0
+            }
         return ReaderContent(
             chapterTitle = "正文",
             paragraphs = paragraphs.drop(startIndex).take(60),
+            windowStartParagraphIndex = startIndex,
+            totalParagraphCount = paragraphs.size,
         )
     }
 
@@ -80,8 +88,14 @@ class LocalBookContentRepository(
             resourceStream.readBytes().decodeToString()
         }
         val allParagraphs = extractParagraphsFromHtml(html)
+        val startParagraphIndex =
+            if (allParagraphs.isEmpty()) {
+                0
+            } else {
+                resolvedLocator.paragraphIndex.takeIf { it in allParagraphs.indices } ?: 0
+            }
         val visibleParagraphs = allParagraphs
-            .drop(resolvedLocator.paragraphIndex)
+            .drop(startParagraphIndex)
             .take(60)
             .ifEmpty { allParagraphs.take(60) }
 
@@ -89,6 +103,8 @@ class LocalBookContentRepository(
             chapterTitle = chapter.title,
             paragraphs = visibleParagraphs,
             chapterRef = chapter.chapterRef,
+            windowStartParagraphIndex = startParagraphIndex,
+            totalParagraphCount = allParagraphs.size,
         )
     }
 

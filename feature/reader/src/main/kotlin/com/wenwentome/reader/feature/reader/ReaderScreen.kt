@@ -69,6 +69,7 @@ fun ReaderScreen(
         windowBaseParagraphIndex(
             format = state.book?.primaryFormat,
             locator = state.locator,
+            windowStartParagraphIndex = state.windowStartParagraphIndex,
         )
     }
     val readerPages = remember(
@@ -145,6 +146,8 @@ fun ReaderScreen(
                 baseParagraphIndex = baseParagraphIndex,
             )
     }
+    val displayProgressPercent = currentPosition.progressPercent
+    val displayProgressLabel = currentPosition.progressLabel
 
     Column(
         modifier = modifier
@@ -163,11 +166,11 @@ fun ReaderScreen(
                 modifier = Modifier.testTag("reader-chapter-title"),
             )
             LinearProgressIndicator(
-                progress = { state.progressPercent.coerceIn(0f, 1f) },
+                progress = { displayProgressPercent.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                text = state.progressLabel,
+                text = displayProgressLabel,
                 style = MaterialTheme.typography.labelLarge,
                 color = palette.text,
                 modifier = Modifier.testTag("reader-progress-summary"),
@@ -202,7 +205,7 @@ fun ReaderScreen(
             if (showSettings == 1) {
                 ReaderSettingsSheet(
                     presentation = state.presentation,
-                    progressLabel = state.progressLabel,
+                    progressLabel = displayProgressLabel,
                     onThemeChange = onThemeChange,
                     onFontSizeChange = onFontSizeChange,
                     onLineHeightChange = onLineHeightChange,
@@ -216,7 +219,7 @@ fun ReaderScreen(
                     currentChapterRef = state.tocHighlightedChapterRef ?: state.chapterRef,
                     latestChapterRef = state.latestChapterRef,
                     initialScrollChapterRef = state.chapterRef ?: state.latestChapterRef,
-                    progressLabel = state.progressLabel,
+                    progressLabel = displayProgressLabel,
                     onChapterClick = { chapter ->
                         onChapterSelected(chapter.chapterRef)
                         showToc = 0
@@ -529,7 +532,7 @@ private fun verticalViewportPosition(
     val resolvedParagraphIndex = paragraphIndex.coerceAtLeast(0)
     val progressPercent = progressPercentForParagraphIndex(
         paragraphIndex = baseParagraphIndex + resolvedParagraphIndex,
-        paragraphCount = state.paragraphs.size,
+        paragraphCount = state.totalParagraphCount.coerceAtLeast(state.paragraphs.size),
     )
     return ReaderViewportPosition(
         locator = buildLocatorForParagraph(
@@ -544,6 +547,7 @@ private fun verticalViewportPosition(
 }
 
 private fun ReaderUiState.toReaderPages(baseParagraphIndex: Int): List<ReaderPageSlice> {
+    val totalParagraphCount = totalParagraphCount.coerceAtLeast(paragraphs.size)
     if (paragraphs.isEmpty()) {
         return listOf(
             ReaderPageSlice(
@@ -571,7 +575,7 @@ private fun ReaderUiState.toReaderPages(baseParagraphIndex: Int): List<ReaderPag
                 paragraphIndex = startParagraphIndex,
                 fallbackLocator = locatorForSave(),
             ),
-            progressPercent = progressPercentForParagraphIndex(startParagraphIndex, paragraphs.size),
+            progressPercent = progressPercentForParagraphIndex(startParagraphIndex, totalParagraphCount),
             paragraphs = chunk,
         )
     }
@@ -580,10 +584,10 @@ private fun ReaderUiState.toReaderPages(baseParagraphIndex: Int): List<ReaderPag
 private fun windowBaseParagraphIndex(
     format: BookFormat?,
     locator: String?,
+    windowStartParagraphIndex: Int,
 ): Int =
     when (format) {
-        BookFormat.TXT,
-        BookFormat.EPUB -> paragraphIndexFromLocator(format, locator)
+        BookFormat.TXT, BookFormat.EPUB -> windowStartParagraphIndex
         BookFormat.WEB,
         null -> 0
     }

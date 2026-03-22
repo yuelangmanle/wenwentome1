@@ -11,6 +11,9 @@ on:
         required: true
         type: string
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: write
 
@@ -34,6 +37,22 @@ jobs:
             --manual-tag "${{ github.event.inputs.tag_name }}" \
             --output "$GITHUB_OUTPUT"
 
+      - name: Verify manual dispatch tag points to selected commit
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG_NAME: ${{ steps.release_context.outputs.tag_name }}
+        run: |
+          git fetch --tags --force
+          if ! git rev-parse "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
+            echo "::error::workflow_dispatch 只允许补发已经存在的正式 tag"
+            exit 1
+          fi
+          TAG_SHA="$(git rev-list -n 1 "${TAG_NAME}")"
+          if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::workflow_dispatch tag ${TAG_NAME} 未指向当前 main 提交 ${GITHUB_SHA}"
+            exit 1
+          fi
+
       - name: Verify tag commit belongs to main
         run: git branch -r --contains "$GITHUB_SHA" | grep -q "origin/main"
 
@@ -54,7 +73,7 @@ jobs:
         run: python3 scripts/release_metadata.py check-tag "${{ steps.release_context.outputs.tag_name }}" app/build.gradle.kts
 
       - name: Validate release metadata pack
-        run: python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md
+        run: python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md --site-path site/index.html
 
       - name: Prepare release notes
         run: python3 scripts/release_metadata.py notes "${{ steps.release_context.outputs.version }}" CHANGELOG.md > release-notes.md

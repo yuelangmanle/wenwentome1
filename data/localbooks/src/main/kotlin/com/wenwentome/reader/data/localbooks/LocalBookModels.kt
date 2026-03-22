@@ -30,6 +30,8 @@ data class ReaderContent(
     val chapterTitle: String,
     val paragraphs: List<String>,
     val chapterRef: String? = null,
+    val windowStartParagraphIndex: Int = 0,
+    val totalParagraphCount: Int = paragraphs.size,
 )
 
 data class EpubLocator(

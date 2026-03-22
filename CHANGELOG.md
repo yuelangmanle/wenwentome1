@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3] - 2026-03-23
+
+### Fixed
+- 发现页搜索与选书结果改为在 `IO` 线程执行桥接请求，避免网文搜索和加入流程阻塞主线程
+- `TXT / EPUB` 阅读进度改为基于全文段落数与窗口起点计算，修复中后段阅读时的百分比失真
+- 阅读器顶部进度条、进度文案与设置面板统一跟随当前视口位置更新，不再停留在旧进度
+- “读最新章” 写入阅读状态时重置进度百分比，避免沿用旧章节进度
+
+### Changed
+- Release 元数据校验补充 `site/index.html` 版本一致性检查
+- `android-release` workflow 的手动触发入口收紧为“必须填写已存在且指向当前 `main` 提交的 tag”
+- GitHub Actions JavaScript actions 运行时显式切到 Node 24，降低旧运行时退役风险
+
 ## [1.2] - 2026-03-23
 
 ### Added

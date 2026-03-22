@@ -1,5 +1,22 @@
 [
   {
+    "version": "1.3",
+    "releaseDate": "2026-03-23",
+    "title": "阅读稳定性与发版链路修复",
+    "highlights": [
+      "发现页搜索与选书请求切到 IO 线程，网文流程不再阻塞主线程",
+      "TXT / EPUB 进度计算与阅读器顶部进度同步修正，继续阅读更准确",
+      "发布校验新增发布页版本检查，手动发版只接受当前 main 对应 tag"
+    ],
+    "details": [
+      "本地书阅读进度改为基于全文段落数与窗口起点推导，中后段窗口不再虚高或失真",
+      "顶部进度条、进度文案、设置面板和目录面板统一跟随当前视口位置刷新",
+      "读最新章时重置旧进度百分比，避免跨章节继承历史进度",
+      "Release 元数据脚本开始校验 site/index.html 版本文案，减少发布资料漏改",
+      "GitHub Actions JavaScript actions 显式切到 Node 24，并收紧 android-release 手动触发规则"
+    ]
+  },
+  {
     "version": "1.2",
     "releaseDate": "2026-03-23",
     "title": "API Hub 与阅读器 AI 收口",

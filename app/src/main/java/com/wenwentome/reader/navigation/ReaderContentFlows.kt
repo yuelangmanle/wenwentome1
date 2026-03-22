@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+
 package com.wenwentome.reader.navigation
 
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository

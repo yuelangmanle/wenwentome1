@@ -18,6 +18,7 @@ import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import kotlin.io.path.createTempDirectory
 
 class LocalBookContentRepositoryTest {
     @Test
@@ -125,6 +126,19 @@ class LocalBookContentRepositoryTest {
     }
 
     @Test
+    fun load_epubLaterParagraph_exposesWindowMetadataForProgressCalculation() = runTest {
+        val repository = createRepository(epubFixture = "sample-cover-first.epub")
+
+        val content = repository.load(
+            bookId = "epub-book",
+            locator = "chapter:OEBPS/chapter1.xhtml#paragraph:1",
+        )
+
+        assertEquals(1, content.windowStartParagraphIndex)
+        assertTrue(content.totalParagraphCount >= content.paragraphs.size)
+    }
+
+    @Test
     fun load_epubWithoutToc_skipsTitlePageFrontMatterAndOpensFirstReadableChapter() = runTest {
         val repository = createRepository(
             generatedEpubBytes = createTitlePageFirstEpubBytes(),
@@ -158,7 +172,7 @@ class LocalBookContentRepositoryTest {
         epubFixture: String? = null,
         generatedEpubBytes: ByteArray? = null,
     ): LocalBookContentRepository {
-        val filesDir = createTempDir(prefix = "localbooks-content-test-")
+        val filesDir = createTempDirectory(prefix = "localbooks-content-test-").toFile()
         val fileStore = LocalBookFileStore(filesDir = filesDir)
         val bytes = generatedEpubBytes ?: fixtureBytes(requireNotNull(epubFixture))
         val storageUri = fileStore.persistOriginal(

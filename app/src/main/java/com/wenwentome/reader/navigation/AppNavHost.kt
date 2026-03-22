@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+
 package com.wenwentome.reader.navigation
 
 import androidx.activity.compose.rememberLauncherForActivityResult

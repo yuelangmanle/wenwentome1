@@ -10,6 +10,7 @@
 
 - `1.0 -> 1.1`
 - `1.1 -> 1.2`
+- `1.2 -> 1.3`
 - `1.8 -> 1.9`
 - `1.9 -> 2.0`
 
@@ -20,17 +21,19 @@
   - `1.0 -> 100`
   - `1.1 -> 110`
   - `1.2 -> 120`
+  - `1.3 -> 130`
   - `2.0 -> 200`
 
 ## 更新日志规则
 
-每次正式发版必须同步更新以下 5 处：
+每次正式发版必须同步更新以下 6 处：
 
 1. `app/build.gradle.kts`
 2. `CHANGELOG.md`
 3. `app/src/main/assets/changelog.json`
 4. GitHub Release notes
 5. `README.md` 中的当前正式版本
+6. `site/index.html` 中的当前正式版本
 
 ## 发布规则
 
@@ -38,7 +41,7 @@
 - tag 格式固定为 `v<major>.<minor>`
 - tag 与 `versionName` 必须一致
 - 发版前必须运行：
-  - `python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md`
+  - `python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md --site-path site/index.html`
 
 ## 文档规则
 

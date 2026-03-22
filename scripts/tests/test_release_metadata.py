@@ -86,6 +86,13 @@ class ReleaseMetadataTest(unittest.TestCase):
             ## 版本信息
             - 当前正式版本：`1.1`
             """,
+            site_text="""
+            <title>WenwenToMe 1.1 发布页</title>
+            <meta name="description" content="WenwenToMe 1.1 发布页：查看版本亮点" />
+            <p>1.1 版本聚焦阅读稳定性</p>
+            <p class="panel-version">1.1</p>
+            <p class="section-kicker">1.1 亮点</p>
+            """,
         )
 
     def test_validate_release_pack_rejects_mismatched_app_changelog_version(self):
@@ -113,6 +120,76 @@ class ReleaseMetadataTest(unittest.TestCase):
                 readme_text="""
                 ## 版本信息
                 - 当前正式版本：`1.1`
+                """,
+            )
+
+    def test_validate_release_pack_rejects_mismatched_site_release_page_version(self):
+        with self.assertRaisesRegex(ValueError, "site release page"):
+            validate_release_pack(
+                gradle_text="""
+                defaultConfig {
+                    versionCode = 110
+                    versionName = "1.1"
+                }
+                """,
+                changelog_text="""## [1.1] - 2026-03-21
+                - 视觉改版""",
+                changelog_json_text="""
+                [
+                  {
+                    "version": "1.1",
+                    "releaseDate": "2026-03-21",
+                    "title": "阅读体验升级",
+                    "highlights": ["详情页四段结构"],
+                    "details": ["新增目录当前章标识"]
+                  }
+                ]
+                """,
+                readme_text="""
+                ## 版本信息
+                - 当前正式版本：`1.1`
+                """,
+                site_text="""
+                <title>WenwenToMe 1.0 发布页</title>
+                <meta name="description" content="WenwenToMe 1.0 发布页：查看版本亮点" />
+                <p>1.0 版本聚焦阅读稳定性</p>
+                <p class="panel-version">1.0</p>
+                <p class="section-kicker">1.0 亮点</p>
+                """,
+            )
+
+    def test_validate_release_pack_rejects_mismatched_site_release_page_body_version(self):
+        with self.assertRaisesRegex(ValueError, "hero copy"):
+            validate_release_pack(
+                gradle_text="""
+                defaultConfig {
+                    versionCode = 110
+                    versionName = "1.1"
+                }
+                """,
+                changelog_text="""## [1.1] - 2026-03-21
+                - 视觉改版""",
+                changelog_json_text="""
+                [
+                  {
+                    "version": "1.1",
+                    "releaseDate": "2026-03-21",
+                    "title": "阅读体验升级",
+                    "highlights": ["详情页四段结构"],
+                    "details": ["新增目录当前章标识"]
+                  }
+                ]
+                """,
+                readme_text="""
+                ## 版本信息
+                - 当前正式版本：`1.1`
+                """,
+                site_text="""
+                <title>WenwenToMe 1.1 发布页</title>
+                <meta name="description" content="WenwenToMe 1.1 发布页：查看版本亮点" />
+                <p>1.0 版本聚焦阅读稳定性</p>
+                <p class="panel-version">1.1</p>
+                <p class="section-kicker">1.1 亮点</p>
                 """,
             )
 

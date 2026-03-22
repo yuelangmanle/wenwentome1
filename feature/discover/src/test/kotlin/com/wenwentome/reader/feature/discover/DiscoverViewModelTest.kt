@@ -5,11 +5,16 @@ import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
 import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
+import com.wenwentome.reader.core.model.ReadingState
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -22,7 +27,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
+import kotlin.coroutines.ContinuationInterceptor
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -123,6 +130,51 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun search_usesConfiguredIoDispatcherForBridgeLookup() = runTest {
+        val ioDispatcher = StandardTestDispatcher(testScheduler)
+        var observedDispatcher: CoroutineDispatcher? = null
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                onSearch = {
+                    observedDispatcher = currentCoroutineContext()[ContinuationInterceptor] as? CoroutineDispatcher
+                },
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            ioDispatcher = ioDispatcher,
+        )
+
+        viewModel.search("雪中")
+        advanceUntilIdle()
+
+        assertEquals(ioDispatcher, observedDispatcher)
+    }
+
+    @Test
+    fun selectResult_usesConfiguredIoDispatcherForPreviewLookup() = runTest {
+        val ioDispatcher = StandardTestDispatcher(testScheduler)
+        var observedDispatcher: CoroutineDispatcher? = null
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                detailByRemoteBookId = mapOf("remote-1" to RemoteBookDetail(title = "雪中悍刀行")),
+                onFetchBookDetail = {
+                    observedDispatcher = currentCoroutineContext()[ContinuationInterceptor] as? CoroutineDispatcher
+                },
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            ioDispatcher = ioDispatcher,
+        )
+
+        viewModel.search("雪中")
+        advanceUntilIdle()
+        viewModel.selectResult("remote-1")
+        advanceUntilIdle()
+
+        assertEquals(ioDispatcher, observedDispatcher)
+    }
+
+    @Test
     fun refreshSelected_usesSwitchedSourcePreviewAndHint() = runTest {
         val viewModel = DiscoverViewModel(
             sourceBridgeRepository = FakeBridgeRepository(
@@ -177,6 +229,7 @@ class DiscoverViewModelTest {
         val addRemoteBookUseCase = FakeAddRemoteBookToShelfUseCase()
         var refreshedBookId: String? = null
         var persistedChapterRef: String? = null
+        var persistedProgressPercent: Float? = null
         val viewModel = DiscoverViewModel(
             sourceBridgeRepository = FakeBridgeRepository(
                 searchResults = listOf(sampleSearchResult()),
@@ -206,6 +259,7 @@ class DiscoverViewModelTest {
             },
             updateReadingState = { state ->
                 persistedChapterRef = state.chapterRef
+                persistedProgressPercent = state.progressPercent
             },
             ioDispatcher = Dispatchers.Main,
         )
@@ -221,12 +275,67 @@ class DiscoverViewModelTest {
 
         assertEquals("book-remote-1", refreshedBookId)
         assertEquals("chapter-10", persistedChapterRef)
+        assertEquals(0f, persistedProgressPercent)
         assertEquals(
             DiscoverEvent.OpenReader(bookId = "book-remote-1"),
             eventDeferred.await(),
         )
         assertEquals(emptySet<String>(), viewModel.uiState.value.refreshingResultIds)
         assertEquals("第十章", viewModel.uiState.value.selectedPreview?.lastChapter)
+    }
+
+    @Test
+    fun discoverViewModel_readLatest_preservesExistingProgressUntilReaderWritesNewProgress() = runTest {
+        var persistedProgressPercent: Float? = null
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                detailByRemoteBookId = mapOf(
+                    "remote-1" to RemoteBookDetail(
+                        title = "雪中悍刀行",
+                        author = "烽火戏诸侯",
+                        summary = "北凉刀，江湖雪。",
+                        lastChapter = "第十章",
+                    )
+                ),
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            resolveShelfBookId = { "book-remote-1" },
+            refreshRemoteBook = {
+                RefreshRemoteBookResult(
+                    latestKnownChapterRef = "chapter-10",
+                    hasUpdates = true,
+                    activeSourceId = "source-1",
+                    activeRemoteBookId = "remote-1",
+                    activeRemoteBookUrl = "https://example.com/book/1",
+                    autoSwitched = false,
+                    primarySourceId = "source-1",
+                    primarySourceFailed = false,
+                )
+            },
+            loadReadingState = {
+                ReadingState(
+                    bookId = "book-remote-1",
+                    locator = "chapter-6",
+                    chapterRef = "chapter-6",
+                    progressPercent = 0.42f,
+                )
+            },
+            updateReadingState = { state ->
+                persistedProgressPercent = state.progressPercent
+            },
+            ioDispatcher = Dispatchers.Main,
+        )
+
+        viewModel.search("雪中")
+        advanceUntilIdle()
+        viewModel.selectResult("remote-1")
+        advanceUntilIdle()
+
+        viewModel.readLatest()
+        advanceUntilIdle()
+
+        assertEquals(0.42f, persistedProgressPercent)
     }
 
     @Test
@@ -270,12 +379,18 @@ private class FakeBridgeRepository(
     private val searchResults: List<RemoteSearchResult> = emptyList(),
     private val deferredSearchResults: Map<String, CompletableDeferred<List<RemoteSearchResult>>> = emptyMap(),
     private val detailByRemoteBookId: Map<String, RemoteBookDetail> = emptyMap(),
+    private val onSearch: suspend () -> Unit = {},
+    private val onFetchBookDetail: suspend () -> Unit = {},
 ) : SourceBridgeRepository {
-    override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
-        deferredSearchResults[query]?.await() ?: searchResults
+    override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> {
+        onSearch()
+        return deferredSearchResults[query]?.await() ?: searchResults
+    }
 
-    override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
-        detailByRemoteBookId[remoteBookId] ?: RemoteBookDetail(title = remoteBookId)
+    override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail {
+        onFetchBookDetail()
+        return detailByRemoteBookId[remoteBookId] ?: RemoteBookDetail(title = remoteBookId)
+    }
 
     override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> = emptyList()
 
@@ -297,6 +412,7 @@ private fun sampleSearchResult(
         detailUrl = detailUrl,
     )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule(
     private val dispatcher: TestDispatcher = UnconfinedTestDispatcher(),
 ) : TestWatcher() {

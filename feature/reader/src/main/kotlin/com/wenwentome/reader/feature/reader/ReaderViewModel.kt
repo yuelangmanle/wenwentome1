@@ -58,7 +58,12 @@ class ReaderViewModel(
             val (readerMode, presentation) = prefs
             val (chapters, latestChapterRef) = catalog
             val chapterRef = content.chapterRef ?: state?.chapterRef
-            val progressPercent = state?.progressPercent ?: 0f
+            val progressPercent =
+                content.derivedProgressPercent(
+                    format = book?.primaryFormat,
+                    locator = state?.locator,
+                    fallbackProgressPercent = state?.progressPercent ?: 0f,
+                )
             ReaderUiState(
                 book = book,
                 readerMode = readerMode,
@@ -72,6 +77,8 @@ class ReaderViewModel(
                 chapterTitle = content.chapterTitle,
                 chapterRef = chapterRef,
                 paragraphs = content.paragraphs,
+                windowStartParagraphIndex = content.windowStartParagraphIndex,
+                totalParagraphCount = content.totalParagraphCount,
                 bookmarks = state?.bookmarks.orEmpty(),
                 assistant = assistant,
             )
@@ -253,3 +260,25 @@ private fun List<ReaderChapter>.withLatestFlag(latestChapterRef: String?): List<
         chapter.copy(isLatest = chapter.isLatest || chapter.chapterRef == latestChapterRef)
     }
 }
+
+private fun ReaderContent.derivedProgressPercent(
+    format: BookFormat?,
+    locator: String?,
+    fallbackProgressPercent: Float,
+): Float {
+    val paragraphCount = totalParagraphCount.coerceAtLeast(paragraphs.size)
+    if (paragraphCount <= 1) return fallbackProgressPercent
+    val paragraphIndex =
+        when (format) {
+            BookFormat.TXT,
+            BookFormat.EPUB -> windowStartParagraphIndex
+            BookFormat.WEB -> locateParagraphIndex(format, locator)
+            null -> windowStartParagraphIndex
+        }
+    return (paragraphIndex.coerceIn(0, paragraphCount - 1) / (paragraphCount - 1).toFloat())
+}
+
+private fun locateParagraphIndex(
+    format: BookFormat,
+    locator: String?,
+): Int = com.wenwentome.reader.core.model.resolveReaderParagraphIndex(format, locator)

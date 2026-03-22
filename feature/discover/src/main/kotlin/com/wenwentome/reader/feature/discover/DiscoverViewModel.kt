@@ -79,7 +79,9 @@ class DiscoverViewModel(
         }
         val currentToken = ++searchToken
         searchJob = viewModelScope.launch {
-            val results = sourceBridgeRepository.search(query, emptyList())
+            val results = withContext(ioDispatcher) {
+                sourceBridgeRepository.search(query, emptyList())
+            }
             val state = mutableUiState.value
             if (currentToken != searchToken || state.query != query) return@launch
             val boostedSourceIds = boostedSourceIdsProvider()
@@ -113,7 +115,9 @@ class DiscoverViewModel(
         previewJob = viewModelScope.launch {
             val start = nowProvider()
             try {
-                val detail = sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                val detail = withContext(ioDispatcher) {
+                    sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                }
                 healthTracker.recordResult(
                     sourceId = result.sourceId,
                     success = true,

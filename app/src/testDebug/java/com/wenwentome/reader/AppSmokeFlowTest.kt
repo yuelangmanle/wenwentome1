@@ -112,6 +112,7 @@ class AppSmokeFlowTest {
             ReaderApp(appContainer = appContainer)
         }
 
+        composeTestRule.waitUntilTagExists("book-cover-card-$bookId")
         composeTestRule.onNodeWithTag("book-cover-card-$bookId").performClick()
         composeTestRule.waitUntilTagExists("book-detail")
         composeTestRule.onNodeWithTag("book-detail").performScrollToNode(hasTestTag("detail-read-button"))

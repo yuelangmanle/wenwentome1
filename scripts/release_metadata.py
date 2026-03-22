@@ -44,6 +44,7 @@ def validate_release_pack(
     changelog_text: str,
     changelog_json_text: str,
     readme_text: str,
+    site_text: Optional[str] = None,
 ) -> str:
     version_name = read_version_name(gradle_text)
     version_code = read_version_code(gradle_text)
@@ -72,7 +73,26 @@ def validate_release_pack(
     if f"当前正式版本：`{version_name}`" not in readme_text:
         raise ValueError(f"README missing current release version {version_name}")
 
+    if site_text is not None:
+        validate_site_release_page(site_text, version_name)
+
     return version_name
+
+
+def validate_site_release_page(site_text: str, version_name: str) -> None:
+    if f"<title>WenwenToMe {version_name} 发布页</title>" not in site_text:
+        raise ValueError(f"site release page title does not match versionName {version_name}")
+    if f'content="WenwenToMe {version_name} 发布页' not in site_text:
+        raise ValueError(f"site release page description does not match versionName {version_name}")
+    panel_version_pattern = rf'class="panel-version">\s*{re.escape(version_name)}\s*<'
+    if not re.search(panel_version_pattern, site_text):
+        raise ValueError(f"site release page current version does not match versionName {version_name}")
+    hero_text_pattern = rf">\s*{re.escape(version_name)}\s+版本"
+    if not re.search(hero_text_pattern, site_text):
+        raise ValueError(f"site release page hero copy does not match versionName {version_name}")
+    highlights_pattern = rf'class="section-kicker">\s*{re.escape(version_name)}\s+亮点\s*<'
+    if not re.search(highlights_pattern, site_text):
+        raise ValueError(f"site release page highlights heading does not match versionName {version_name}")
 
 
 def check_tag(tag: str, gradle_path: Path) -> None:
@@ -115,12 +135,14 @@ def check_release_pack(
     changelog_path: Path,
     changelog_json_path: Path,
     readme_path: Path,
+    site_path: Optional[Path] = None,
 ) -> None:
     validate_release_pack(
         gradle_text=gradle_path.read_text(encoding="utf-8"),
         changelog_text=changelog_path.read_text(encoding="utf-8"),
         changelog_json_text=changelog_json_path.read_text(encoding="utf-8"),
         readme_text=readme_path.read_text(encoding="utf-8"),
+        site_text=site_path.read_text(encoding="utf-8") if site_path else None,
     )
 
 
@@ -159,6 +181,7 @@ def main() -> int:
     validate_pack_parser.add_argument("changelog_path")
     validate_pack_parser.add_argument("changelog_json_path")
     validate_pack_parser.add_argument("readme_path")
+    validate_pack_parser.add_argument("--site-path")
 
     release_context_parser = subparsers.add_parser("release-context")
     release_context_parser.add_argument("--event-name", required=True)
@@ -180,6 +203,7 @@ def main() -> int:
                 changelog_path=Path(args.changelog_path),
                 changelog_json_path=Path(args.changelog_json_path),
                 readme_path=Path(args.readme_path),
+                site_path=Path(args.site_path) if args.site_path else None,
             )
         elif args.command == "release-context":
             write_release_context(

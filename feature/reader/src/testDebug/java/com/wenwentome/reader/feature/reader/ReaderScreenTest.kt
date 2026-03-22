@@ -1,5 +1,6 @@
 package com.wenwentome.reader.feature.reader
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -144,7 +145,7 @@ class ReaderScreenTest {
         composeTestRule.onNodeWithText("目录").performClick()
         composeTestRule.assertTagExists("toc-current-chapter")
         composeTestRule.assertTagExists("toc-latest-chapter")
-        composeTestRule.onNodeWithTag("reader-progress-label").assertTextContains("50%")
+        composeTestRule.onNodeWithTag("reader-progress-label").assertTextContains("0%")
         assertEquals(emptyList<String>(), locatorChanges)
     }
 
@@ -173,7 +174,7 @@ class ReaderScreenTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("保存进度").performClick()
 
-        assertEquals(listOf(1f), progressChanges)
+        assertEquals(listOf(0.75f), progressChanges)
     }
 
     @Test
@@ -186,6 +187,7 @@ class ReaderScreenTest {
                 progressLabel = "0%",
                 presentation = ReaderPresentationPrefs(fontSizeSp = 28),
                 paragraphs = (1..12).map { index -> "正文第${index}段" },
+                totalParagraphCount = 12,
             )
 
         composeTestRule.setContent {
@@ -211,6 +213,86 @@ class ReaderScreenTest {
 
         assertEquals(1, progressChanges.size)
         assertTrue(progressChanges.single() > 0f)
+    }
+
+    @Test
+    fun readerScreen_localMidWindowProgressUsesTotalParagraphCount() {
+        val progressChanges = mutableListOf<Float>()
+        val localWindowState =
+            sampleState(readerMode = ReaderMode.SIMULATED_PAGE_TURN).copy(
+                locator = "chapter:chapter-3#paragraph:60",
+                progressPercent = 0f,
+                progressLabel = "0%",
+                presentation = ReaderPresentationPrefs(fontSizeSp = 20),
+                paragraphs = (1..60).map { index -> "正文窗口第${index}段" },
+                windowStartParagraphIndex = 60,
+                totalParagraphCount = 120,
+            )
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = localWindowState,
+                onLocatorChanged = { _, progress -> progressChanges += progress },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("reader-progress-summary").assertTextContains("50%")
+        composeTestRule.onNodeWithText("保存进度").performClick()
+
+        assertEquals(1, progressChanges.size)
+        assertTrue(progressChanges.single() in 0.5f..0.51f)
+    }
+
+    @Test
+    fun readerScreen_verticalProgressSummaryTracksViewportPosition() {
+        val verticalState =
+            sampleState(readerMode = ReaderMode.VERTICAL_SCROLL).copy(
+                locator = "chapter:chapter-3#paragraph:0",
+                progressPercent = 0f,
+                progressLabel = "0%",
+                presentation = ReaderPresentationPrefs(fontSizeSp = 28),
+                paragraphs = (1..12).map { index -> "正文第${index}段" },
+                totalParagraphCount = 12,
+            )
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = verticalState,
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("reader-progress-summary").assertTextContains("0%")
+        composeTestRule.onNodeWithTag("reader-body").performScrollToIndex(11)
+        composeTestRule.waitForIdle()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule
+                .onNodeWithTag("reader-progress-summary")
+                .fetchSemanticsNode()
+                .config
+                .getOrElse(SemanticsProperties.Text) { emptyList() }
+                .joinToString(separator = "") { text -> text.text } != "0%"
+        }
     }
 
     @Test
@@ -321,6 +403,7 @@ class ReaderScreenTest {
                 "正文第四段",
                 "正文第五段",
             ),
+            totalParagraphCount = 5,
             assistant = ReaderAssistantUiState(),
         )
 }

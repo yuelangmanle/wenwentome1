@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WenwenToMe 1.2 发布页</title>
-  <meta name="description" content="WenwenToMe 1.2 发布页：查看版本亮点、下载入口、GitHub 项目与云端发布说明。" />
+  <title>WenwenToMe 1.3 发布页</title>
+  <meta name="description" content="WenwenToMe 1.3 发布页：查看版本亮点、下载入口、GitHub 项目与云端发布说明。" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -14,7 +14,7 @@
         <p class="eyebrow">月亮满了 · WenwenToMe</p>
         <h1>一个把本地书和网文放进同一座书架的 Android 阅读器</h1>
         <p class="hero-text">
-          1.2 版本重点收口 API Hub 体系、阅读器 AI 面板、三条阅读链路回归与网文健康增强，并继续沿用 GitHub 云端打包与发布链路。
+          1.3 版本聚焦阅读稳定性与发版链路修复，重点修正 TXT / EPUB 进度计算、阅读器实时进度反馈，以及网文搜索阻塞问题，并继续沿用 GitHub 云端打包与发布链路。
         </p>
         <div class="hero-actions">
           <a class="button primary" href="https://github.com/yuelangmanle/wenwentome1/releases/latest">下载最新 APK</a>
@@ -23,7 +23,7 @@
       </div>
       <section class="hero-panel">
         <p class="panel-label">当前正式版本</p>
-        <p class="panel-version">1.2</p>
+        <p class="panel-version">1.3</p>
         <dl class="panel-meta">
           <div>
             <dt>作者</dt>
@@ -43,11 +43,11 @@
 
     <main class="content-grid">
       <section class="card">
-        <p class="section-kicker">1.2 亮点</p>
+        <p class="section-kicker">1.3 亮点</p>
         <ul class="feature-list">
-          <li>API Hub 总览、Provider 管理、模型绑定、预算回退、价格目录与调用记录全面收口。</li>
-          <li>阅读器 AI 面板支持章节总结、段落解释、翻译与 TTS 入口，结果缓存复用。</li>
-          <li>TXT / EPUB / WEB 回归，书架筛选排序、EPUB 优先正文与网文健康增强同步落地。</li>
+          <li>发现页搜索与选书结果改为后台线程执行，网文搜索和加入流程不再拖住主线程。</li>
+          <li>TXT / EPUB 阅读进度改为基于全文段落数推导，顶部进度条、文案与目录状态实时同步。</li>
+          <li>发布链路新增发布页版本校验，手动发版只接受当前 main 对应 tag，并切到 Node 24 运行时。</li>
         </ul>
       </section>
 
@@ -56,7 +56,7 @@
         <ol class="step-list">
           <li>正式包从 GitHub Releases 下载，最新版本固定指向 `release APK`。</li>
           <li>开发分支先走 `android-ci`，由 GitHub Actions 生成 `debug-apk` artifact。</li>
-          <li>本地没有 Java 时，直接使用 `gh run watch` 跟进云端构建状态。</li>
+          <li>本地没有 Java 时，直接使用 `gh run watch` 跟进云端构建状态；正式发版仍以 `main` 上已存在 tag 为准。</li>
         </ol>
       </section>
 
