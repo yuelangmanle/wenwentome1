@@ -34,5 +34,8 @@ class ApiHubOverviewScreenTest {
 
         composeTestRule.onNodeWithTag("api-hub-overview-screen").assertExists()
         composeTestRule.onNodeWithText("今日调用").assertExists()
+        composeTestRule.onNodeWithText("12").assertExists()
+        composeTestRule.onNodeWithText("35%").assertExists()
+        composeTestRule.onNodeWithText("无").assertExists()
     }
 }

@@ -1,5 +1,6 @@
 package com.wenwentome.reader
 
+import android.app.Application
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -10,9 +11,11 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.room.Room
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.core.app.ApplicationProvider
+import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.di.AppContainer
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -28,7 +31,7 @@ class AppNavigationSmokeTest {
 
     @Test
     fun bottomBar_topLevelNavigationBehavesLikeTabs() {
-        val appContainer = AppContainer(ApplicationProvider.getApplicationContext())
+        val appContainer = createInMemoryAppContainer()
         var navController: NavHostController? = null
 
         composeTestRule.setContent {
@@ -60,7 +63,7 @@ class AppNavigationSmokeTest {
 
     @Test
     fun settings_canOpenApiHubOverview() {
-        val appContainer = AppContainer(ApplicationProvider.getApplicationContext())
+        val appContainer = createInMemoryAppContainer()
 
         composeTestRule.setContent {
             val controller = rememberNavController()
@@ -72,5 +75,16 @@ class AppNavigationSmokeTest {
         composeTestRule.onNodeWithTag("api-hub-overview-screen").assertExists()
         composeTestRule.onNodeWithText("今日调用").assertExists()
         composeTestRule.onNodeWithTag("nav-settings").assertIsSelected()
+    }
+
+    private fun createInMemoryAppContainer(): AppContainer {
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val database = Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        return AppContainer(
+            application = application,
+            databaseOverride = database,
+        )
     }
 }
