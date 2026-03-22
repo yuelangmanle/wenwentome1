@@ -6,6 +6,8 @@ import android.os.Build
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.security.MessageDigest
+import java.security.KeyStoreException
+import java.security.NoSuchAlgorithmException
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.Cipher
@@ -44,6 +46,14 @@ class EncryptedSharedPreferencesApiSecretLocalStore(
     override suspend fun delete(secretId: String) {
         deleteSecret(preferences, secretId)
     }
+
+    fun migrateFrom(legacyPreferences: SharedPreferences) {
+        migrateLegacySecrets(
+            legacyPreferences = legacyPreferences,
+            hasSecret = { secretId -> preferences.contains(secretId) },
+            persistMigrated = { secretId, plainText -> persistSecret(preferences, secretId, plainText) },
+        )
+    }
 }
 
 private class RobolectricSecureApiSecretLocalStore(
@@ -67,6 +77,14 @@ private class RobolectricSecureApiSecretLocalStore(
 
     override suspend fun delete(secretId: String) {
         deleteSecret(preferences, secretId)
+    }
+
+    fun migrateFrom(legacyPreferences: SharedPreferences) {
+        migrateLegacySecrets(
+            legacyPreferences = legacyPreferences,
+            hasSecret = { secretId -> preferences.contains(secretId) },
+            persistMigrated = { secretId, plainText -> persistSecret(preferences, secretId, encrypt(plainText)) },
+        )
     }
 
     private fun encrypt(plainText: String): String {
@@ -93,22 +111,29 @@ private class RobolectricSecureApiSecretLocalStore(
 fun createSecureApiSecretLocalStore(
     context: Context,
     preferencesName: String,
-): ApiSecretLocalStore =
-    runCatching {
+): ApiSecretLocalStore {
+    val legacyPreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+    val secureName = securePreferencesName(preferencesName)
+    return runCatching {
         EncryptedSharedPreferencesApiSecretLocalStore(
-            preferences = createEncryptedPreferences(context, preferencesName),
-        )
+            preferences = createEncryptedPreferences(context, secureName),
+        ).also { store ->
+            store.migrateFrom(legacyPreferences)
+        }
     }.getOrElse { error ->
-        if (isRobolectricRuntime()) {
+        if (shouldUseRobolectricFallback(error)) {
             RobolectricSecureApiSecretLocalStore(
-                preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE),
+                preferences = context.getSharedPreferences(secureName, Context.MODE_PRIVATE),
                 packageName = context.packageName,
-                preferencesName = preferencesName,
-            )
+                preferencesName = secureName,
+            ).also { store ->
+                store.migrateFrom(legacyPreferences)
+            }
         } else {
             throw error
         }
     }
+}
 
 internal fun createEncryptedPreferences(
     context: Context,
@@ -126,6 +151,8 @@ internal fun createEncryptedPreferences(
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 }
+
+internal fun securePreferencesName(preferencesName: String): String = "$preferencesName.secure"
 
 private fun persistSecret(
     preferences: SharedPreferences,
@@ -150,3 +177,35 @@ private fun ByteArray.toBase64(): String = Base64.getEncoder().encodeToString(th
 
 private fun isRobolectricRuntime(): Boolean =
     Build.FINGERPRINT.equals("robolectric", ignoreCase = true)
+
+private fun shouldUseRobolectricFallback(error: Throwable): Boolean =
+    isRobolectricRuntime() && error.causalChain().any { cause ->
+        cause is KeyStoreException ||
+            cause is NoSuchAlgorithmException ||
+            cause.message?.contains("AndroidKeyStore", ignoreCase = true) == true
+    }
+
+private fun migrateLegacySecrets(
+    legacyPreferences: SharedPreferences,
+    hasSecret: (String) -> Boolean,
+    persistMigrated: (String, String) -> Unit,
+) {
+    val legacyEntries =
+        legacyPreferences.all
+            .mapNotNull { (secretId, value) ->
+                (value as? String)?.let { plainText -> secretId to plainText }
+            }
+    if (legacyEntries.isEmpty()) return
+
+    legacyEntries.forEach { (secretId, plainText) ->
+        if (!hasSecret(secretId)) {
+            persistMigrated(secretId, plainText)
+        }
+    }
+    check(legacyPreferences.edit().clear().commit()) {
+        "Failed to clear migrated legacy secrets"
+    }
+}
+
+private fun Throwable.causalChain(): Sequence<Throwable> =
+    generateSequence(this) { current -> current.cause }

@@ -42,12 +42,46 @@ class ApiSecretLocalStoreTest {
         assertEquals("sk-plain-text", fixture.store.read("provider-3"))
     }
 
+    @Test
+    fun apiSecretLocalStore_migratesLegacyPlaintextSecretsIntoSecureBacking() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-migrate"
+        val legacyPreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE)
+                .also {
+                    it.edit()
+                        .clear()
+                        .putString("provider-legacy", "sk-legacy")
+                        .putString("github.bootstrap.token", "ghp-legacy")
+                        .commit()
+                }
+        val securePreferences =
+            context.getSharedPreferences("$preferencesName.secure", android.content.Context.MODE_PRIVATE)
+                .also { it.edit().clear().commit() }
+
+        val store = createSecureApiSecretLocalStore(context, preferencesName)
+
+        assertEquals("sk-legacy", store.read("provider-legacy"))
+        assertEquals("ghp-legacy", store.read("github.bootstrap.token"))
+        assertTrue(legacyPreferences.all.isEmpty())
+
+        store.save("provider-legacy", "sk-updated")
+
+        assertTrue(securePreferences.all.isNotEmpty())
+        assertTrue(securePreferences.all.values.none { it == "sk-legacy" || it == "sk-updated" || it == "ghp-legacy" })
+        assertEquals("sk-updated", store.read("provider-legacy"))
+    }
+
     private fun createStore(name: String): StoreFixture {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val preferencesName = "api-secret-store-test-$name"
         val preferences =
             context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE)
                 .also { it.edit().clear().commit() }
+        context.getSharedPreferences("$preferencesName.secure", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
         return StoreFixture(
             store = createSecureApiSecretLocalStore(context, preferencesName),
             preferences = preferences,

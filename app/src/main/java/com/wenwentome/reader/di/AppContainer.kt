@@ -354,7 +354,9 @@ class AppContainer(
 
                 override suspend fun importSnapshot(snapshot: RemotePreferencesSnapshot) {
                     preferencesStore.importSnapshot(snapshot.toLocalSnapshot())
-                    if (snapshot.bootstrapToken.isNotBlank()) {
+                    if (snapshot.bootstrapToken.isNotBlank() &&
+                        bootstrapSecretStore.read(GITHUB_BOOTSTRAP_SECRET_ID).isNullOrBlank()
+                    ) {
                         bootstrapSecretStore.save(GITHUB_BOOTSTRAP_SECRET_ID, snapshot.bootstrapToken)
                     }
                 }

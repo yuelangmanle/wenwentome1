@@ -264,6 +264,71 @@ class AppContainerTask3IntegrationTest {
     }
 
     @Test
+    fun pullLatestSnapshot_doesNotOverrideExistingBootstrapTokenWithLegacySnapshotToken() = runTest {
+        clearSecretStores()
+        val server = MockWebServer()
+        val dispatcher = FakeGitHubDispatcher()
+        server.dispatcher = dispatcher
+        server.start()
+        val remoteDatabase = testDatabase("legacy-remote-existing")
+        val localDatabase = testDatabase("legacy-local-existing")
+        try {
+            val remoteContainer =
+                AppContainer(
+                    application = application(),
+                    databaseOverride = remoteDatabase,
+                    gitHubContentApiOverride = GitHubContentApi(server.url("/").toString()),
+                )
+            remoteContainer.gitHubSyncRepository.pushSnapshot(
+                auth = GitHubAuthConfig(owner = "me", repo = "books", branch = "main", token = "ghp_bootstrap"),
+            )
+            dispatcher.writeText(
+                "data/preferences.json",
+                """
+                {
+                  "owner": "legacy-owner",
+                  "repo": "legacy-repo",
+                  "branch": "legacy-branch",
+                  "deviceId": "legacy-device",
+                  "token": "ghp_legacy_token"
+                }
+                """.trimIndent(),
+            )
+
+            clearSecretStores()
+            val localContainer =
+                AppContainer(
+                    application = application(),
+                    databaseOverride = localDatabase,
+                    gitHubContentApiOverride = GitHubContentApi(server.url("/").toString()),
+                )
+            localContainer.syncSettingsConfigStore.saveConfig(
+                com.wenwentome.reader.feature.settings.StoredSyncConfig(
+                    owner = "local-owner",
+                    repo = "local-repo",
+                    branch = "local-branch",
+                    bootstrapToken = "ghp_current_token",
+                ),
+            )
+
+            localContainer.gitHubSyncRepository.pullLatestSnapshot(
+                auth = GitHubAuthConfig(owner = "me", repo = "books", branch = "main", token = "ghp_bootstrap"),
+            )
+
+            val restoredConfig = localContainer.syncSettingsConfigStore.syncConfig.first()
+            assertEquals("ghp_current_token", restoredConfig.bootstrapToken)
+            assertEquals("legacy-owner", restoredConfig.owner)
+            assertEquals("legacy-repo", restoredConfig.repo)
+            assertEquals("legacy-branch", restoredConfig.branch)
+        } finally {
+            clearSecretStores()
+            remoteDatabase.close()
+            localDatabase.close()
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun appContainer_realSecretWiring_isNotPlainSharedPreferencesStore() {
         clearSecretStores()
         val container = AppContainer(application = application())
@@ -278,6 +343,8 @@ class AppContainerTask3IntegrationTest {
         val application = application()
         application.getSharedPreferences("api-hub-secrets", Context.MODE_PRIVATE).edit().clear().commit()
         application.getSharedPreferences("bootstrap-secrets", Context.MODE_PRIVATE).edit().clear().commit()
+        application.getSharedPreferences("api-hub-secrets.secure", Context.MODE_PRIVATE).edit().clear().commit()
+        application.getSharedPreferences("bootstrap-secrets.secure", Context.MODE_PRIVATE).edit().clear().commit()
     }
 
     private fun testDatabase(name: String): ReaderDatabase =
