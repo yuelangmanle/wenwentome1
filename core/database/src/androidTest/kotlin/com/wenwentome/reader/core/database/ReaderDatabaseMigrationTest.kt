@@ -94,7 +94,7 @@ class ReaderDatabaseMigrationTest {
 
         val migratedDb =
             Room.databaseBuilder(context, ReaderDatabase::class.java, TEST_DB)
-                .addMigrations(MIGRATION_2_3)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                 .build()
 
         migratedDb.openHelper.writableDatabase.query(
@@ -105,6 +105,13 @@ class ReaderDatabaseMigrationTest {
             assertEquals("book-1", cursor.getString(0))
             assertTrue(cursor.isNull(1))
             assertTrue(cursor.isNull(2))
+        }
+
+        migratedDb.openHelper.writableDatabase.query(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'api_providers'",
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("api_providers", cursor.getString(0))
         }
 
         migratedDb.close()

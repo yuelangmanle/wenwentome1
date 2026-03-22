@@ -1,10 +1,18 @@
 package com.wenwentome.reader.core.database
 
 import androidx.room.TypeConverter
+import com.wenwentome.reader.core.model.ApiModelCostLevel
+import com.wenwentome.reader.core.model.ApiModelValidationState
+import com.wenwentome.reader.core.model.ApiOverBudgetAction
 import com.wenwentome.reader.core.model.AssetRole
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookshelfState
 import com.wenwentome.reader.core.model.OriginType
+import com.wenwentome.reader.core.model.ProviderAuthScheme
+import com.wenwentome.reader.core.model.ProviderKind
+import com.wenwentome.reader.core.model.ProviderModelSource
+import com.wenwentome.reader.core.model.ProviderSecretSyncMode
+import com.wenwentome.reader.core.model.ProviderTransportStyle
 import com.wenwentome.reader.core.model.ReadingBookmark
 import com.wenwentome.reader.core.model.RemoteSyncMode
 import com.wenwentome.reader.core.model.RuleFormat
@@ -56,6 +64,57 @@ class DatabaseConverters {
     fun stringToRemoteSyncMode(value: String): RemoteSyncMode = RemoteSyncMode.valueOf(value)
 
     @TypeConverter
+    fun providerKindToString(value: ProviderKind): String = value.name
+
+    @TypeConverter
+    fun stringToProviderKind(value: String): ProviderKind = ProviderKind.valueOf(value)
+
+    @TypeConverter
+    fun providerTransportStyleToString(value: ProviderTransportStyle): String = value.name
+
+    @TypeConverter
+    fun stringToProviderTransportStyle(value: String): ProviderTransportStyle =
+        ProviderTransportStyle.valueOf(value)
+
+    @TypeConverter
+    fun providerAuthSchemeToString(value: ProviderAuthScheme): String = value.name
+
+    @TypeConverter
+    fun stringToProviderAuthScheme(value: String): ProviderAuthScheme = ProviderAuthScheme.valueOf(value)
+
+    @TypeConverter
+    fun providerSecretSyncModeToString(value: ProviderSecretSyncMode): String = value.name
+
+    @TypeConverter
+    fun stringToProviderSecretSyncMode(value: String): ProviderSecretSyncMode =
+        ProviderSecretSyncMode.valueOf(value)
+
+    @TypeConverter
+    fun providerModelSourceToString(value: ProviderModelSource): String = value.name
+
+    @TypeConverter
+    fun stringToProviderModelSource(value: String): ProviderModelSource = ProviderModelSource.valueOf(value)
+
+    @TypeConverter
+    fun apiModelCostLevelToString(value: ApiModelCostLevel): String = value.name
+
+    @TypeConverter
+    fun stringToApiModelCostLevel(value: String): ApiModelCostLevel = ApiModelCostLevel.valueOf(value)
+
+    @TypeConverter
+    fun apiModelValidationStateToString(value: ApiModelValidationState): String = value.name
+
+    @TypeConverter
+    fun stringToApiModelValidationState(value: String): ApiModelValidationState =
+        ApiModelValidationState.valueOf(value)
+
+    @TypeConverter
+    fun apiOverBudgetActionToString(value: ApiOverBudgetAction): String = value.name
+
+    @TypeConverter
+    fun stringToApiOverBudgetAction(value: String): ApiOverBudgetAction = ApiOverBudgetAction.valueOf(value)
+
+    @TypeConverter
     fun readingBookmarksToJson(value: List<ReadingBookmark>): String {
         if (value.isEmpty()) return ""
         val array = JSONArray()
@@ -99,5 +158,5 @@ class DatabaseConverters {
         val array = JSONArray(value)
         return List(array.length()) { i -> array.optString(i) }
     }
-}
 
+}

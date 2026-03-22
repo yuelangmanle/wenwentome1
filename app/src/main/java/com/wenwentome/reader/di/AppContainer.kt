@@ -8,6 +8,7 @@ import com.wenwentome.reader.bridge.source.SourceDefinitionProvider
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.SourceRuleParser
 import com.wenwentome.reader.core.database.MIGRATION_2_3
+import com.wenwentome.reader.core.database.MIGRATION_3_4
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.core.database.datastore.PreferencesSnapshot as LocalPreferencesSnapshot
 import com.wenwentome.reader.core.database.datastore.ReaderPreferencesStore
@@ -58,7 +59,7 @@ class AppContainer(
             ReaderDatabase::class.java,
             "reader.db",
         )
-            .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
             .build()
     }
 
