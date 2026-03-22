@@ -223,7 +223,7 @@ private fun preparePendingMigration(
         )
     val backupSecrets = loadStoredSecretsOrNull(backupPreferences).orEmpty()
     val livePlainLegacySecrets =
-        loadPlainLegacySecretsOrNull(
+        loadLivePlainLegacySecretsOrNull(
             preferences = sameNamePreferences,
             packageName = context.packageName,
             preferencesName = preferencesName,
@@ -360,6 +360,23 @@ private fun mergePendingMigrationSecrets(
     }
     return mergedSecrets.entries.map { (secretId, plainText) -> secretId to plainText }
 }
+
+private fun loadLivePlainLegacySecretsOrNull(
+    preferences: SharedPreferences,
+    packageName: String,
+    preferencesName: String,
+): List<Pair<String, String>>? {
+    val fallbackCodec = RobolectricCipherCodec(packageName = packageName, preferencesName = preferencesName)
+    return preferences.all.mapNotNull { (secretId, value) ->
+        val plainText = value as? String ?: return@mapNotNull null
+        if (isAndroidXSecurityMetadataKey(secretId)) return@mapNotNull null
+        if (fallbackCodec.canDecrypt(plainText)) return@mapNotNull null
+        secretId to plainText
+    }.ifEmpty { null }
+}
+
+private fun isAndroidXSecurityMetadataKey(secretId: String): Boolean =
+    secretId == ANDROIDX_SECURITY_KEY_KEYSET || secretId == ANDROIDX_SECURITY_VALUE_KEYSET
 
 private fun persistBackupSecrets(
     backupPreferences: SharedPreferences,

@@ -247,6 +247,53 @@ class ApiSecretLocalStoreTest {
     }
 
     @Test
+    fun apiSecretLocalStore_mergesLivePlaintextEvenWhenAndroidXKeysetMetadataExists() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-keyset-live-merge"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString(ANDROIDX_SECURITY_KEY_KEYSET, "keyset")
+                    .putString(ANDROIDX_SECURITY_VALUE_KEYSET, "value-keyset")
+                    .putString("provider-shared", "sk-live")
+                    .putString("provider-live-only", "sk-live-only")
+                    .commit()
+            }
+        context.getSharedPreferences(
+            migrationBackupPreferencesName(preferencesName),
+            android.content.Context.MODE_PRIVATE,
+        ).edit()
+            .clear()
+            .putString("provider-shared", "sk-backup")
+            .putString("provider-backup-only", "sk-backup-only")
+            .commit()
+
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                hooks =
+                    SecretStoreTestHooks(
+                        createEncryptedPreferences = { _, _ ->
+                            PrefixingSharedPreferences(
+                                delegate = sameNamePreferences,
+                                prefix = "secure:",
+                            )
+                        },
+                    ),
+            )
+
+        assertEquals("sk-live", store.read("provider-shared"))
+        assertEquals("sk-live-only", store.read("provider-live-only"))
+        assertEquals("sk-backup-only", store.read("provider-backup-only"))
+        assertNull(sameNamePreferences.getString("provider-shared", null))
+        assertNull(sameNamePreferences.getString("provider-live-only", null))
+        assertEquals("keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_KEY_KEYSET, null))
+        assertEquals("value-keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_VALUE_KEYSET, null))
+    }
+
+    @Test
     fun apiSecretLocalStore_withAndroidXSecurityKeysetEntries_isNotTreatedAsPlainLegacy() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val preferencesName = "api-secret-store-test-keyset"
