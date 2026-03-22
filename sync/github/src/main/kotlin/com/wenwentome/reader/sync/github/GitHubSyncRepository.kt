@@ -1,5 +1,6 @@
 package com.wenwentome.reader.sync.github
 
+import com.wenwentome.reader.core.model.ApiCapabilityBinding
 import com.wenwentome.reader.core.model.BookAsset
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.ReadingState
@@ -52,6 +53,11 @@ interface SyncSecretStore {
     suspend fun restorePendingSecrets(syncPassword: String): List<SecretEnvelopePayload>
 }
 
+interface ApiCapabilityBindingSyncStore {
+    suspend fun exportBindings(): List<ApiCapabilityBinding>
+    suspend fun mergeIncomingBindings(incoming: List<ApiCapabilityBinding>): List<CapabilityBindingConflict>
+}
+
 interface SyncFileStore {
     fun open(storageUri: String): InputStream
     fun persistOriginal(bookId: String, extension: String, bytes: ByteArray): String
@@ -66,7 +72,8 @@ class GitHubSyncRepository(
     private val sourceDefinitionStore: SourceDefinitionSyncStore,
     private val bookAssetStore: BookAssetSyncStore,
     private val preferencesStore: SyncPreferencesStore,
-    private val secretStore: SyncSecretStore = NoOpSyncSecretStore,
+    private val secretStore: SyncSecretStore,
+    private val capabilityBindingStore: ApiCapabilityBindingSyncStore,
     private val fileStore: SyncFileStore,
     private val snapshotIdFactory: () -> String = { UUID.randomUUID().toString() },
     private val revisionFactory: () -> String = { Instant.now().toString() },
@@ -78,6 +85,7 @@ class GitHubSyncRepository(
         val readingStates = readingStateStore.getAll()
         val remoteBindings = remoteBindingStore.getAll()
         val sourceDefinitions = sourceDefinitionStore.getAll()
+        val capabilityBindings = capabilityBindingStore.exportBindings()
         val preferences = preferencesStore.exportSnapshot()
         val secretEnvelopes =
             auth.syncPassword
@@ -91,6 +99,7 @@ class GitHubSyncRepository(
             add(manifest.remoteBindingsPath)
             add(manifest.sourceDefinitionsPath)
             add(manifest.preferencesPath)
+            add(manifest.capabilityBindingsPath)
             add(manifest.secretEnvelopesPath)
             add(manifest.assetIndexPath)
             add(manifest.snapshotPath)
@@ -104,6 +113,7 @@ class GitHubSyncRepository(
         api.putJson(auth, manifest.remoteBindingsPath, serializer.encodeRemoteBindings(remoteBindings), existingSha[manifest.remoteBindingsPath])
         api.putJson(auth, manifest.sourceDefinitionsPath, serializer.encodeSourceDefinitions(sourceDefinitions), existingSha[manifest.sourceDefinitionsPath])
         api.putJson(auth, manifest.preferencesPath, serializer.encodePreferences(preferences), existingSha[manifest.preferencesPath])
+        api.putJson(auth, manifest.capabilityBindingsPath, serializer.encodeCapabilityBindings(capabilityBindings), existingSha[manifest.capabilityBindingsPath])
         api.putJson(auth, manifest.secretEnvelopesPath, serializer.encodeSecretEnvelopes(secretEnvelopes), existingSha[manifest.secretEnvelopesPath])
         api.putJson(auth, manifest.assetIndexPath, serializer.encodeAssets(assets), existingSha[manifest.assetIndexPath])
 
@@ -134,6 +144,12 @@ class GitHubSyncRepository(
         val remoteBindings = serializer.decodeRemoteBindings(api.getJson(auth, manifest.remoteBindingsPath).first)
         val sourceDefinitions = serializer.decodeSourceDefinitions(api.getJson(auth, manifest.sourceDefinitionsPath).first)
         val preferences = serializer.decodePreferences(api.getJson(auth, manifest.preferencesPath).first)
+        val capabilityBindings =
+            if (api.findShaOrNull(auth, manifest.capabilityBindingsPath) != null) {
+                serializer.decodeCapabilityBindings(api.getJson(auth, manifest.capabilityBindingsPath).first)
+            } else {
+                emptyList()
+            }
         val secretEnvelopes =
             if (api.findShaOrNull(auth, manifest.secretEnvelopesPath) != null) {
                 serializer.decodeSecretEnvelopes(api.getJson(auth, manifest.secretEnvelopesPath).first)
@@ -152,6 +168,7 @@ class GitHubSyncRepository(
         sourceDefinitionStore.replaceAll(mergedSourceDefinitions)
         preferencesStore.importSnapshot(preferences)
         secretStore.cachePendingSecretRestore(secretEnvelopes)
+        val pendingConflicts = capabilityBindingStore.mergeIncomingBindings(capabilityBindings)
 
         val restoredAssets = assetIndex.map { asset ->
             val (bytes, _) = api.getBinary(auth, asset.syncPath)
@@ -171,6 +188,7 @@ class GitHubSyncRepository(
             assets = restoredAssets,
             preferences = preferences,
             pendingSecretRestore = pendingSecretRestore,
+            pendingConflicts = pendingConflicts,
         )
     }
 
@@ -186,13 +204,5 @@ class GitHubSyncRepository(
                 rawDefinition = definition.rawDefinition ?: localDefinition.rawDefinition,
             )
         }
-    }
-
-    private data object NoOpSyncSecretStore : SyncSecretStore {
-        override suspend fun exportEncryptedSecrets(syncPassword: String): List<SecretEnvelopePayload> = emptyList()
-
-        override suspend fun cachePendingSecretRestore(secretEnvelopes: List<SecretEnvelopePayload>) = Unit
-
-        override suspend fun restorePendingSecrets(syncPassword: String): List<SecretEnvelopePayload> = emptyList()
     }
 }

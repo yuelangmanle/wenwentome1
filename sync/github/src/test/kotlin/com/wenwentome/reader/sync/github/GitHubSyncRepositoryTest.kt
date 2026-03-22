@@ -1,6 +1,7 @@
 package com.wenwentome.reader.sync.github
 
 import com.wenwentome.reader.core.model.AssetRole
+import com.wenwentome.reader.core.model.ApiCapabilityBinding
 import com.wenwentome.reader.core.model.BookAsset
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
@@ -40,6 +41,7 @@ class GitHubSyncRepositoryTest {
                 bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
                 preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
                 secretStore = FakeSyncSecretStore(),
+                capabilityBindingStore = FakeCapabilityBindingSyncStore(),
                 fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
                 snapshotIdFactory = { "snapshot-1" },
                 revisionFactory = { "2026-03-19T00:00:00Z" },
@@ -85,6 +87,7 @@ class GitHubSyncRepositoryTest {
                                 sampleSecretEnvelope(secretId = "provider/openai"),
                             ),
                     ),
+                capabilityBindingStore = FakeCapabilityBindingSyncStore(),
                 fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
                 snapshotIdFactory = { "snapshot-1" },
                 revisionFactory = { "2026-03-19T00:00:00Z" },
@@ -106,6 +109,7 @@ class GitHubSyncRepositoryTest {
                 bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
                 preferencesStore = preferencesStore,
                 secretStore = secretStore,
+                capabilityBindingStore = FakeCapabilityBindingSyncStore(),
                 fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
                 snapshotIdFactory = { "snapshot-2" },
                 revisionFactory = { "2026-03-19T00:00:01Z" },
@@ -121,6 +125,78 @@ class GitHubSyncRepositoryTest {
             assertEquals("", restored.preferences.bootstrapToken)
             assertEquals("books", preferencesStore.snapshot.repo)
             assertEquals(1, secretStore.cachedPending.size)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun pullLatestSnapshot_mergesApiCapabilityBindingsAndReturnsConflictPayloads() = runTest {
+        val server = MockWebServer()
+        val dispatcher = FakeGitHubDispatcher()
+        server.dispatcher = dispatcher
+        server.start()
+        try {
+            val seedRepository = GitHubSyncRepository(
+                api = GitHubContentApi(server.url("/").toString()),
+                serializer = SyncManifestSerializer(),
+                bookRecordStore = FakeBookRecordStore(existing = listOf(sampleBookRecord())),
+                readingStateStore = FakeReadingStateStore(existing = listOf(sampleReadingState())),
+                remoteBindingStore = FakeRemoteBindingStore(existing = listOf(sampleRemoteBinding())),
+                sourceDefinitionStore = FakeSourceDefinitionStore(existing = listOf(sampleSourceDefinition())),
+                bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
+                preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
+                secretStore = FakeSyncSecretStore(),
+                capabilityBindingStore =
+                    FakeCapabilityBindingSyncStore(
+                        exported =
+                            listOf(
+                                ApiCapabilityBinding(
+                                    capabilityId = "reader.summary",
+                                    primaryProviderId = "provider-remote",
+                                    primaryModelId = "model-remote",
+                                    updatedAt = 12_000L,
+                                ),
+                            ),
+                    ),
+                fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
+            )
+            seedRepository.pushSnapshot(
+                auth = GitHubAuthConfig(owner = "me", repo = "books", branch = "main", token = "token"),
+            )
+
+            val localBindingStore =
+                FakeCapabilityBindingSyncStore(
+                    existing =
+                        listOf(
+                            ApiCapabilityBinding(
+                                capabilityId = "reader.summary",
+                                primaryProviderId = "provider-local",
+                                primaryModelId = "model-local",
+                                updatedAt = 10_000L,
+                            ),
+                        ),
+                )
+            val restoreRepository = GitHubSyncRepository(
+                api = GitHubContentApi(server.url("/").toString()),
+                serializer = SyncManifestSerializer(),
+                bookRecordStore = FakeBookRecordStore(existing = listOf(sampleBookRecord())),
+                readingStateStore = FakeReadingStateStore(existing = listOf(sampleReadingState())),
+                remoteBindingStore = FakeRemoteBindingStore(existing = listOf(sampleRemoteBinding())),
+                sourceDefinitionStore = FakeSourceDefinitionStore(existing = listOf(sampleSourceDefinition())),
+                bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
+                preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
+                secretStore = FakeSyncSecretStore(),
+                capabilityBindingStore = localBindingStore,
+                fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
+            )
+
+            val restored = restoreRepository.pullLatestSnapshot(
+                auth = GitHubAuthConfig(owner = "me", repo = "books", branch = "main", token = "token"),
+            )
+
+            assertEquals(1, restored.pendingConflicts.size)
+            assertEquals("provider-local", localBindingStore.current.single().primaryProviderId)
         } finally {
             server.shutdown()
         }
@@ -149,6 +225,7 @@ class GitHubSyncRepositoryTest {
                 bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
                 preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
                 secretStore = FakeSyncSecretStore(),
+                capabilityBindingStore = FakeCapabilityBindingSyncStore(),
                 fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
                 snapshotIdFactory = { "snapshot-old" },
                 revisionFactory = { "2026-03-19T00:00:00Z" },
@@ -169,6 +246,7 @@ class GitHubSyncRepositoryTest {
                 bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
                 preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
                 secretStore = FakeSyncSecretStore(),
+                capabilityBindingStore = FakeCapabilityBindingSyncStore(),
                 fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
                 snapshotIdFactory = { "snapshot-new" },
                 revisionFactory = { "2026-03-19T00:00:01Z" },
@@ -267,6 +345,37 @@ private class FakeSyncSecretStore(
         } else {
             cachedPending
         }
+}
+
+private class FakeCapabilityBindingSyncStore(
+    existing: List<ApiCapabilityBinding> = emptyList(),
+    private val exported: List<ApiCapabilityBinding> = existing,
+) : ApiCapabilityBindingSyncStore {
+    var current: List<ApiCapabilityBinding> = existing
+
+    override suspend fun exportBindings(): List<ApiCapabilityBinding> = exported
+
+    override suspend fun mergeIncomingBindings(incoming: List<ApiCapabilityBinding>): List<CapabilityBindingConflict> {
+        if (current.isEmpty()) {
+            current = incoming
+            return emptyList()
+        }
+        val local = current.single()
+        val remote = incoming.single()
+        return if (kotlin.math.abs(local.updatedAt - remote.updatedAt) <= 5_000L) {
+            current = listOf(local)
+            listOf(
+                CapabilityBindingConflict(
+                    capabilityId = local.capabilityId,
+                    local = local,
+                    remote = remote,
+                ),
+            )
+        } else {
+            current = listOf(if (local.updatedAt >= remote.updatedAt) local else remote)
+            emptyList()
+        }
+    }
 }
 
 private class FakeSyncFileStore(existing: List<BookAsset>) : SyncFileStore {

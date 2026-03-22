@@ -1,5 +1,6 @@
 package com.wenwentome.reader.sync.github
 
+import com.wenwentome.reader.core.model.ApiCapabilityBinding
 import com.wenwentome.reader.core.model.BookAsset
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.ReadingBookmark
@@ -30,6 +31,7 @@ class SyncManifestSerializer {
             put("remoteBindingsPath", JsonPrimitive(manifest.remoteBindingsPath))
             put("sourceDefinitionsPath", JsonPrimitive(manifest.sourceDefinitionsPath))
             put("preferencesPath", JsonPrimitive(manifest.preferencesPath))
+            put("capabilityBindingsPath", JsonPrimitive(manifest.capabilityBindingsPath))
             put("secretEnvelopesPath", JsonPrimitive(manifest.secretEnvelopesPath))
             put("assetIndexPath", JsonPrimitive(manifest.assetIndexPath))
         }.toString()
@@ -43,6 +45,7 @@ class SyncManifestSerializer {
             remoteBindingsPath = root.requiredString("remoteBindingsPath"),
             sourceDefinitionsPath = root.requiredString("sourceDefinitionsPath"),
             preferencesPath = root.requiredString("preferencesPath"),
+            capabilityBindingsPath = root.optionalString("capabilityBindingsPath") ?: SyncManifest().capabilityBindingsPath,
             secretEnvelopesPath = root.optionalString("secretEnvelopesPath") ?: SyncManifest().secretEnvelopesPath,
             assetIndexPath = root.requiredString("assetIndexPath"),
         )
@@ -263,6 +266,33 @@ class SyncManifestSerializer {
                 ivBase64 = root.requiredString("ivBase64"),
                 cipherTextBase64 = root.requiredString("cipherTextBase64"),
                 checksumBase64 = root.requiredString("checksumBase64"),
+                updatedAt = root.requiredLong("updatedAt"),
+            )
+        }
+
+    fun encodeCapabilityBindings(bindings: List<ApiCapabilityBinding>): String =
+        bindings.mapToJsonArray { binding ->
+            buildJsonObject {
+                put("capabilityId", JsonPrimitive(binding.capabilityId))
+                put("primaryProviderId", JsonPrimitive(binding.primaryProviderId))
+                put("primaryModelId", JsonPrimitive(binding.primaryModelId))
+                put("fallbackProviderId", optionalString(binding.fallbackProviderId))
+                put("fallbackModelId", optionalString(binding.fallbackModelId))
+                put("enabled", JsonPrimitive(binding.enabled))
+                put("updatedAt", JsonPrimitive(binding.updatedAt))
+            }
+        }
+
+    fun decodeCapabilityBindings(raw: String): List<ApiCapabilityBinding> =
+        json.parseToJsonElement(raw).jsonArray.map { element ->
+            val root = element.jsonObject
+            ApiCapabilityBinding(
+                capabilityId = root.requiredString("capabilityId"),
+                primaryProviderId = root.requiredString("primaryProviderId"),
+                primaryModelId = root.requiredString("primaryModelId"),
+                fallbackProviderId = root.optionalString("fallbackProviderId"),
+                fallbackModelId = root.optionalString("fallbackModelId"),
+                enabled = root.requiredBoolean("enabled"),
                 updatedAt = root.requiredLong("updatedAt"),
             )
         }

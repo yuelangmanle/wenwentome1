@@ -15,26 +15,38 @@ import com.wenwentome.reader.core.database.datastore.ReaderPreferencesStore
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
 import com.wenwentome.reader.data.apihub.ApiHubModule
+import com.wenwentome.reader.data.apihub.local.ApiSecretLocalStore
 import com.wenwentome.reader.data.apihub.local.SharedPreferencesApiSecretLocalStore
+import com.wenwentome.reader.data.apihub.secret.SecretEnvelopeV1
+import com.wenwentome.reader.data.apihub.secret.SecretScope
+import com.wenwentome.reader.data.apihub.secret.SecretSyncCrypto
+import com.wenwentome.reader.data.apihub.sync.ApiHubMergeResolver
+import com.wenwentome.reader.data.apihub.sync.MergeBindingResult
 import com.wenwentome.reader.data.localbooks.EpubBookParser
 import com.wenwentome.reader.data.localbooks.ImportLocalBookUseCase
 import com.wenwentome.reader.data.localbooks.LocalBookContentRepository
 import com.wenwentome.reader.data.localbooks.LocalBookFileStore
 import com.wenwentome.reader.data.localbooks.LocalBookImportRepository
 import com.wenwentome.reader.data.localbooks.TxtBookParser
+import com.wenwentome.reader.core.model.ProviderSecretSyncMode
 import com.wenwentome.reader.feature.settings.StoredSyncConfig
 import com.wenwentome.reader.feature.settings.ChangelogRepository
 import com.wenwentome.reader.feature.settings.SyncSettingsConfigStore
 import com.wenwentome.reader.feature.discover.RefreshRemoteBook
 import com.wenwentome.reader.feature.discover.RefreshRemoteBookUseCase
+import com.wenwentome.reader.sync.github.ApiCapabilityBindingSyncStore
 import com.wenwentome.reader.sync.github.BookAssetSyncStore
 import com.wenwentome.reader.sync.github.BookRecordSyncStore
+import com.wenwentome.reader.sync.github.CapabilityBindingConflict
 import com.wenwentome.reader.sync.github.GitHubContentApi
 import com.wenwentome.reader.sync.github.GitHubSyncRepository
 import com.wenwentome.reader.sync.github.PreferencesSnapshot as RemotePreferencesSnapshot
 import com.wenwentome.reader.sync.github.ReadingStateSyncStore
 import com.wenwentome.reader.sync.github.RemoteBindingSyncStore
+import com.wenwentome.reader.sync.github.SecretEnvelopePayload
+import com.wenwentome.reader.sync.github.SecretScopePayload
 import com.wenwentome.reader.sync.github.SourceDefinitionSyncStore
+import com.wenwentome.reader.sync.github.SyncSecretStore
 import com.wenwentome.reader.sync.github.SyncFileStore
 import com.wenwentome.reader.sync.github.SyncManifestSerializer
 import com.wenwentome.reader.sync.github.SyncPreferencesStore
@@ -47,6 +59,7 @@ class AppContainer(
     private val databaseOverride: ReaderDatabase? = null,
     private val sourceBridgeRepositoryOverride: SourceBridgeRepository? = null,
     private val discoverIoDispatcherOverride: CoroutineDispatcher? = null,
+    private val gitHubContentApiOverride: GitHubContentApi? = null,
 ) {
     val apiHubModule: ApiHubModule by lazy {
         ApiHubModule()
@@ -76,6 +89,106 @@ class AppContainer(
         SharedPreferencesApiSecretLocalStore(
             preferences = appContext.getSharedPreferences("bootstrap-secrets", Context.MODE_PRIVATE),
         )
+    }
+
+    val apiSecretLocalStore: ApiSecretLocalStore by lazy {
+        SharedPreferencesApiSecretLocalStore(
+            preferences = appContext.getSharedPreferences("api-hub-secrets", Context.MODE_PRIVATE),
+        )
+    }
+
+    private val syncCrypto by lazy {
+        SecretSyncCrypto()
+    }
+
+    private val apiHubMergeResolver by lazy {
+        ApiHubMergeResolver()
+    }
+
+    private val syncSecretStore: SyncSecretStore by lazy {
+        object : SyncSecretStore {
+            private var pendingRestore: List<SecretEnvelopePayload> = emptyList()
+
+            override suspend fun exportEncryptedSecrets(syncPassword: String): List<SecretEnvelopePayload> =
+                database.apiProviderDao().getAll()
+                    .filter { provider -> provider.secretSyncMode == ProviderSecretSyncMode.SYNC_ENCRYPTED }
+                    .mapNotNull { provider ->
+                        val plainSecret = apiSecretLocalStore.read(provider.providerId) ?: return@mapNotNull null
+                        syncCrypto.encrypt(
+                            secretId = provider.providerId,
+                            plainText = plainSecret,
+                            password = syncPassword,
+                            scope = SecretScope.SYNC_ENCRYPTED,
+                            updatedAt = provider.updatedAt,
+                        ).toPayload()
+                    }
+
+            override suspend fun cachePendingSecretRestore(secretEnvelopes: List<SecretEnvelopePayload>) {
+                pendingRestore = secretEnvelopes
+            }
+
+            override suspend fun restorePendingSecrets(syncPassword: String): List<SecretEnvelopePayload> {
+                val remaining = mutableListOf<SecretEnvelopePayload>()
+                pendingRestore.forEach { payload ->
+                    val envelope = payload.toEnvelope()
+                    val plainSecret =
+                        runCatching { syncCrypto.decrypt(envelope, syncPassword) }
+                            .getOrElse {
+                                remaining += payload
+                                return@forEach
+                            }
+                    apiSecretLocalStore.save(envelope.secretId, plainSecret)
+                }
+                pendingRestore = remaining
+                return pendingRestore
+            }
+        }
+    }
+
+    private val capabilityBindingSyncStore: ApiCapabilityBindingSyncStore by lazy {
+        object : ApiCapabilityBindingSyncStore {
+            override suspend fun exportBindings() =
+                database.apiCapabilityBindingDao().getAll().map { it.toModel() }
+
+            override suspend fun mergeIncomingBindings(
+                incoming: List<com.wenwentome.reader.core.model.ApiCapabilityBinding>,
+            ): List<CapabilityBindingConflict> {
+                val localById =
+                    database.apiCapabilityBindingDao().getAll()
+                        .map { it.toModel() }
+                        .associateBy { it.capabilityId }
+                val incomingById = incoming.associateBy { it.capabilityId }
+                val merged = mutableListOf<com.wenwentome.reader.core.model.ApiCapabilityBinding>()
+                val conflicts = mutableListOf<CapabilityBindingConflict>()
+
+                (localById.keys + incomingById.keys)
+                    .sorted()
+                    .forEach { capabilityId ->
+                        val local = localById[capabilityId]
+                        val remote = incomingById[capabilityId]
+                        when {
+                            local == null && remote != null -> merged += remote
+                            local != null && remote == null -> merged += local
+                            local != null && remote != null ->
+                                when (val result = apiHubMergeResolver.mergeBinding(local, remote)) {
+                                    is MergeBindingResult.Resolved -> merged += result.binding
+                                    is MergeBindingResult.Conflict -> {
+                                        merged += local
+                                        conflicts +=
+                                            CapabilityBindingConflict(
+                                                capabilityId = capabilityId,
+                                                local = result.local,
+                                                remote = result.remote,
+                                            )
+                                    }
+                                }
+                        }
+                    }
+
+                database.apiCapabilityBindingDao().replaceAll(merged.map { it.toEntity() })
+                return conflicts
+            }
+        }
     }
 
     val localBookContentRepository: LocalBookContentRepository by lazy {
@@ -191,7 +304,7 @@ class AppContainer(
 
     val gitHubSyncRepository: GitHubSyncRepository by lazy {
         GitHubSyncRepository(
-            api = GitHubContentApi("https://api.github.com"),
+            api = gitHubContentApiOverride ?: GitHubContentApi("https://api.github.com"),
             serializer = SyncManifestSerializer(),
             bookRecordStore = object : BookRecordSyncStore {
                 override suspend fun getAll() =
@@ -244,6 +357,8 @@ class AppContainer(
                 override suspend fun getOrCreateDeviceId(): String =
                     preferencesStore.getOrCreateDeviceId()
             },
+            secretStore = syncSecretStore,
+            capabilityBindingStore = capabilityBindingSyncStore,
             fileStore = object : SyncFileStore {
                 override fun open(storageUri: String) =
                     fileStore.open(storageUri)
@@ -269,6 +384,42 @@ private fun RemotePreferencesSnapshot.toLocalSnapshot(): LocalPreferencesSnapsho
         repo = repo,
         branch = branch,
         deviceId = deviceId,
+    )
+
+private fun SecretEnvelopeV1.toPayload(): SecretEnvelopePayload =
+    SecretEnvelopePayload(
+        secretId = secretId,
+        scope =
+            when (scope) {
+                SecretScope.LOCAL_ONLY -> SecretScopePayload.LOCAL_ONLY
+                SecretScope.SYNC_ENCRYPTED -> SecretScopePayload.SYNC_ENCRYPTED
+            },
+        version = version,
+        kdf = kdf,
+        iterations = iterations,
+        saltBase64 = saltBase64,
+        ivBase64 = ivBase64,
+        cipherTextBase64 = cipherTextBase64,
+        checksumBase64 = checksumBase64,
+        updatedAt = updatedAt,
+    )
+
+private fun SecretEnvelopePayload.toEnvelope(): SecretEnvelopeV1 =
+    SecretEnvelopeV1(
+        secretId = secretId,
+        version = version,
+        scope =
+            when (scope) {
+                SecretScopePayload.LOCAL_ONLY -> SecretScope.LOCAL_ONLY
+                SecretScopePayload.SYNC_ENCRYPTED -> SecretScope.SYNC_ENCRYPTED
+            },
+        kdf = kdf,
+        iterations = iterations,
+        saltBase64 = saltBase64,
+        ivBase64 = ivBase64,
+        cipherTextBase64 = cipherTextBase64,
+        checksumBase64 = checksumBase64,
+        updatedAt = updatedAt,
     )
 
 private const val GITHUB_BOOTSTRAP_SECRET_ID = "github.bootstrap.token"

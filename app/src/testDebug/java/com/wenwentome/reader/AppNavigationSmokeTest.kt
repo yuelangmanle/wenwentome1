@@ -2,9 +2,9 @@ package com.wenwentome.reader
 
 import android.app.Application
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -72,8 +72,8 @@ class AppNavigationSmokeTest {
 
         composeTestRule.onNodeWithTag("nav-settings").performClick()
         composeTestRule.onNodeWithText("API 中心").performScrollTo().performClick()
-        composeTestRule.onNodeWithTag("api-hub-overview-screen").assertExists()
-        composeTestRule.onNodeWithText("今日调用").assertExists()
+        composeTestRule.onNodeWithTag("api-hub-overview-screen").assertIsDisplayed()
+        composeTestRule.onNodeWithText("今日调用").assertIsDisplayed()
         composeTestRule.onNodeWithTag("nav-settings").assertIsSelected()
     }
 
