@@ -54,6 +54,8 @@ class EncryptedSharedPreferencesApiSecretLocalStore(
             }
         }
     }
+
+    fun readImmediately(secretId: String): String? = preferences.getString(secretId, null)
 }
 
 private class RobolectricSecureApiSecretLocalStore(
@@ -76,46 +78,65 @@ private class RobolectricSecureApiSecretLocalStore(
 
     fun importPlainSecrets(secrets: List<Pair<String, String>>) {
         secrets.forEach { (secretId, plainText) ->
-            if (!preferences.contains(secretId)) {
+            val existingValue = preferences.getString(secretId, null)
+            if (existingValue == null || !cipherCodec.canDecrypt(existingValue)) {
                 persistSecret(preferences, secretId, cipherCodec.encrypt(plainText))
             }
         }
     }
+
+    fun readImmediately(secretId: String): String? =
+        preferences.getString(secretId, null)?.let(cipherCodec::decrypt)
 }
+
+internal data class SecretStoreTestHooks(
+    val beforeImport: () -> Unit = {},
+    val createEncryptedPreferences: ((Context, String) -> SharedPreferences)? = null,
+)
+
+private data class PendingPlainSecretMigration(
+    val secrets: List<Pair<String, String>>,
+    val backupPreferences: SharedPreferences,
+)
 
 fun createSecureApiSecretLocalStore(
     context: Context,
     preferencesName: String,
+): ApiSecretLocalStore =
+    createSecureApiSecretLocalStore(
+        context = context,
+        preferencesName = preferencesName,
+        hooks = SecretStoreTestHooks(),
+    )
+
+internal fun createSecureApiSecretLocalStore(
+    context: Context,
+    preferencesName: String,
+    hooks: SecretStoreTestHooks = SecretStoreTestHooks(),
 ): ApiSecretLocalStore {
     val sameNamePreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
-    val plainLegacySecrets =
-        loadPlainLegacySecretsOrNull(
-            preferences = sameNamePreferences,
-            packageName = context.packageName,
+    val pendingMigration =
+        preparePendingMigration(
+            context = context,
+            sameNamePreferences = sameNamePreferences,
             preferencesName = preferencesName,
         )
-    if (plainLegacySecrets != null) {
-        clearPreferences(sameNamePreferences, "Failed to clear legacy plaintext secrets before secure migration")
-    }
-    return runCatching {
-        EncryptedSharedPreferencesApiSecretLocalStore(
-            preferences = createEncryptedPreferences(context, preferencesName),
-        ).also { store ->
-            store.importPlainSecrets(plainLegacySecrets.orEmpty())
-        }
-    }.getOrElse { error ->
-        if (shouldUseRobolectricFallback(error)) {
-            RobolectricSecureApiSecretLocalStore(
-                preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE),
-                packageName = context.packageName,
-                preferencesName = preferencesName,
-            ).also { store ->
-                store.importPlainSecrets(plainLegacySecrets.orEmpty())
-            }
-        } else {
-            throw error
-        }
-    }
+    val store =
+        createSecureStore(
+            context = context,
+            preferencesName = preferencesName,
+            sameNamePreferences = sameNamePreferences,
+            pendingMigration = pendingMigration,
+            hooks = hooks,
+        )
+    return store.also {
+        completePendingMigration(
+            store = it,
+            sameNamePreferences = sameNamePreferences,
+            pendingMigration = pendingMigration,
+            hooks = hooks,
+        )
+    } as ApiSecretLocalStore
 }
 
 internal fun createEncryptedPreferences(
@@ -159,13 +180,13 @@ private fun ByteArray.toBase64(): String = Base64.getEncoder().encodeToString(th
 private fun isRobolectricRuntime(): Boolean =
     Build.FINGERPRINT.equals("robolectric", ignoreCase = true)
 
-private fun shouldUseRobolectricFallback(error: Throwable): Boolean =
+internal fun shouldUseRobolectricFallback(error: Throwable): Boolean =
     isRobolectricRuntime() && error.causalChain().any(::isAndroidKeyStoreUnavailable)
 
 private fun Throwable.causalChain(): Sequence<Throwable> =
     generateSequence(this) { current -> current.cause }
 
-private fun loadPlainLegacySecretsOrNull(
+internal fun loadPlainLegacySecretsOrNull(
     preferences: SharedPreferences,
     packageName: String,
     preferencesName: String,
@@ -189,6 +210,157 @@ private fun containsEncryptedSharedPreferencesKeysetEntries(preferences: SharedP
     preferences.contains(ANDROIDX_SECURITY_KEY_KEYSET) ||
         preferences.contains(ANDROIDX_SECURITY_VALUE_KEYSET)
 
+private fun preparePendingMigration(
+    context: Context,
+    sameNamePreferences: SharedPreferences,
+    preferencesName: String,
+): PendingPlainSecretMigration? {
+    val backupPreferences =
+        context.getSharedPreferences(
+            migrationBackupPreferencesName(preferencesName),
+            Context.MODE_PRIVATE,
+        )
+    loadStoredSecretsOrNull(backupPreferences)?.let { backupSecrets ->
+        return PendingPlainSecretMigration(
+            secrets = backupSecrets,
+            backupPreferences = backupPreferences,
+        )
+    }
+
+    val plainLegacySecrets =
+        loadPlainLegacySecretsOrNull(
+            preferences = sameNamePreferences,
+            packageName = context.packageName,
+            preferencesName = preferencesName,
+        ) ?: return null
+
+    persistBackupSecrets(backupPreferences, plainLegacySecrets)
+    return PendingPlainSecretMigration(
+        secrets = plainLegacySecrets,
+        backupPreferences = backupPreferences,
+    )
+}
+
+private fun createSecureStore(
+    context: Context,
+    preferencesName: String,
+    sameNamePreferences: SharedPreferences,
+    pendingMigration: PendingPlainSecretMigration?,
+    hooks: SecretStoreTestHooks,
+): Any {
+    val encryptedPreferencesFactory = hooks.createEncryptedPreferences ?: ::createEncryptedPreferences
+    return runCatching<Any> {
+        EncryptedSharedPreferencesApiSecretLocalStore(
+            preferences = encryptedPreferencesFactory(context, preferencesName),
+        )
+    }.getOrElse { error ->
+        if (shouldUseRobolectricFallback(error)) {
+            return@getOrElse RobolectricSecureApiSecretLocalStore(
+                preferences = sameNamePreferences,
+                packageName = context.packageName,
+                preferencesName = preferencesName,
+            )
+        }
+        if (pendingMigration == null) {
+            throw error
+        }
+
+        clearPreferences(
+            sameNamePreferences,
+            "Failed to clear legacy plaintext secrets before retrying secure migration",
+        )
+
+        runCatching<Any> {
+            EncryptedSharedPreferencesApiSecretLocalStore(
+                preferences = encryptedPreferencesFactory(context, preferencesName),
+            )
+        }.getOrElse { retryError ->
+            if (shouldUseRobolectricFallback(retryError)) {
+                RobolectricSecureApiSecretLocalStore(
+                    preferences = sameNamePreferences,
+                    packageName = context.packageName,
+                    preferencesName = preferencesName,
+                )
+            } else {
+                throw retryError
+            }
+        }
+    }
+}
+
+private fun completePendingMigration(
+    store: Any,
+    sameNamePreferences: SharedPreferences,
+    pendingMigration: PendingPlainSecretMigration?,
+    hooks: SecretStoreTestHooks,
+) {
+    if (pendingMigration == null) return
+    hooks.beforeImport()
+    when (store) {
+        is EncryptedSharedPreferencesApiSecretLocalStore -> {
+            store.importPlainSecrets(pendingMigration.secrets)
+            verifyImportedSecrets(pendingMigration.secrets) { secretId ->
+                store.readImmediately(secretId)
+            }
+            removePlainLegacyEntries(
+                preferences = sameNamePreferences,
+                secretIds = pendingMigration.secrets.map { (secretId, _) -> secretId },
+            )
+        }
+
+        is RobolectricSecureApiSecretLocalStore -> {
+            store.importPlainSecrets(pendingMigration.secrets)
+            verifyImportedSecrets(pendingMigration.secrets) { secretId ->
+                store.readImmediately(secretId)
+            }
+        }
+    }
+    clearPreferences(
+        pendingMigration.backupPreferences,
+        "Failed to clear migration backup after secure migration",
+    )
+}
+
+private fun verifyImportedSecrets(
+    secrets: List<Pair<String, String>>,
+    readSecret: (String) -> String?,
+) {
+    secrets.forEach { (secretId, plainText) ->
+        check(readSecret(secretId) == plainText) {
+            "Failed to verify migrated api secret for key=$secretId"
+        }
+    }
+}
+
+private fun removePlainLegacyEntries(
+    preferences: SharedPreferences,
+    secretIds: List<String>,
+) {
+    val editor = preferences.edit()
+    secretIds.forEach(editor::remove)
+    check(editor.commit()) {
+        "Failed to clear legacy plaintext secrets after secure migration"
+    }
+}
+
+private fun persistBackupSecrets(
+    backupPreferences: SharedPreferences,
+    secrets: List<Pair<String, String>>,
+) {
+    val editor = backupPreferences.edit().clear()
+    secrets.forEach { (secretId, plainText) ->
+        editor.putString(secretId, plainText)
+    }
+    check(editor.commit()) {
+        "Failed to persist api secret migration backup"
+    }
+}
+
+private fun loadStoredSecretsOrNull(preferences: SharedPreferences): List<Pair<String, String>>? =
+    preferences.all.mapNotNull { (secretId, value) ->
+        (value as? String)?.let { plainText -> secretId to plainText }
+    }.ifEmpty { null }
+
 private fun clearPreferences(
     preferences: SharedPreferences,
     failureMessage: String,
@@ -199,15 +371,23 @@ private fun clearPreferences(
 }
 
 private fun isAndroidKeyStoreUnavailable(cause: Throwable): Boolean {
-    val className = cause::class.java.name
     val message = cause.message.orEmpty()
-    val hasKeyStoreClue =
-        className.contains("KeyStore", ignoreCase = true) ||
-            message.contains("AndroidKeyStore", ignoreCase = true) ||
-            message.contains("KeyStore", ignoreCase = true)
-    if (!hasKeyStoreClue) return false
-    return cause is KeyStoreException ||
-        (cause is NoSuchAlgorithmException && message.contains("AndroidKeyStore", ignoreCase = true))
+    val hasExplicitAndroidKeyStoreClue =
+        cause::class.java.name.contains("AndroidKeyStore", ignoreCase = true) ||
+            message.contains("AndroidKeyStore", ignoreCase = true)
+    if (!hasExplicitAndroidKeyStoreClue) return false
+
+    val normalizedMessage = message.lowercase()
+    val looksUnsupported =
+        normalizedMessage.contains("not found") ||
+            normalizedMessage.contains("not available") ||
+            normalizedMessage.contains("unsupported") ||
+            normalizedMessage.contains("unavailable") ||
+            normalizedMessage.contains("cannot find") ||
+            normalizedMessage.contains("failed to load")
+    if (!looksUnsupported) return false
+
+    return cause is KeyStoreException || cause is NoSuchAlgorithmException
 }
 
 private class RobolectricCipherCodec(
@@ -247,5 +427,8 @@ private class RobolectricCipherCodec(
         }.isSuccess
 }
 
-private const val ANDROIDX_SECURITY_KEY_KEYSET = "__androidx_security_crypto_encrypted_prefs_key_keyset__"
-private const val ANDROIDX_SECURITY_VALUE_KEYSET = "__androidx_security_crypto_encrypted_prefs_value_keyset__"
+internal fun migrationBackupPreferencesName(preferencesName: String): String =
+    "$preferencesName.__migration_backup__"
+
+internal const val ANDROIDX_SECURITY_KEY_KEYSET = "__androidx_security_crypto_encrypted_prefs_key_keyset__"
+internal const val ANDROIDX_SECURITY_VALUE_KEYSET = "__androidx_security_crypto_encrypted_prefs_value_keyset__"

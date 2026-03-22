@@ -1,7 +1,10 @@
 package com.wenwentome.reader.data.apihub.local
 
+import android.content.SharedPreferences
 import androidx.test.core.app.ApplicationProvider
+import java.security.KeyStoreException
 import java.security.MessageDigest
+import java.security.NoSuchAlgorithmException
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.Cipher
@@ -11,6 +14,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -94,6 +99,139 @@ class ApiSecretLocalStoreTest {
         assertTrue(sameNamePreferences.all.values.none { it == "sk-legacy" })
     }
 
+    @Test
+    fun apiSecretLocalStore_failedMigrationRetainsBackupAndRecoversOnNextStart() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-recoverable"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString("provider-legacy", "sk-legacy")
+                    .commit()
+            }
+
+        try {
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                hooks =
+                    SecretStoreTestHooks(
+                        beforeImport = {
+                            throw IllegalStateException("simulated import failure")
+                        },
+                    ),
+            )
+            fail("expected simulated migration failure")
+        } catch (_: IllegalStateException) {
+            val backupPreferences =
+                context.getSharedPreferences(
+                    migrationBackupPreferencesName(preferencesName),
+                    android.content.Context.MODE_PRIVATE,
+                )
+            assertEquals("sk-legacy", backupPreferences.getString("provider-legacy", null))
+            assertTrue(sameNamePreferences.all.isNotEmpty())
+        }
+
+        val recoveredStore = createSecureApiSecretLocalStore(context, preferencesName)
+
+        assertEquals("sk-legacy", recoveredStore.read("provider-legacy"))
+        val backupPreferences =
+            context.getSharedPreferences(
+                migrationBackupPreferencesName(preferencesName),
+                android.content.Context.MODE_PRIVATE,
+            )
+        assertTrue(backupPreferences.all.isEmpty())
+    }
+
+    @Test
+    fun apiSecretLocalStore_retriesEncryptedCreationAfterClearingLegacySameNameFile() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-production-retry"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString("provider-legacy", "sk-legacy")
+                    .commit()
+            }
+        var createAttempts = 0
+
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                hooks =
+                    SecretStoreTestHooks(
+                        createEncryptedPreferences = { _, _ ->
+                            createAttempts += 1
+                            if (createAttempts == 1) {
+                                throw IllegalStateException("simulated encrypted prefs blocked by plain legacy")
+                            }
+                            PrefixingSharedPreferences(
+                                delegate = sameNamePreferences,
+                                prefix = "secure:",
+                            )
+                        },
+                    ),
+            )
+
+        assertEquals(2, createAttempts)
+        assertEquals("sk-legacy", store.read("provider-legacy"))
+        assertNull(sameNamePreferences.getString("provider-legacy", null))
+        assertTrue(sameNamePreferences.all.keys.any { it.startsWith("secure:") })
+        val backupPreferences =
+            context.getSharedPreferences(
+                migrationBackupPreferencesName(preferencesName),
+                android.content.Context.MODE_PRIVATE,
+            )
+        assertTrue(backupPreferences.all.isEmpty())
+    }
+
+    @Test
+    fun apiSecretLocalStore_withAndroidXSecurityKeysetEntries_isNotTreatedAsPlainLegacy() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-keyset"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString(ANDROIDX_SECURITY_KEY_KEYSET, "keyset")
+                    .putString(ANDROIDX_SECURITY_VALUE_KEYSET, "value-keyset")
+                    .putString("provider-legacy", "plain-looking-value")
+                    .commit()
+            }
+
+        val detected =
+            loadPlainLegacySecretsOrNull(
+                preferences = sameNamePreferences,
+                packageName = context.packageName,
+                preferencesName = preferencesName,
+            )
+
+        assertEquals(null, detected)
+        assertEquals("plain-looking-value", sameNamePreferences.getString("provider-legacy", null))
+    }
+
+    @Test
+    fun androidKeyStoreFallback_onlyTriggersForExplicitAndroidKeyStoreFailures() {
+        assertTrue(
+            shouldUseRobolectricFallback(
+                KeyStoreException("AndroidKeyStore not found"),
+            ),
+        )
+        assertFalse(
+            shouldUseRobolectricFallback(
+                KeyStoreException("generic keystore failure"),
+            ),
+        )
+        assertFalse(
+            shouldUseRobolectricFallback(
+                NoSuchAlgorithmException("PBKDF2WithHmacSHA256 not available"),
+            ),
+        )
+    }
+
     private fun createStore(name: String): StoreFixture {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val preferencesName = "api-secret-store-test-$name"
@@ -110,6 +248,143 @@ class ApiSecretLocalStoreTest {
         val store: ApiSecretLocalStore,
         val preferences: android.content.SharedPreferences,
     )
+
+    private class PrefixingSharedPreferences(
+        private val delegate: SharedPreferences,
+        private val prefix: String,
+    ) : SharedPreferences {
+        override fun contains(key: String?): Boolean =
+            key != null && delegate.contains(prefixed(key))
+
+        override fun getBoolean(
+            key: String?,
+            defValue: Boolean,
+        ): Boolean = delegate.getBoolean(requirePrefixed(key), defValue)
+
+        override fun getFloat(
+            key: String?,
+            defValue: Float,
+        ): Float = delegate.getFloat(requirePrefixed(key), defValue)
+
+        override fun getInt(
+            key: String?,
+            defValue: Int,
+        ): Int = delegate.getInt(requirePrefixed(key), defValue)
+
+        override fun getLong(
+            key: String?,
+            defValue: Long,
+        ): Long = delegate.getLong(requirePrefixed(key), defValue)
+
+        override fun getString(
+            key: String?,
+            defValue: String?,
+        ): String? = delegate.getString(requirePrefixed(key), defValue)
+
+        override fun getStringSet(
+            key: String?,
+            defValues: MutableSet<String>?,
+        ): MutableSet<String>? = delegate.getStringSet(requirePrefixed(key), defValues)
+
+        override fun getAll(): MutableMap<String, *> =
+            delegate.all
+                .filterKeys { it.startsWith(prefix) }
+                .mapKeys { (key, _) -> key.removePrefix(prefix) }
+                .toMutableMap()
+
+        override fun edit(): SharedPreferences.Editor =
+            PrefixingEditor(
+                preferences = delegate,
+                prefix = prefix,
+            )
+
+        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
+            // Test-only wrapper does not need listener bridging.
+        }
+
+        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
+            // Test-only wrapper does not need listener bridging.
+        }
+
+        private fun prefixed(key: String): String = "$prefix$key"
+
+        private fun requirePrefixed(key: String?): String = prefixed(requireNotNull(key))
+    }
+
+    private class PrefixingEditor(
+        private val preferences: SharedPreferences,
+        private val prefix: String,
+    ) : SharedPreferences.Editor {
+        private val delegate = preferences.edit()
+
+        override fun putBoolean(
+            key: String?,
+            value: Boolean,
+        ): SharedPreferences.Editor {
+            delegate.putBoolean(requirePrefixed(key), value)
+            return this
+        }
+
+        override fun putFloat(
+            key: String?,
+            value: Float,
+        ): SharedPreferences.Editor {
+            delegate.putFloat(requirePrefixed(key), value)
+            return this
+        }
+
+        override fun putInt(
+            key: String?,
+            value: Int,
+        ): SharedPreferences.Editor {
+            delegate.putInt(requirePrefixed(key), value)
+            return this
+        }
+
+        override fun putLong(
+            key: String?,
+            value: Long,
+        ): SharedPreferences.Editor {
+            delegate.putLong(requirePrefixed(key), value)
+            return this
+        }
+
+        override fun putString(
+            key: String?,
+            value: String?,
+        ): SharedPreferences.Editor {
+            delegate.putString(requirePrefixed(key), value)
+            return this
+        }
+
+        override fun putStringSet(
+            key: String?,
+            values: MutableSet<String>?,
+        ): SharedPreferences.Editor {
+            delegate.putStringSet(requirePrefixed(key), values)
+            return this
+        }
+
+        override fun remove(key: String?): SharedPreferences.Editor {
+            delegate.remove(requirePrefixed(key))
+            return this
+        }
+
+        override fun clear(): SharedPreferences.Editor {
+            preferences.all.keys
+                .filter { it.startsWith(prefix) }
+                .forEach(delegate::remove)
+            return this
+        }
+
+        override fun commit(): Boolean = delegate.commit()
+
+        override fun apply() {
+            delegate.apply()
+        }
+
+        private fun requirePrefixed(key: String?): String = "$prefix${requireNotNull(key)}"
+    }
 
     private fun encryptForPreviousRobolectricVersion(
         context: android.content.Context,
