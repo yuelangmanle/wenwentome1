@@ -31,6 +31,9 @@ class ApiHubRepository(
     private val abilityCacheDao: ApiAbilityCacheDao,
     private val secretLocalStore: ApiSecretLocalStore,
 ) {
+    // Task 2 约定：provider 自身的本地 secret 以 providerId 作为 secret key 存取。
+    private fun providerSecretId(providerId: String): String = providerId
+
     fun observeProviders(): Flow<List<ApiProviderProfile>> =
         providerDao.observeAll().map { items -> items.map { it.toModel() } }
 
@@ -39,6 +42,22 @@ class ApiHubRepository(
     }
 
     suspend fun deleteProvider(providerId: String) {
+        capabilityBindingDao.getAll().forEach { binding ->
+            when {
+                binding.primaryProviderId == providerId -> capabilityBindingDao.deleteById(binding.capabilityId)
+                binding.fallbackProviderId == providerId ->
+                    capabilityBindingDao.upsert(
+                        binding.copy(
+                            fallbackProviderId = null,
+                            fallbackModelId = null,
+                            updatedAt = System.currentTimeMillis(),
+                        ),
+                    )
+            }
+        }
+        modelDao.deleteByProviderId(providerId)
+        priceOverrideDao.deleteByProviderId(providerId)
+        secretLocalStore.delete(providerSecretId(providerId))
         providerDao.deleteById(providerId)
     }
 
@@ -50,6 +69,9 @@ class ApiHubRepository(
     }
 
     suspend fun replaceModels(providerId: String, profiles: List<ApiModelProfile>) {
+        require(profiles.all { it.providerId == providerId }) {
+            "All model profiles must belong to providerId=$providerId"
+        }
         modelDao.replaceForProvider(providerId, profiles.map { it.toEntity() })
     }
 

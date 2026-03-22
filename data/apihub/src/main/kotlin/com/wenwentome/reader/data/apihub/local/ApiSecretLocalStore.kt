@@ -13,12 +13,16 @@ class SharedPreferencesApiSecretLocalStore(
     private val preferences: SharedPreferences,
 ) : ApiSecretLocalStore {
     override suspend fun save(secretId: String, plainText: String) {
-        preferences.edit().putString(secretId, plainText).apply()
+        check(preferences.edit().putString(secretId, plainText).commit()) {
+            "Failed to persist api secret for key=$secretId"
+        }
     }
 
     override suspend fun read(secretId: String): String? = preferences.getString(secretId, null)
 
     override suspend fun delete(secretId: String) {
-        preferences.edit().remove(secretId).apply()
+        check(preferences.edit().remove(secretId).commit()) {
+            "Failed to delete api secret for key=$secretId"
+        }
     }
 }

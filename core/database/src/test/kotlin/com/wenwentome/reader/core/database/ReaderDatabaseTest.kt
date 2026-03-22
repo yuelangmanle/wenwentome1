@@ -3,7 +3,10 @@ package com.wenwentome.reader.core.database
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.wenwentome.reader.core.database.entity.ApiAbilityCacheEntity
+import com.wenwentome.reader.core.database.entity.ApiBudgetPolicyEntity
 import com.wenwentome.reader.core.database.entity.ApiCapabilityBindingEntity
+import com.wenwentome.reader.core.database.entity.ApiModelEntity
+import com.wenwentome.reader.core.database.entity.ApiPriceOverrideEntity
 import com.wenwentome.reader.core.database.entity.ApiProviderEntity
 import com.wenwentome.reader.core.database.entity.ApiUsageLogEntity
 import com.wenwentome.reader.core.database.entity.BookAssetEntity
@@ -11,6 +14,10 @@ import com.wenwentome.reader.core.database.entity.BookRecordEntity
 import com.wenwentome.reader.core.database.entity.ReadingStateEntity
 import com.wenwentome.reader.core.database.entity.RemoteBindingEntity
 import com.wenwentome.reader.core.database.entity.SourceDefinitionEntity
+import com.wenwentome.reader.core.model.ApiModelCostLevel
+import com.wenwentome.reader.core.model.ApiModelValidationState
+import com.wenwentome.reader.core.model.ApiOverBudgetAction
+import com.wenwentome.reader.core.model.DEFAULT_API_BUDGET_POLICY_ID
 import com.wenwentome.reader.core.model.AssetRole
 import com.wenwentome.reader.core.model.ProviderAuthScheme
 import com.wenwentome.reader.core.model.ProviderKind
@@ -73,6 +80,72 @@ class ReaderDatabaseTest {
         assertEquals("openai-main", stored.primaryProviderId)
         assertEquals("gpt-4o-mini", stored.fallbackModelId)
         assertEquals(1711000000000, stored.updatedAt)
+    }
+
+    @Test
+    fun modelDao_roundTripsStringListsAndEnums() = runTest {
+        val database = testDatabase()
+        database.apiModelDao()
+            .upsert(
+                ApiModelEntity(
+                    providerId = "openai-main",
+                    modelId = "gpt-4.1-mini",
+                    label = "GPT 4.1 Mini",
+                    capabilities = listOf("reader.summary", "reader.translate"),
+                    costLevel = ApiModelCostLevel.LOW,
+                    voiceOptions = listOf("alloy", "verse"),
+                    source = ProviderModelSource.PRESET_CATALOG,
+                    validationState = ApiModelValidationState.VALID,
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiModelDao().findById("openai-main", "gpt-4.1-mini")
+        assertEquals(listOf("reader.summary", "reader.translate"), stored?.capabilities)
+        assertEquals(ApiModelCostLevel.LOW, stored?.costLevel)
+        assertEquals(listOf("alloy", "verse"), stored?.voiceOptions)
+        assertEquals(ProviderModelSource.PRESET_CATALOG, stored?.source)
+        assertEquals(ApiModelValidationState.VALID, stored?.validationState)
+    }
+
+    @Test
+    fun budgetPolicyDao_usesDefaultPolicyIdSemantics() = runTest {
+        val database = testDatabase()
+        database.apiBudgetPolicyDao()
+            .upsert(
+                ApiBudgetPolicyEntity(
+                    dailyLimitMicros = 1000L,
+                    overBudgetAction = ApiOverBudgetAction.DOWNGRADE,
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiBudgetPolicyDao().getById()
+        assertEquals(DEFAULT_API_BUDGET_POLICY_ID, stored?.policyId)
+        assertEquals(1000L, stored?.dailyLimitMicros)
+        assertEquals(ApiOverBudgetAction.DOWNGRADE, stored?.overBudgetAction)
+    }
+
+    @Test
+    fun priceOverrideDao_roundTripsOverrideValues() = runTest {
+        val database = testDatabase()
+        database.apiPriceOverrideDao()
+            .upsert(
+                ApiPriceOverrideEntity(
+                    providerId = "openai-main",
+                    modelId = "gpt-4.1-mini",
+                    inputPricePer1kMicros = 1200L,
+                    outputPricePer1kMicros = 2400L,
+                    requestPricePerCallMicros = 99L,
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiPriceOverrideDao().findById("openai-main", "gpt-4.1-mini")
+        assertEquals(1200L, stored?.inputPricePer1kMicros)
+        assertEquals(2400L, stored?.outputPricePer1kMicros)
+        assertEquals(99L, stored?.requestPricePerCallMicros)
+        assertEquals(1711000000000, stored?.updatedAt)
     }
 
     @Test

@@ -26,6 +26,9 @@ interface ApiPriceOverrideDao {
     @Query("DELETE FROM api_price_overrides WHERE providerId = :providerId AND modelId = :modelId")
     suspend fun deleteById(providerId: String, modelId: String)
 
+    @Query("DELETE FROM api_price_overrides WHERE providerId = :providerId")
+    suspend fun deleteByProviderId(providerId: String)
+
     @Query("DELETE FROM api_price_overrides")
     suspend fun clearAll()
 }
