@@ -13,6 +13,7 @@ import com.wenwentome.reader.core.database.datastore.PreferencesSnapshot as Loca
 import com.wenwentome.reader.core.database.datastore.ReaderPreferencesStore
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
+import com.wenwentome.reader.data.apihub.ApiHubModule
 import com.wenwentome.reader.data.localbooks.EpubBookParser
 import com.wenwentome.reader.data.localbooks.ImportLocalBookUseCase
 import com.wenwentome.reader.data.localbooks.LocalBookContentRepository
@@ -45,6 +46,10 @@ class AppContainer(
     private val sourceBridgeRepositoryOverride: SourceBridgeRepository? = null,
     private val discoverIoDispatcherOverride: CoroutineDispatcher? = null,
 ) {
+    val apiHubModule: ApiHubModule by lazy {
+        ApiHubModule()
+    }
+
     val appContext: Context = application
 
     val database: ReaderDatabase by lazy {

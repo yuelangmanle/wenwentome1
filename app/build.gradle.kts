@@ -76,11 +76,13 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(project(":core:model"))
     implementation(project(":core:database"))
+    implementation(project(":data:apihub"))
     implementation(project(":data:localbooks"))
     implementation(project(":sync:github"))
     implementation(project(":bridge:source"))
 
     implementation(project(":feature:library"))
+    implementation(project(":feature:apihub"))
     implementation(project(":feature:discover"))
     implementation(project(":feature:reader"))
     implementation(project(":feature:settings"))

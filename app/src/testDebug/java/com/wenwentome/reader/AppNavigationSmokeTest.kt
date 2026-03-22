@@ -3,10 +3,13 @@ package com.wenwentome.reader
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.core.app.ApplicationProvider
@@ -53,5 +56,21 @@ class AppNavigationSmokeTest {
         }
         composeTestRule.onNodeWithTag("nav-bookshelf").assertIsSelected()
         composeTestRule.onNodeWithTag("screen").assertTextEquals("书库")
+    }
+
+    @Test
+    fun settings_canOpenApiHubOverview() {
+        val appContainer = AppContainer(ApplicationProvider.getApplicationContext())
+
+        composeTestRule.setContent {
+            val controller = rememberNavController()
+            ReaderApp(appContainer = appContainer, navController = controller)
+        }
+
+        composeTestRule.onNodeWithTag("nav-settings").performClick()
+        composeTestRule.onNodeWithText("API 中心").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("api-hub-overview-screen").assertExists()
+        composeTestRule.onNodeWithText("今日调用").assertExists()
+        composeTestRule.onNodeWithTag("nav-settings").assertIsSelected()
     }
 }

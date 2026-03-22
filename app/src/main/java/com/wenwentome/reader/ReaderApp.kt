@@ -20,7 +20,7 @@ import com.wenwentome.reader.navigation.TopLevelDestination
 private val topLevelDestinations = TopLevelDestination.entries.toList()
 private val bookshelfChildRoutes = setOf("book/{bookId}", "reader/{bookId}")
 private val discoverChildRoutes = setOf("discover/sources")
-private val settingsChildRoutes = setOf("settings/changelog")
+private val settingsChildRoutes = setOf("settings/changelog", "settings/api-hub")
 
 @Composable
 fun ReaderApp(

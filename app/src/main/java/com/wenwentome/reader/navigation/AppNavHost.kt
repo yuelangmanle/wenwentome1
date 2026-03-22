@@ -40,6 +40,9 @@ import com.wenwentome.reader.feature.discover.ImportSourcesUseCase
 import com.wenwentome.reader.feature.discover.SourceManagementScreen
 import com.wenwentome.reader.feature.discover.SourceManagementUiState
 import com.wenwentome.reader.feature.discover.SourceManagementViewModel
+import com.wenwentome.reader.feature.apihub.ApiHubOverviewScreen
+import com.wenwentome.reader.feature.apihub.ApiHubUiState
+import com.wenwentome.reader.feature.apihub.ApiHubViewModel
 import com.wenwentome.reader.feature.library.LibraryScreen
 import com.wenwentome.reader.feature.library.LibraryUiState
 import com.wenwentome.reader.feature.library.LibraryViewModel
@@ -76,6 +79,7 @@ private const val BookDetailRoute = "book/{bookId}"
 private const val ReaderRoute = "reader/{bookId}"
 private const val DiscoverSourcesRoute = "discover/sources"
 private const val SettingsChangelogRoute = "settings/changelog"
+private const val SettingsApiHubRoute = "settings/api-hub"
 
 @Composable
 fun AppNavHost(
@@ -263,6 +267,7 @@ fun AppNavHost(
                 onSaveConfig = settingsViewModel::saveConfig,
                 onPush = settingsViewModel::pushNow,
                 onPull = settingsViewModel::pullNow,
+                onOpenApiHub = { navController.navigate(SettingsApiHubRoute) },
                 onOpenProject = { uriHandler.openUri(projectInfo.projectUrl) },
                 onOpenChangelog = { navController.navigate(SettingsChangelogRoute) },
             )
@@ -273,6 +278,18 @@ fun AppNavHost(
             }
             val state by viewModel.uiState.collectAsState(initial = ChangelogUiState())
             ChangelogScreen(state = state)
+        }
+        composable(SettingsApiHubRoute) {
+            val viewModel = remember(appContainer) {
+                ApiHubViewModel(module = appContainer.apiHubModule)
+            }
+            val state by viewModel.uiState.collectAsState(initial = ApiHubUiState())
+            ApiHubOverviewScreen(
+                state = state,
+                onOpenProviders = {},
+                onOpenBindings = {},
+                onOpenBudgets = {},
+            )
         }
         composable(BookDetailRoute) { backStackEntry ->
             val bookId = requireNotNull(backStackEntry.arguments?.getString("bookId"))
