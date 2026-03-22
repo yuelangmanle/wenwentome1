@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit4)
     testImplementation(libs.androidx.test.core)

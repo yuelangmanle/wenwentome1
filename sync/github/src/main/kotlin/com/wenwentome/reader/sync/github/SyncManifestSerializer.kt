@@ -30,6 +30,7 @@ class SyncManifestSerializer {
             put("remoteBindingsPath", JsonPrimitive(manifest.remoteBindingsPath))
             put("sourceDefinitionsPath", JsonPrimitive(manifest.sourceDefinitionsPath))
             put("preferencesPath", JsonPrimitive(manifest.preferencesPath))
+            put("secretEnvelopesPath", JsonPrimitive(manifest.secretEnvelopesPath))
             put("assetIndexPath", JsonPrimitive(manifest.assetIndexPath))
         }.toString()
 
@@ -42,6 +43,7 @@ class SyncManifestSerializer {
             remoteBindingsPath = root.requiredString("remoteBindingsPath"),
             sourceDefinitionsPath = root.requiredString("sourceDefinitionsPath"),
             preferencesPath = root.requiredString("preferencesPath"),
+            secretEnvelopesPath = root.optionalString("secretEnvelopesPath") ?: SyncManifest().secretEnvelopesPath,
             assetIndexPath = root.requiredString("assetIndexPath"),
         )
     }
@@ -218,7 +220,6 @@ class SyncManifestSerializer {
             put("owner", JsonPrimitive(snapshot.owner))
             put("repo", JsonPrimitive(snapshot.repo))
             put("branch", JsonPrimitive(snapshot.branch))
-            put("token", JsonPrimitive(snapshot.token))
             put("deviceId", JsonPrimitive(snapshot.deviceId))
         }.toString()
 
@@ -228,10 +229,43 @@ class SyncManifestSerializer {
             owner = root.requiredString("owner"),
             repo = root.requiredString("repo"),
             branch = root.requiredString("branch"),
-            token = root.requiredString("token"),
             deviceId = root.requiredString("deviceId"),
+            bootstrapToken = root.optionalString("bootstrapToken") ?: root.optionalString("token").orEmpty(),
         )
     }
+
+    fun encodeSecretEnvelopes(secretEnvelopes: List<SecretEnvelopePayload>): String =
+        secretEnvelopes.mapToJsonArray { envelope ->
+            buildJsonObject {
+                put("secretId", JsonPrimitive(envelope.secretId))
+                put("scope", JsonPrimitive(envelope.scope.name))
+                put("version", JsonPrimitive(envelope.version))
+                put("kdf", JsonPrimitive(envelope.kdf))
+                put("iterations", JsonPrimitive(envelope.iterations))
+                put("saltBase64", JsonPrimitive(envelope.saltBase64))
+                put("ivBase64", JsonPrimitive(envelope.ivBase64))
+                put("cipherTextBase64", JsonPrimitive(envelope.cipherTextBase64))
+                put("checksumBase64", JsonPrimitive(envelope.checksumBase64))
+                put("updatedAt", JsonPrimitive(envelope.updatedAt))
+            }
+        }
+
+    fun decodeSecretEnvelopes(raw: String): List<SecretEnvelopePayload> =
+        json.parseToJsonElement(raw).jsonArray.map { element ->
+            val root = element.jsonObject
+            SecretEnvelopePayload(
+                secretId = root.requiredString("secretId"),
+                scope = enumValueOf(root.requiredString("scope")),
+                version = root.requiredLong("version").toInt(),
+                kdf = root.requiredString("kdf"),
+                iterations = root.requiredLong("iterations").toInt(),
+                saltBase64 = root.requiredString("saltBase64"),
+                ivBase64 = root.requiredString("ivBase64"),
+                cipherTextBase64 = root.requiredString("cipherTextBase64"),
+                checksumBase64 = root.requiredString("checksumBase64"),
+                updatedAt = root.requiredLong("updatedAt"),
+            )
+        }
 
     fun encodeAssets(assets: List<BookAsset>): String =
         assets.mapToJsonArray { asset ->

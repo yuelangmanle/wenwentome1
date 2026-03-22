@@ -18,14 +18,13 @@ data class GitHubSyncConfig(
     val owner: String,
     val repo: String,
     val branch: String,
-    val token: String,
+    val bootstrapToken: String = "",
 )
 
 data class PreferencesSnapshot(
     val owner: String,
     val repo: String,
     val branch: String,
-    val token: String,
     val deviceId: String,
 )
 
@@ -94,16 +93,16 @@ class ReaderPreferencesStore(private val context: Context) {
                 owner = prefs[OWNER].orEmpty(),
                 repo = prefs[REPO].orEmpty(),
                 branch = prefs[BRANCH] ?: "main",
-                token = prefs[TOKEN].orEmpty(),
+                bootstrapToken = prefs[TOKEN].orEmpty(),
             )
         }
 
-    suspend fun saveGitHubConfig(owner: String, repo: String, branch: String, token: String) {
+    suspend fun saveGitHubConfig(owner: String, repo: String, branch: String) {
         context.dataStore.edit { prefs ->
             prefs[OWNER] = owner
             prefs[REPO] = repo
             prefs[BRANCH] = branch
-            prefs[TOKEN] = token
+            prefs.remove(TOKEN)
         }
     }
 
@@ -121,13 +120,12 @@ class ReaderPreferencesStore(private val context: Context) {
             owner = config.owner,
             repo = config.repo,
             branch = config.branch,
-            token = config.token,
             deviceId = getOrCreateDeviceId(),
         )
     }
 
     suspend fun importSnapshot(snapshot: PreferencesSnapshot) {
-        saveGitHubConfig(snapshot.owner, snapshot.repo, snapshot.branch, snapshot.token)
+        saveGitHubConfig(snapshot.owner, snapshot.repo, snapshot.branch)
         context.dataStore.edit { it[DEVICE_ID] = snapshot.deviceId }
     }
 }

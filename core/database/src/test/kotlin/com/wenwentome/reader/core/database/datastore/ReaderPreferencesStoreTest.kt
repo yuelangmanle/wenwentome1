@@ -48,7 +48,6 @@ class ReaderPreferencesStoreTest {
             owner = "yuelangmanle",
             repo = "wenwentome1",
             branch = "feat/android-reader-mvp",
-            token = "token-1",
         )
 
         val generatedDeviceId = store.getOrCreateDeviceId()
@@ -57,7 +56,6 @@ class ReaderPreferencesStoreTest {
         assertEquals("yuelangmanle", exported.owner)
         assertEquals("wenwentome1", exported.repo)
         assertEquals("feat/android-reader-mvp", exported.branch)
-        assertEquals("token-1", exported.token)
         assertEquals(generatedDeviceId, exported.deviceId)
 
         val imported =
@@ -65,7 +63,6 @@ class ReaderPreferencesStoreTest {
                 owner = "moonreader",
                 repo = "mirror",
                 branch = "main",
-                token = "token-2",
                 deviceId = "device-fixed",
             )
         store.importSnapshot(imported)

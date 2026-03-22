@@ -15,6 +15,7 @@ import com.wenwentome.reader.core.database.datastore.ReaderPreferencesStore
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
 import com.wenwentome.reader.data.apihub.ApiHubModule
+import com.wenwentome.reader.data.apihub.local.SharedPreferencesApiSecretLocalStore
 import com.wenwentome.reader.data.localbooks.EpubBookParser
 import com.wenwentome.reader.data.localbooks.ImportLocalBookUseCase
 import com.wenwentome.reader.data.localbooks.LocalBookContentRepository
@@ -69,6 +70,12 @@ class AppContainer(
 
     val preferencesStore: ReaderPreferencesStore by lazy {
         ReaderPreferencesStore(appContext)
+    }
+
+    private val bootstrapSecretStore by lazy {
+        SharedPreferencesApiSecretLocalStore(
+            preferences = appContext.getSharedPreferences("bootstrap-secrets", Context.MODE_PRIVATE),
+        )
     }
 
     val localBookContentRepository: LocalBookContentRepository by lazy {
@@ -143,21 +150,31 @@ class AppContainer(
         object : SyncSettingsConfigStore {
             override val syncConfig =
                 preferencesStore.syncConfig.map { config ->
+                    val storedBootstrapToken = bootstrapSecretStore.read(GITHUB_BOOTSTRAP_SECRET_ID).orEmpty()
+                    val bootstrapToken = storedBootstrapToken.ifEmpty { config.bootstrapToken }
+                    if (storedBootstrapToken.isBlank() && config.bootstrapToken.isNotBlank()) {
+                        bootstrapSecretStore.save(GITHUB_BOOTSTRAP_SECRET_ID, config.bootstrapToken)
+                        preferencesStore.saveGitHubConfig(
+                            owner = config.owner,
+                            repo = config.repo,
+                            branch = config.branch,
+                        )
+                    }
                     StoredSyncConfig(
                         owner = config.owner,
                         repo = config.repo,
                         branch = config.branch,
-                        token = config.token,
+                        bootstrapToken = bootstrapToken,
                     )
                 }
 
             override suspend fun saveConfig(config: StoredSyncConfig) {
-                preferencesStore.saveGitHubConfig(
-                    owner = config.owner,
-                    repo = config.repo,
-                    branch = config.branch,
-                    token = config.token,
-                )
+                preferencesStore.saveGitHubConfig(owner = config.owner, repo = config.repo, branch = config.branch)
+                if (config.bootstrapToken.isBlank()) {
+                    bootstrapSecretStore.delete(GITHUB_BOOTSTRAP_SECRET_ID)
+                } else {
+                    bootstrapSecretStore.save(GITHUB_BOOTSTRAP_SECRET_ID, config.bootstrapToken)
+                }
             }
         }
     }
@@ -243,7 +260,6 @@ private fun LocalPreferencesSnapshot.toRemoteSnapshot(): RemotePreferencesSnapsh
         owner = owner,
         repo = repo,
         branch = branch,
-        token = token,
         deviceId = deviceId,
     )
 
@@ -252,6 +268,7 @@ private fun RemotePreferencesSnapshot.toLocalSnapshot(): LocalPreferencesSnapsho
         owner = owner,
         repo = repo,
         branch = branch,
-        token = token,
         deviceId = deviceId,
     )
+
+private const val GITHUB_BOOTSTRAP_SECRET_ID = "github.bootstrap.token"
