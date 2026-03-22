@@ -3,8 +3,12 @@ package com.wenwentome.reader.core.database.datastore
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.test.core.app.ApplicationProvider
+import com.wenwentome.reader.core.model.ReaderMode
+import com.wenwentome.reader.core.model.ReaderPresentationPrefs
+import com.wenwentome.reader.core.model.ReaderTheme
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -17,6 +21,25 @@ import org.robolectric.annotation.Config
 @Config(manifest = Config.NONE)
 class ReaderPreferencesStoreTest {
     @Test
+    fun readerPreferences_roundTripModeAndPresentationPrefs() = runTest {
+        val context = isolatedContext()
+        val store = ReaderPreferencesStore(context)
+        val expectedPresentationPrefs =
+            ReaderPresentationPrefs(
+                theme = ReaderTheme.SEPIA,
+                fontSizeSp = 20,
+                lineHeightMultiplier = 1.7f,
+                brightnessPercent = 72,
+            )
+
+        store.saveReaderMode(ReaderMode.HORIZONTAL_PAGING)
+        store.savePresentationPrefs(expectedPresentationPrefs)
+
+        assertEquals(ReaderMode.HORIZONTAL_PAGING, store.readerMode.first())
+        assertEquals(expectedPresentationPrefs, store.presentationPrefs.first())
+    }
+
+    @Test
     fun exportAndImportSnapshot_roundTripsGitHubConfigAndDeviceId() = runTest {
         val context = isolatedContext()
         val store = ReaderPreferencesStore(context)
@@ -25,7 +48,6 @@ class ReaderPreferencesStoreTest {
             owner = "yuelangmanle",
             repo = "wenwentome1",
             branch = "feat/android-reader-mvp",
-            token = "token-1",
         )
 
         val generatedDeviceId = store.getOrCreateDeviceId()
@@ -34,7 +56,6 @@ class ReaderPreferencesStoreTest {
         assertEquals("yuelangmanle", exported.owner)
         assertEquals("wenwentome1", exported.repo)
         assertEquals("feat/android-reader-mvp", exported.branch)
-        assertEquals("token-1", exported.token)
         assertEquals(generatedDeviceId, exported.deviceId)
 
         val imported =
@@ -42,7 +63,6 @@ class ReaderPreferencesStoreTest {
                 owner = "moonreader",
                 repo = "mirror",
                 branch = "main",
-                token = "token-2",
                 deviceId = "device-fixed",
             )
         store.importSnapshot(imported)

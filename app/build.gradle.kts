@@ -14,8 +14,8 @@ android {
         applicationId = "com.wenwentome.reader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 100
-        versionName = "1.0"
+        versionCode = 120
+        versionName = "1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -76,11 +76,13 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(project(":core:model"))
     implementation(project(":core:database"))
+    implementation(project(":data:apihub"))
     implementation(project(":data:localbooks"))
     implementation(project(":sync:github"))
     implementation(project(":bridge:source"))
 
     implementation(project(":feature:library"))
+    implementation(project(":feature:apihub"))
     implementation(project(":feature:discover"))
     implementation(project(":feature:reader"))
     implementation(project(":feature:settings"))
@@ -88,6 +90,8 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
 

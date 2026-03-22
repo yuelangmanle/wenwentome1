@@ -46,9 +46,15 @@ fun SyncSettingsScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
-            value = state.token,
-            onValueChange = { onStateChange(state.updateToken(it)) },
-            label = { Text("Token") },
+            value = state.bootstrapToken,
+            onValueChange = { onStateChange(state.updateBootstrapToken(it)) },
+            label = { Text("Bootstrap Token") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = state.syncPassword,
+            onValueChange = { onStateChange(state.updateSyncPassword(it)) },
+            label = { Text("Sync Password") },
             modifier = Modifier.fillMaxWidth(),
         )
         Button(onClick = { onSaveConfig(state) }) {

@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from release_metadata import extract_notes, read_version_name, resolve_release_tag  # noqa: E402
+from release_metadata import extract_notes, read_version_name, resolve_release_tag, validate_release_pack  # noqa: E402
 
 
 class ReleaseMetadataTest(unittest.TestCase):
@@ -50,6 +50,71 @@ class ReleaseMetadataTest(unittest.TestCase):
         )
         self.assertEqual("v1.0", tag_name)
         self.assertEqual("1.0", version)
+
+    def test_validate_release_pack_accepts_matching_metadata(self):
+        validate_release_pack(
+            gradle_text="""
+            defaultConfig {
+                versionCode = 110
+                versionName = "1.1"
+            }
+            """,
+            changelog_text="""## [1.1] - 2026-03-21
+            - 视觉改版
+
+            ## [1.0] - 2026-03-19
+            - 首发""",
+            changelog_json_text="""
+            [
+              {
+                "version": "1.1",
+                "releaseDate": "2026-03-21",
+                "title": "阅读体验升级",
+                "highlights": ["详情页四段结构"],
+                "details": ["新增目录当前章标识"]
+              },
+              {
+                "version": "1.0",
+                "releaseDate": "2026-03-19",
+                "title": "首发版本",
+                "highlights": ["支持 TXT / EPUB"],
+                "details": ["统一书库上线"]
+              }
+            ]
+            """,
+            readme_text="""
+            ## 版本信息
+            - 当前正式版本：`1.1`
+            """,
+        )
+
+    def test_validate_release_pack_rejects_mismatched_app_changelog_version(self):
+        with self.assertRaisesRegex(ValueError, "first changelog entry"):
+            validate_release_pack(
+                gradle_text="""
+                defaultConfig {
+                    versionCode = 110
+                    versionName = "1.1"
+                }
+                """,
+                changelog_text="""## [1.1] - 2026-03-21
+                - 视觉改版""",
+                changelog_json_text="""
+                [
+                  {
+                    "version": "1.0",
+                    "releaseDate": "2026-03-19",
+                    "title": "首发版本",
+                    "highlights": ["支持 TXT / EPUB"],
+                    "details": ["统一书库上线"]
+                  }
+                ]
+                """,
+                readme_text="""
+                ## 版本信息
+                - 当前正式版本：`1.1`
+                """,
+            )
 
 
 if __name__ == "__main__":

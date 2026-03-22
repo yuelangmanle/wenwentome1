@@ -5,4 +5,5 @@ data class GitHubAuthConfig(
     val repo: String,
     val branch: String,
     val token: String,
+    val syncPassword: String = "",
 )

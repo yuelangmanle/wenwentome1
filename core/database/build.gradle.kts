@@ -44,6 +44,10 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    androidTestImplementation(libs.junit4)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }
 
 kapt {

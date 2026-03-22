@@ -33,8 +33,14 @@ fun AboutProjectCard(
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(text = info.appName)
-            Text(text = "作者：${info.authorName}")
-            Text(text = "版本 ${info.versionName}")
+            Text(
+                text = "作者：${info.authorName}",
+                modifier = Modifier.testTag("project-author-text"),
+            )
+            Text(
+                text = "版本 ${info.versionName}",
+                modifier = Modifier.testTag("project-version-text"),
+            )
             OutlinedButton(onClick = onOpenProject) {
                 Text("打开 GitHub 项目")
             }

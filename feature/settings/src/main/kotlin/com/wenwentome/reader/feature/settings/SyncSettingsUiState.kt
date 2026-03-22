@@ -6,26 +6,29 @@ data class StoredSyncConfig(
     val owner: String = "",
     val repo: String = "",
     val branch: String = "main",
-    val token: String = "",
+    val bootstrapToken: String = "",
 )
 
 data class SyncSettingsUiState(
     val owner: String = "",
     val repo: String = "",
     val branch: String = "main",
-    val token: String = "",
+    val bootstrapToken: String = "",
+    val syncPassword: String = "",
 ) {
     fun updateOwner(value: String) = copy(owner = value)
     fun updateRepo(value: String) = copy(repo = value)
     fun updateBranch(value: String) = copy(branch = value)
-    fun updateToken(value: String) = copy(token = value)
+    fun updateBootstrapToken(value: String) = copy(bootstrapToken = value)
+    fun updateSyncPassword(value: String) = copy(syncPassword = value)
 
     fun toAuthConfig(): GitHubAuthConfig =
         GitHubAuthConfig(
             owner = owner,
             repo = repo,
             branch = branch,
-            token = token,
+            token = bootstrapToken,
+            syncPassword = syncPassword,
         )
 
     fun toStoredConfig(): StoredSyncConfig =
@@ -33,7 +36,7 @@ data class SyncSettingsUiState(
             owner = owner,
             repo = repo,
             branch = branch,
-            token = token,
+            bootstrapToken = bootstrapToken,
         )
 
     companion object {
@@ -42,7 +45,7 @@ data class SyncSettingsUiState(
                 owner = config.owner,
                 repo = config.repo,
                 branch = config.branch,
-                token = config.token,
+                bootstrapToken = config.bootstrapToken,
             )
     }
 }

@@ -2,12 +2,28 @@ package com.wenwentome.reader.core.database
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.wenwentome.reader.core.database.entity.ApiAbilityCacheEntity
+import com.wenwentome.reader.core.database.entity.ApiBudgetPolicyEntity
+import com.wenwentome.reader.core.database.entity.ApiCapabilityBindingEntity
+import com.wenwentome.reader.core.database.entity.ApiModelEntity
+import com.wenwentome.reader.core.database.entity.ApiPriceOverrideEntity
+import com.wenwentome.reader.core.database.entity.ApiProviderEntity
+import com.wenwentome.reader.core.database.entity.ApiUsageLogEntity
 import com.wenwentome.reader.core.database.entity.BookAssetEntity
 import com.wenwentome.reader.core.database.entity.BookRecordEntity
 import com.wenwentome.reader.core.database.entity.ReadingStateEntity
 import com.wenwentome.reader.core.database.entity.RemoteBindingEntity
 import com.wenwentome.reader.core.database.entity.SourceDefinitionEntity
+import com.wenwentome.reader.core.model.ApiModelCostLevel
+import com.wenwentome.reader.core.model.ApiModelValidationState
+import com.wenwentome.reader.core.model.ApiOverBudgetAction
+import com.wenwentome.reader.core.model.DEFAULT_API_BUDGET_POLICY_ID
 import com.wenwentome.reader.core.model.AssetRole
+import com.wenwentome.reader.core.model.ProviderAuthScheme
+import com.wenwentome.reader.core.model.ProviderKind
+import com.wenwentome.reader.core.model.ProviderModelSource
+import com.wenwentome.reader.core.model.ProviderSecretSyncMode
+import com.wenwentome.reader.core.model.ProviderTransportStyle
 import com.wenwentome.reader.core.model.RuleFormat
 import com.wenwentome.reader.core.model.SourceType
 import kotlinx.coroutines.flow.first
@@ -22,6 +38,156 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class ReaderDatabaseTest {
+    @Test
+    fun providerDao_roundTripsSecretModeModelSourceAndUpdatedAt() = runTest {
+        val database = testDatabase()
+        database.apiProviderDao()
+            .upsert(
+                ApiProviderEntity(
+                    providerId = "openai-main",
+                    displayName = "OpenAI 主线路",
+                    providerKind = ProviderKind.OPENAI_COMPATIBLE,
+                    apiStyle = ProviderTransportStyle.RESPONSES,
+                    authScheme = ProviderAuthScheme.BEARER,
+                    secretSyncMode = ProviderSecretSyncMode.LOCAL_ONLY,
+                    modelSource = ProviderModelSource.MANUAL,
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiProviderDao().observeAll().first().single()
+        assertEquals(ProviderSecretSyncMode.LOCAL_ONLY, stored.secretSyncMode)
+        assertEquals(ProviderModelSource.MANUAL, stored.modelSource)
+        assertEquals(1711000000000, stored.updatedAt)
+    }
+
+    @Test
+    fun capabilityBindingDao_roundTripsPrimaryAndFallbackRoute() = runTest {
+        val database = testDatabase()
+        database.apiCapabilityBindingDao()
+            .upsert(
+                ApiCapabilityBindingEntity(
+                    capabilityId = "reader.summary",
+                    primaryProviderId = "openai-main",
+                    primaryModelId = "gpt-4.1-mini",
+                    fallbackProviderId = "openai-backup",
+                    fallbackModelId = "gpt-4o-mini",
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiCapabilityBindingDao().observeAll().first().single()
+        assertEquals("openai-main", stored.primaryProviderId)
+        assertEquals("gpt-4o-mini", stored.fallbackModelId)
+        assertEquals(1711000000000, stored.updatedAt)
+    }
+
+    @Test
+    fun modelDao_roundTripsStringListsAndEnums() = runTest {
+        val database = testDatabase()
+        database.apiModelDao()
+            .upsert(
+                ApiModelEntity(
+                    providerId = "openai-main",
+                    modelId = "gpt-4.1-mini",
+                    label = "GPT 4.1 Mini",
+                    capabilities = listOf("reader.summary", "reader.translate"),
+                    costLevel = ApiModelCostLevel.LOW,
+                    voiceOptions = listOf("alloy", "verse"),
+                    source = ProviderModelSource.PRESET_CATALOG,
+                    validationState = ApiModelValidationState.VALID,
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiModelDao().findById("openai-main", "gpt-4.1-mini")
+        assertEquals(listOf("reader.summary", "reader.translate"), stored?.capabilities)
+        assertEquals(ApiModelCostLevel.LOW, stored?.costLevel)
+        assertEquals(listOf("alloy", "verse"), stored?.voiceOptions)
+        assertEquals(ProviderModelSource.PRESET_CATALOG, stored?.source)
+        assertEquals(ApiModelValidationState.VALID, stored?.validationState)
+    }
+
+    @Test
+    fun budgetPolicyDao_usesDefaultPolicyIdSemantics() = runTest {
+        val database = testDatabase()
+        database.apiBudgetPolicyDao()
+            .upsert(
+                ApiBudgetPolicyEntity(
+                    dailyLimitMicros = 1000L,
+                    overBudgetAction = ApiOverBudgetAction.DOWNGRADE,
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiBudgetPolicyDao().getById()
+        assertEquals(DEFAULT_API_BUDGET_POLICY_ID, stored?.policyId)
+        assertEquals(1000L, stored?.dailyLimitMicros)
+        assertEquals(ApiOverBudgetAction.DOWNGRADE, stored?.overBudgetAction)
+    }
+
+    @Test
+    fun priceOverrideDao_roundTripsOverrideValues() = runTest {
+        val database = testDatabase()
+        database.apiPriceOverrideDao()
+            .upsert(
+                ApiPriceOverrideEntity(
+                    providerId = "openai-main",
+                    modelId = "gpt-4.1-mini",
+                    inputPricePer1kMicros = 1200L,
+                    outputPricePer1kMicros = 2400L,
+                    requestPricePerCallMicros = 99L,
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiPriceOverrideDao().findById("openai-main", "gpt-4.1-mini")
+        assertEquals(1200L, stored?.inputPricePer1kMicros)
+        assertEquals(2400L, stored?.outputPricePer1kMicros)
+        assertEquals(99L, stored?.requestPricePerCallMicros)
+        assertEquals(1711000000000, stored?.updatedAt)
+    }
+
+    @Test
+    fun usageLogDao_roundTripsCreatedAtCostAndSuccess() = runTest {
+        val database = testDatabase()
+        database.apiUsageLogDao()
+            .upsert(
+                ApiUsageLogEntity(
+                    callId = "call-1",
+                    capabilityId = "reader.summary",
+                    providerId = "openai-main",
+                    modelId = "gpt-4.1-mini",
+                    success = true,
+                    estimatedCostMicros = 1234L,
+                    createdAt = 1711000000000,
+                ),
+            )
+
+        val stored = database.apiUsageLogDao().observeLatest().first().single()
+        assertEquals(true, stored.success)
+        assertEquals(1234L, stored.estimatedCostMicros)
+        assertEquals(1711000000000, stored.createdAt)
+    }
+
+    @Test
+    fun abilityCacheDao_roundTripsCacheKeyPayloadAndExpiresAt() = runTest {
+        val database = testDatabase()
+        database.apiAbilityCacheDao()
+            .upsert(
+                ApiAbilityCacheEntity(
+                    cacheKey = "reader.summary:book-1:chapter-3:v1",
+                    payloadJson = """{"summary":"cached"}""",
+                    expiresAt = 1712000000000,
+                    updatedAt = 1711000000000,
+                ),
+            )
+
+        val cached = database.apiAbilityCacheDao().findByKey("reader.summary:book-1:chapter-3:v1")
+        assertEquals("""{"summary":"cached"}""", cached?.payloadJson)
+        assertEquals(1712000000000, cached?.expiresAt)
+    }
+
     @Test
     fun upsertBookAndReadingState_areReturnedTogether() = runTest {
         val database = testDatabase()
@@ -94,6 +260,29 @@ class ReaderDatabaseTest {
     }
 
     @Test
+    fun bookAssetDao_findAndDeleteByRole_roundTripsCoverAsset() = runTest {
+        val database = testDatabase()
+        database.bookAssetDao().upsert(
+            BookAssetEntity(
+                bookId = "book-1",
+                assetRole = AssetRole.COVER,
+                storageUri = "file:///manual-cover.png",
+                mime = "image/png",
+                size = 12L,
+                hash = "cover-hash",
+                syncPath = "books/book-1/manual-cover.png",
+            )
+        )
+
+        val cover = database.bookAssetDao().findByRole("book-1", AssetRole.COVER)
+        assertEquals("file:///manual-cover.png", cover?.storageUri)
+
+        database.bookAssetDao().deleteByRole("book-1", AssetRole.COVER)
+        val deleted = database.bookAssetDao().findByRole("book-1", AssetRole.COVER)
+        assertEquals(null, deleted)
+    }
+
+    @Test
     fun readingStateDao_getAll_returnsInserted() = runTest {
         val database = testDatabase()
         database.readingStateDao().upsert(ReadingStateEntity(bookId = "book-1", progressPercent = 0.1f))
@@ -119,6 +308,26 @@ class ReaderDatabaseTest {
         val all = database.remoteBindingDao().getAll()
         assertEquals(1, all.size)
         assertEquals("book-1", all.first().bookId)
+    }
+
+    @Test
+    fun remoteBinding_roundTripsLatestChapterMetadata() = runTest {
+        val database = testDatabase()
+        database.remoteBindingDao()
+            .upsert(
+                RemoteBindingEntity(
+                    bookId = "book-1",
+                    sourceId = "src",
+                    remoteBookId = "remote",
+                    remoteBookUrl = "https://example.com/book",
+                    latestKnownChapterRef = "chapter-9",
+                    lastCatalogRefreshAt = 123L,
+                ),
+            )
+
+        val binding = database.remoteBindingDao().observeByBookId("book-1").first()
+        assertEquals("chapter-9", binding?.latestKnownChapterRef)
+        assertEquals(123L, binding?.lastCatalogRefreshAt)
     }
 
     @Test

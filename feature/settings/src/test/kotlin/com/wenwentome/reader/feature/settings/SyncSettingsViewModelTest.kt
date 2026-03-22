@@ -30,7 +30,7 @@ class SyncSettingsViewModelTest {
                 owner = "me",
                 repo = "books",
                 branch = "main",
-                token = "secret",
+                bootstrapToken = "ghp_secret",
             )
         )
         val viewModel = SyncSettingsViewModel(
@@ -41,10 +41,12 @@ class SyncSettingsViewModelTest {
         val state = viewModel.uiState.first { it.owner.isNotEmpty() }
         assertEquals("me", state.owner)
         assertEquals("books", state.repo)
+        assertEquals("ghp_secret", state.bootstrapToken)
+        assertEquals("", state.syncPassword)
     }
 
     @Test
-    fun pushNow_savesDraftBeforeSync() = runTest {
+    fun pushNow_persistsBootstrapTokenLocallyBeforeSync() = runTest {
         val configStore = FakeSyncSettingsConfigStore()
         val syncService = FakeGitHubSyncService()
         val viewModel = SyncSettingsViewModel(
@@ -55,13 +57,15 @@ class SyncSettingsViewModelTest {
             owner = "me",
             repo = "books",
             branch = "main",
-            token = "secret",
+            bootstrapToken = "ghp_secret",
+            syncPassword = "sync-pass",
         )
 
         viewModel.pushNow(draft)
 
         assertEquals(draft.toAuthConfig(), syncService.lastPushed)
         assertEquals(draft.toStoredConfig(), configStore.saved)
+        assertEquals("ghp_secret", configStore.saved.bootstrapToken)
     }
 }
 
@@ -96,6 +100,12 @@ private class FakeGitHubSyncService : GitHubSyncService {
                 manifestJson = "{}",
             ),
             assets = emptyList(),
+            preferences = com.wenwentome.reader.sync.github.PreferencesSnapshot(
+                owner = "me",
+                repo = "books",
+                branch = "main",
+                deviceId = "device-1",
+            ),
         )
 }
 

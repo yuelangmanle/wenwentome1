@@ -34,6 +34,7 @@ dependencies {
     implementation(project(":bridge:source"))
     implementation(project(":core:database"))
     implementation(project(":core:model"))
+    implementation(project(":data:apihub"))
 
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)

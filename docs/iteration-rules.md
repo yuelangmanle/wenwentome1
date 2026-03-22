@@ -24,18 +24,21 @@
 
 ## 更新日志规则
 
-每次正式发版必须同步更新以下 4 处：
+每次正式发版必须同步更新以下 5 处：
 
 1. `app/build.gradle.kts`
 2. `CHANGELOG.md`
 3. `app/src/main/assets/changelog.json`
 4. GitHub Release notes
+5. `README.md` 中的当前正式版本
 
 ## 发布规则
 
 - 正式版只通过 `main` 分支 tag 发布
 - tag 格式固定为 `v<major>.<minor>`
 - tag 与 `versionName` 必须一致
+- 发版前必须运行：
+  - `python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md`
 
 ## 文档规则
 
@@ -45,6 +48,7 @@
 - `CHANGELOG.md`
 - `docs/release-process.md`
 - `docs/development-progress.md`
+- 如果仓库启用了 GitHub Pages，还要检查 `site/`
 
 ## 提交规则
 

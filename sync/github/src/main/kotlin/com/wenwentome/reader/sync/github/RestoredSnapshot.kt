@@ -6,4 +6,7 @@ import com.wenwentome.reader.core.model.SyncSnapshot
 data class RestoredSnapshot(
     val snapshot: SyncSnapshot,
     val assets: List<BookAsset>,
+    val preferences: PreferencesSnapshot = PreferencesSnapshot(owner = "", repo = "", branch = "", deviceId = ""),
+    val pendingSecretRestore: List<SecretEnvelopePayload> = emptyList(),
+    val pendingConflicts: List<CapabilityBindingConflict> = emptyList(),
 )

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WenwenToMe 1.2 发布页</title>
+  <meta name="description" content="WenwenToMe 1.2 发布页：查看版本亮点、下载入口、GitHub 项目与云端发布说明。" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">月亮满了 · WenwenToMe</p>
+        <h1>一个把本地书和网文放进同一座书架的 Android 阅读器</h1>
+        <p class="hero-text">
+          1.2 版本重点收口 API Hub 体系、阅读器 AI 面板、三条阅读链路回归与网文健康增强，并继续沿用 GitHub 云端打包与发布链路。
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="https://github.com/yuelangmanle/wenwentome1/releases/latest">下载最新 APK</a>
+          <a class="button secondary" href="https://github.com/yuelangmanle/wenwentome1">查看 GitHub 项目</a>
+        </div>
+      </div>
+      <section class="hero-panel">
+        <p class="panel-label">当前正式版本</p>
+        <p class="panel-version">1.2</p>
+        <dl class="panel-meta">
+          <div>
+            <dt>作者</dt>
+            <dd>月亮满了</dd>
+          </div>
+          <div>
+            <dt>发布方式</dt>
+            <dd>GitHub Actions 云端构建</dd>
+          </div>
+          <div>
+            <dt>项目地址</dt>
+            <dd>yuelangmanle/wenwentome1</dd>
+          </div>
+        </dl>
+      </section>
+    </header>
+
+    <main class="content-grid">
+      <section class="card">
+        <p class="section-kicker">1.2 亮点</p>
+        <ul class="feature-list">
+          <li>API Hub 总览、Provider 管理、模型绑定、预算回退、价格目录与调用记录全面收口。</li>
+          <li>阅读器 AI 面板支持章节总结、段落解释、翻译与 TTS 入口，结果缓存复用。</li>
+          <li>TXT / EPUB / WEB 回归，书架筛选排序、EPUB 优先正文与网文健康增强同步落地。</li>
+        </ul>
+      </section>
+
+      <section class="card accent">
+        <p class="section-kicker">下载与验证</p>
+        <ol class="step-list">
+          <li>正式包从 GitHub Releases 下载，最新版本固定指向 `release APK`。</li>
+          <li>开发分支先走 `android-ci`，由 GitHub Actions 生成 `debug-apk` artifact。</li>
+          <li>本地没有 Java 时，直接使用 `gh run watch` 跟进云端构建状态。</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <p class="section-kicker">项目链接</p>
+        <div class="link-stack">
+          <a href="https://github.com/yuelangmanle/wenwentome1/releases">GitHub Releases</a>
+          <a href="https://github.com/yuelangmanle/wenwentome1/actions">GitHub Actions</a>
+          <a href="https://github.com/yuelangmanle/wenwentome1">源码仓库</a>
+        </div>
+      </section>
+
+      <section class="card">
+        <p class="section-kicker">接下来的迭代规则</p>
+        <p class="body-text">
+          正式版本从 1.0 起按 0.1 递增，`1.9` 后进位到 `2.0`。每次发布都必须同步 `versionName`、`CHANGELOG.md`、App 内 changelog、README 与 GitHub Release。
+        </p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

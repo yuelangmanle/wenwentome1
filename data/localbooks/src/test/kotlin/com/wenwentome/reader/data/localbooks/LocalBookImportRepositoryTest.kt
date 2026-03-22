@@ -15,11 +15,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
+import java.net.URI
+import java.util.zip.ZipInputStream
 
 class LocalBookImportRepositoryTest {
     @Test
@@ -33,9 +37,9 @@ class LocalBookImportRepositoryTest {
         assertEquals(0f, result.readingState.progressPercent)
         assertEquals(listOf(result.book.id), context.bookRecordDao.getAll().map { it.id })
         assertEquals(listOf(result.book.id), context.readingStateDao.getAll().map { it.bookId })
-        assertEquals(listOf(result.book.id), context.bookAssetDao.getAll().map { it.bookId })
+        assertEquals(setOf(result.book.id), context.bookAssetDao.getAll().map { it.bookId }.toSet())
 
-        val persistedAsset = context.bookAssetDao.getAll().single()
+        val persistedAsset = context.bookAssetDao.getAll().first { it.assetRole == AssetRole.PRIMARY_TEXT }
         val persistedBytes = context.fileStore.open(persistedAsset.storageUri).use { it.readBytes() }
         assertArrayEquals(fixtureBytes("sample.epub"), persistedBytes)
     }
@@ -60,6 +64,36 @@ class LocalBookImportRepositoryTest {
     }
 
     @Test
+    fun import_epubPersistsCoverAssetSeparatelyFromPrimaryText() = runTest {
+        val context = createRepositoryContext()
+
+        val result = context.repository.import("sample-cover-first.epub", fixture("sample-cover-first.epub"))
+
+        val coverAsset = result.assets.first { it.assetRole == AssetRole.COVER }
+        val primaryAsset = result.assets.first { it.assetRole == AssetRole.PRIMARY_TEXT }
+        val coverEntity = context.bookAssetDao.getAll().first { it.assetRole == AssetRole.COVER }
+        val primaryEntity = context.bookAssetDao.getAll().first { it.assetRole == AssetRole.PRIMARY_TEXT }
+
+        assertNotEquals(coverAsset.storageUri, primaryAsset.storageUri)
+
+        val coverFile = File(URI(coverEntity.storageUri))
+        val primaryFile = File(URI(primaryEntity.storageUri))
+        assertTrue(coverFile.exists())
+        assertTrue(primaryFile.exists())
+
+        val coverBytes = coverFile.readBytes()
+        val primaryBytes = primaryFile.readBytes()
+        val expectedCoverBytes = fixtureZipEntryBytes("sample-cover-first.epub", "OEBPS/images/cover.jpg")
+
+        assertArrayEquals(expectedCoverBytes, coverBytes)
+        assertArrayEquals(fixtureBytes("sample-cover-first.epub"), primaryBytes)
+
+        assertTrue(coverEntity.mime.startsWith("image/"))
+        assertEquals("application/epub+zip", primaryEntity.mime)
+        assertNotEquals(coverEntity.size, primaryEntity.size)
+    }
+
+    @Test
     fun loadTxt_returnsParagraphsStartingFromLocator() = runTest {
         val context = createRepositoryContext()
         val imported = context.repository.import(fileName = "sample.txt", inputStream = fixture("sample.txt"))
@@ -80,6 +114,19 @@ class LocalBookImportRepositoryTest {
         }
 
     private fun fixtureBytes(name: String): ByteArray = fixture(name).use { it.readBytes() }
+
+    private fun fixtureZipEntryBytes(name: String, entryPath: String): ByteArray {
+        val bytes = fixtureBytes(name)
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.name == entryPath) {
+                    return zip.readBytes()
+                }
+            }
+        }
+        error("Missing zip entry $entryPath in fixture $name")
+    }
 
     private fun createRepositoryContext(
         bookRecordDao: FakeBookRecordDao = FakeBookRecordDao(),
@@ -166,6 +213,9 @@ class LocalBookImportRepositoryTest {
         override fun observeByBookId(bookId: String): Flow<ReadingStateEntity?> =
             items.asStateFlow().map { map -> map[bookId] }
 
+        override fun observeAll(): Flow<List<ReadingStateEntity>> =
+            items.asStateFlow().map { map -> map.values.toList() }
+
         override suspend fun getAll(): List<ReadingStateEntity> = items.value.values.toList()
 
         override suspend fun clearAll() {
@@ -201,12 +251,21 @@ class LocalBookImportRepositoryTest {
         override fun observeByBookId(bookId: String): Flow<List<BookAssetEntity>> =
             items.asStateFlow().map { list -> list.filter { it.bookId == bookId } }
 
+        override fun observeAll(): Flow<List<BookAssetEntity>> = items.asStateFlow()
+
+        override suspend fun findByRole(bookId: String, assetRole: AssetRole): BookAssetEntity? =
+            items.value.firstOrNull { it.bookId == bookId && it.assetRole == assetRole }
+
         override suspend fun clearAll() {
             items.value = emptyList()
         }
 
         override suspend fun deleteByBookId(bookId: String) {
             items.value = items.value.filterNot { it.bookId == bookId }
+        }
+
+        override suspend fun deleteByRole(bookId: String, assetRole: AssetRole) {
+            items.value = items.value.filterNot { it.bookId == bookId && it.assetRole == assetRole }
         }
 
         override suspend fun replaceAll(entities: List<BookAssetEntity>) {

@@ -29,5 +29,12 @@ data class ImportedLocalBook(
 data class ReaderContent(
     val chapterTitle: String,
     val paragraphs: List<String>,
+    val chapterRef: String? = null,
 )
 
+data class EpubLocator(
+    val chapterRef: String,
+    val paragraphIndex: Int,
+) {
+    fun encode(): String = "chapter:$chapterRef#paragraph:$paragraphIndex"
+}

@@ -53,6 +53,9 @@ jobs:
       - name: Validate release version metadata
         run: python3 scripts/release_metadata.py check-tag "${{ steps.release_context.outputs.tag_name }}" app/build.gradle.kts
 
+      - name: Validate release metadata pack
+        run: python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md
+
       - name: Prepare release notes
         run: python3 scripts/release_metadata.py notes "${{ steps.release_context.outputs.version }}" CHANGELOG.md > release-notes.md
 
