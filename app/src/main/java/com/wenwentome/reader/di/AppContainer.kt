@@ -53,6 +53,7 @@ import com.wenwentome.reader.sync.github.SyncPreferencesStore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 class AppContainer(
     private val application: Application,
@@ -89,6 +90,7 @@ class AppContainer(
         createSecureApiSecretLocalStore(
             context = appContext,
             preferencesName = "bootstrap-secrets",
+            knownSecretIdsProvider = { setOf(GITHUB_BOOTSTRAP_SECRET_ID) },
         )
     }
 
@@ -96,6 +98,11 @@ class AppContainer(
         createSecureApiSecretLocalStore(
             context = appContext,
             preferencesName = "api-hub-secrets",
+            knownSecretIdsProvider = {
+                runBlocking {
+                    database.apiProviderDao().getAll().map { provider -> provider.providerId }.toSet()
+                }
+            },
         )
     }
 

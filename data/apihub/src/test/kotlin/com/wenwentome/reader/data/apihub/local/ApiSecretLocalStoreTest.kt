@@ -24,6 +24,8 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class ApiSecretLocalStoreTest {
+    private val bootstrapSecretId = "github.bootstrap.token"
+
     @Test
     fun apiSecretLocalStore_readsAndWritesBootstrapSecret() = runTest {
         val store = createStore("bootstrap").store
@@ -66,7 +68,12 @@ class ApiSecretLocalStoreTest {
                     .commit()
             }
 
-        val store = createSecureApiSecretLocalStore(context, preferencesName)
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-legacy", bootstrapSecretId) },
+            )
 
         assertEquals("sk-legacy", store.read("provider-legacy"))
         assertEquals("ghp-legacy", store.read("github.bootstrap.token"))
@@ -92,7 +99,12 @@ class ApiSecretLocalStoreTest {
                     .commit()
             }
 
-        val store = createSecureApiSecretLocalStore(context, preferencesName)
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-legacy") },
+            )
 
         assertEquals("sk-legacy", store.read("provider-legacy"))
         assertTrue(sameNamePreferences.all.isNotEmpty())
@@ -115,6 +127,7 @@ class ApiSecretLocalStoreTest {
             createSecureApiSecretLocalStore(
                 context = context,
                 preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-legacy") },
                 hooks =
                     SecretStoreTestHooks(
                         beforeImport = {
@@ -133,7 +146,12 @@ class ApiSecretLocalStoreTest {
             assertTrue(sameNamePreferences.all.isNotEmpty())
         }
 
-        val recoveredStore = createSecureApiSecretLocalStore(context, preferencesName)
+        val recoveredStore =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-legacy") },
+            )
 
         assertEquals("sk-legacy", recoveredStore.read("provider-legacy"))
         val backupPreferences =
@@ -161,6 +179,7 @@ class ApiSecretLocalStoreTest {
             createSecureApiSecretLocalStore(
                 context = context,
                 preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-legacy") },
                 hooks =
                     SecretStoreTestHooks(
                         createEncryptedPreferences = { _, _ ->
@@ -216,6 +235,7 @@ class ApiSecretLocalStoreTest {
             createSecureApiSecretLocalStore(
                 context = context,
                 preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-shared", "provider-live-only", "provider-backup-only") },
                 hooks =
                     SecretStoreTestHooks(
                         createEncryptedPreferences = { _, _ ->
@@ -247,9 +267,48 @@ class ApiSecretLocalStoreTest {
     }
 
     @Test
-    fun apiSecretLocalStore_mergesLivePlaintextEvenWhenAndroidXKeysetMetadataExists() = runTest {
+    fun apiSecretLocalStore_migratesOnlyKnownSecretIdsWhenKeysetAndOtherEntriesExist() = runTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val preferencesName = "api-secret-store-test-keyset-live-merge"
+        val preferencesName = "api-secret-store-test-known-ids-with-keyset"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString(ANDROIDX_SECURITY_KEY_KEYSET, "keyset")
+                    .putString(ANDROIDX_SECURITY_VALUE_KEYSET, "value-keyset")
+                    .putString("provider-known", "sk-known")
+                    .putString("provider-unknown", "sk-unknown")
+                    .commit()
+            }
+
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-known") },
+                hooks =
+                    SecretStoreTestHooks(
+                        createEncryptedPreferences = { _, _ ->
+                            PrefixingSharedPreferences(
+                                delegate = sameNamePreferences,
+                                prefix = "secure:",
+                            )
+                        },
+                    ),
+            )
+
+        assertEquals("sk-known", store.read("provider-known"))
+        assertNull(store.read("provider-unknown"))
+        assertNull(sameNamePreferences.getString("provider-known", null))
+        assertEquals("sk-unknown", sameNamePreferences.getString("provider-unknown", null))
+        assertEquals("keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_KEY_KEYSET, null))
+        assertEquals("value-keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_VALUE_KEYSET, null))
+    }
+
+    @Test
+    fun apiSecretLocalStore_backupAndKeysetStillMergeKnownLivePlaintext() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-backup-keyset-known"
         val sameNamePreferences =
             context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
                 it.edit()
@@ -257,7 +316,7 @@ class ApiSecretLocalStoreTest {
                     .putString(ANDROIDX_SECURITY_KEY_KEYSET, "keyset")
                     .putString(ANDROIDX_SECURITY_VALUE_KEYSET, "value-keyset")
                     .putString("provider-shared", "sk-live")
-                    .putString("provider-live-only", "sk-live-only")
+                    .putString("provider-unknown", "sk-unknown")
                     .commit()
             }
         context.getSharedPreferences(
@@ -273,6 +332,7 @@ class ApiSecretLocalStoreTest {
             createSecureApiSecretLocalStore(
                 context = context,
                 preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-shared", "provider-backup-only") },
                 hooks =
                     SecretStoreTestHooks(
                         createEncryptedPreferences = { _, _ ->
@@ -285,37 +345,81 @@ class ApiSecretLocalStoreTest {
             )
 
         assertEquals("sk-live", store.read("provider-shared"))
-        assertEquals("sk-live-only", store.read("provider-live-only"))
         assertEquals("sk-backup-only", store.read("provider-backup-only"))
         assertNull(sameNamePreferences.getString("provider-shared", null))
-        assertNull(sameNamePreferences.getString("provider-live-only", null))
+        assertEquals("sk-unknown", sameNamePreferences.getString("provider-unknown", null))
         assertEquals("keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_KEY_KEYSET, null))
         assertEquals("value-keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_VALUE_KEYSET, null))
     }
 
     @Test
-    fun apiSecretLocalStore_withAndroidXSecurityKeysetEntries_isNotTreatedAsPlainLegacy() {
+    fun apiSecretLocalStore_bootstrapStoreOnlyMigratesBootstrapSecretId() = runTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val preferencesName = "api-secret-store-test-keyset"
+        val preferencesName = "api-secret-store-test-bootstrap-whitelist"
         val sameNamePreferences =
             context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
                 it.edit()
                     .clear()
-                    .putString(ANDROIDX_SECURITY_KEY_KEYSET, "keyset")
-                    .putString(ANDROIDX_SECURITY_VALUE_KEYSET, "value-keyset")
-                    .putString("provider-legacy", "plain-looking-value")
+                    .putString(bootstrapSecretId, "ghp-bootstrap")
+                    .putString("provider-unknown", "sk-unknown")
                     .commit()
             }
 
-        val detected =
-            loadPlainLegacySecretsOrNull(
-                preferences = sameNamePreferences,
-                packageName = context.packageName,
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
                 preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf(bootstrapSecretId) },
+                hooks =
+                    SecretStoreTestHooks(
+                        createEncryptedPreferences = { _, _ ->
+                            PrefixingSharedPreferences(
+                                delegate = sameNamePreferences,
+                                prefix = "secure:",
+                            )
+                        },
+                    ),
             )
 
-        assertEquals(null, detected)
-        assertEquals("plain-looking-value", sameNamePreferences.getString("provider-legacy", null))
+        assertEquals("ghp-bootstrap", store.read(bootstrapSecretId))
+        assertNull(store.read("provider-unknown"))
+        assertNull(sameNamePreferences.getString(bootstrapSecretId, null))
+        assertEquals("sk-unknown", sameNamePreferences.getString("provider-unknown", null))
+    }
+
+    @Test
+    fun apiSecretLocalStore_providerStoreOnlyMigratesRegisteredProviderIds() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-provider-whitelist"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString("provider-known", "sk-known")
+                    .putString("provider-unknown", "sk-unknown")
+                    .commit()
+            }
+
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-known") },
+                hooks =
+                    SecretStoreTestHooks(
+                        createEncryptedPreferences = { _, _ ->
+                            PrefixingSharedPreferences(
+                                delegate = sameNamePreferences,
+                                prefix = "secure:",
+                            )
+                        },
+                    ),
+            )
+
+        assertEquals("sk-known", store.read("provider-known"))
+        assertNull(store.read("provider-unknown"))
+        assertNull(sameNamePreferences.getString("provider-known", null))
+        assertEquals("sk-unknown", sameNamePreferences.getString("provider-unknown", null))
     }
 
     @Test

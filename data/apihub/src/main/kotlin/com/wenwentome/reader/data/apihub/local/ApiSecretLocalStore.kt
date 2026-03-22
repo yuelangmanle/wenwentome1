@@ -103,16 +103,19 @@ private data class PendingPlainSecretMigration(
 fun createSecureApiSecretLocalStore(
     context: Context,
     preferencesName: String,
+    knownSecretIdsProvider: () -> Set<String> = { emptySet() },
 ): ApiSecretLocalStore =
     createSecureApiSecretLocalStore(
         context = context,
         preferencesName = preferencesName,
+        knownSecretIdsProvider = knownSecretIdsProvider,
         hooks = SecretStoreTestHooks(),
     )
 
 internal fun createSecureApiSecretLocalStore(
     context: Context,
     preferencesName: String,
+    knownSecretIdsProvider: () -> Set<String> = { emptySet() },
     hooks: SecretStoreTestHooks = SecretStoreTestHooks(),
 ): ApiSecretLocalStore {
     val sameNamePreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
@@ -121,6 +124,7 @@ internal fun createSecureApiSecretLocalStore(
             context = context,
             sameNamePreferences = sameNamePreferences,
             preferencesName = preferencesName,
+            knownSecretIds = knownSecretIdsProvider(),
         )
     val store =
         createSecureStore(
@@ -187,34 +191,11 @@ internal fun shouldUseRobolectricFallback(error: Throwable): Boolean =
 private fun Throwable.causalChain(): Sequence<Throwable> =
     generateSequence(this) { current -> current.cause }
 
-internal fun loadPlainLegacySecretsOrNull(
-    preferences: SharedPreferences,
-    packageName: String,
-    preferencesName: String,
-): List<Pair<String, String>>? {
-    val stringEntries =
-        preferences.all.mapNotNull { (secretId, value) ->
-            (value as? String)?.let { plainText -> secretId to plainText }
-        }
-    if (stringEntries.isEmpty()) return null
-    if (containsEncryptedSharedPreferencesKeysetEntries(preferences)) return null
-
-    val fallbackCodec = RobolectricCipherCodec(packageName = packageName, preferencesName = preferencesName)
-    if (stringEntries.all { (_, storedValue) -> fallbackCodec.canDecrypt(storedValue) }) {
-        return null
-    }
-
-    return stringEntries
-}
-
-private fun containsEncryptedSharedPreferencesKeysetEntries(preferences: SharedPreferences): Boolean =
-    preferences.contains(ANDROIDX_SECURITY_KEY_KEYSET) ||
-        preferences.contains(ANDROIDX_SECURITY_VALUE_KEYSET)
-
 private fun preparePendingMigration(
     context: Context,
     sameNamePreferences: SharedPreferences,
     preferencesName: String,
+    knownSecretIds: Set<String>,
 ): PendingPlainSecretMigration? {
     val backupPreferences =
         context.getSharedPreferences(
@@ -225,6 +206,7 @@ private fun preparePendingMigration(
     val livePlainLegacySecrets =
         loadLivePlainLegacySecretsOrNull(
             preferences = sameNamePreferences,
+            knownSecretIds = knownSecretIds,
             packageName = context.packageName,
             preferencesName = preferencesName,
         ).orEmpty()
@@ -363,20 +345,18 @@ private fun mergePendingMigrationSecrets(
 
 private fun loadLivePlainLegacySecretsOrNull(
     preferences: SharedPreferences,
+    knownSecretIds: Set<String>,
     packageName: String,
     preferencesName: String,
 ): List<Pair<String, String>>? {
+    if (knownSecretIds.isEmpty()) return null
     val fallbackCodec = RobolectricCipherCodec(packageName = packageName, preferencesName = preferencesName)
-    return preferences.all.mapNotNull { (secretId, value) ->
-        val plainText = value as? String ?: return@mapNotNull null
-        if (isAndroidXSecurityMetadataKey(secretId)) return@mapNotNull null
+    return knownSecretIds.mapNotNull { secretId ->
+        val plainText = preferences.getString(secretId, null) ?: return@mapNotNull null
         if (fallbackCodec.canDecrypt(plainText)) return@mapNotNull null
         secretId to plainText
     }.ifEmpty { null }
 }
-
-private fun isAndroidXSecurityMetadataKey(secretId: String): Boolean =
-    secretId == ANDROIDX_SECURITY_KEY_KEYSET || secretId == ANDROIDX_SECURITY_VALUE_KEYSET
 
 private fun persistBackupSecrets(
     backupPreferences: SharedPreferences,
