@@ -184,6 +184,64 @@ class ApiSecretLocalStoreTest {
             context.getSharedPreferences(
                 migrationBackupPreferencesName(preferencesName),
                 android.content.Context.MODE_PRIVATE,
+        )
+        assertTrue(backupPreferences.all.isEmpty())
+    }
+
+    @Test
+    fun apiSecretLocalStore_mergesBackupWithLivePlainLegacyBeforeRetryingEncryptedCreation() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-backup-live-merge"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString("provider-shared", "sk-live")
+                    .putString("provider-live-only", "sk-live-only")
+                    .putInt("non-migration-version", 7)
+                    .commit()
+            }
+        context.getSharedPreferences(
+            migrationBackupPreferencesName(preferencesName),
+            android.content.Context.MODE_PRIVATE,
+        ).edit()
+            .clear()
+            .putString("provider-shared", "sk-backup")
+            .putString("provider-backup-only", "sk-backup-only")
+            .commit()
+
+        var createAttempts = 0
+
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                hooks =
+                    SecretStoreTestHooks(
+                        createEncryptedPreferences = { _, _ ->
+                            createAttempts += 1
+                            if (createAttempts == 1) {
+                                throw IllegalStateException("simulated encrypted prefs blocked by plain legacy")
+                            }
+                            PrefixingSharedPreferences(
+                                delegate = sameNamePreferences,
+                                prefix = "secure:",
+                            )
+                        },
+                    ),
+            )
+
+        assertEquals(2, createAttempts)
+        assertEquals("sk-live", store.read("provider-shared"))
+        assertEquals("sk-live-only", store.read("provider-live-only"))
+        assertEquals("sk-backup-only", store.read("provider-backup-only"))
+        assertNull(sameNamePreferences.getString("provider-shared", null))
+        assertNull(sameNamePreferences.getString("provider-live-only", null))
+        assertEquals(7, sameNamePreferences.getInt("non-migration-version", -1))
+        val backupPreferences =
+            context.getSharedPreferences(
+                migrationBackupPreferencesName(preferencesName),
+                android.content.Context.MODE_PRIVATE,
             )
         assertTrue(backupPreferences.all.isEmpty())
     }

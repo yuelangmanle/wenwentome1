@@ -96,6 +96,7 @@ internal data class SecretStoreTestHooks(
 
 private data class PendingPlainSecretMigration(
     val secrets: List<Pair<String, String>>,
+    val liveLegacySecretIds: List<String>,
     val backupPreferences: SharedPreferences,
 )
 
@@ -220,23 +221,22 @@ private fun preparePendingMigration(
             migrationBackupPreferencesName(preferencesName),
             Context.MODE_PRIVATE,
         )
-    loadStoredSecretsOrNull(backupPreferences)?.let { backupSecrets ->
-        return PendingPlainSecretMigration(
-            secrets = backupSecrets,
-            backupPreferences = backupPreferences,
-        )
-    }
-
-    val plainLegacySecrets =
+    val backupSecrets = loadStoredSecretsOrNull(backupPreferences).orEmpty()
+    val livePlainLegacySecrets =
         loadPlainLegacySecretsOrNull(
             preferences = sameNamePreferences,
             packageName = context.packageName,
             preferencesName = preferencesName,
-        ) ?: return null
+        ).orEmpty()
+    if (backupSecrets.isEmpty() && livePlainLegacySecrets.isEmpty()) {
+        return null
+    }
 
-    persistBackupSecrets(backupPreferences, plainLegacySecrets)
+    val mergedSecrets = mergePendingMigrationSecrets(backupSecrets, livePlainLegacySecrets)
+    persistBackupSecrets(backupPreferences, mergedSecrets)
     return PendingPlainSecretMigration(
-        secrets = plainLegacySecrets,
+        secrets = mergedSecrets,
+        liveLegacySecretIds = livePlainLegacySecrets.map { (secretId, _) -> secretId },
         backupPreferences = backupPreferences,
     )
 }
@@ -265,8 +265,9 @@ private fun createSecureStore(
             throw error
         }
 
-        clearPreferences(
+        removePlainLegacyEntries(
             sameNamePreferences,
+            pendingMigration.liveLegacySecretIds,
             "Failed to clear legacy plaintext secrets before retrying secure migration",
         )
 
@@ -304,7 +305,8 @@ private fun completePendingMigration(
             }
             removePlainLegacyEntries(
                 preferences = sameNamePreferences,
-                secretIds = pendingMigration.secrets.map { (secretId, _) -> secretId },
+                secretIds = pendingMigration.liveLegacySecretIds,
+                failureMessage = "Failed to clear legacy plaintext secrets after secure migration",
             )
         }
 
@@ -335,12 +337,28 @@ private fun verifyImportedSecrets(
 private fun removePlainLegacyEntries(
     preferences: SharedPreferences,
     secretIds: List<String>,
+    failureMessage: String,
 ) {
+    if (secretIds.isEmpty()) return
     val editor = preferences.edit()
-    secretIds.forEach(editor::remove)
+    secretIds.distinct().forEach(editor::remove)
     check(editor.commit()) {
-        "Failed to clear legacy plaintext secrets after secure migration"
+        failureMessage
     }
+}
+
+private fun mergePendingMigrationSecrets(
+    backupSecrets: List<Pair<String, String>>,
+    livePlainLegacySecrets: List<Pair<String, String>>,
+): List<Pair<String, String>> {
+    val mergedSecrets = LinkedHashMap<String, String>()
+    backupSecrets.forEach { (secretId, plainText) ->
+        mergedSecrets[secretId] = plainText
+    }
+    livePlainLegacySecrets.forEach { (secretId, plainText) ->
+        mergedSecrets[secretId] = plainText
+    }
+    return mergedSecrets.entries.map { (secretId, plainText) -> secretId to plainText }
 }
 
 private fun persistBackupSecrets(
