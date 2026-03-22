@@ -326,6 +326,7 @@ class ApiSecretLocalStoreTest {
             .clear()
             .putString("provider-shared", "sk-backup")
             .putString("provider-backup-only", "sk-backup-only")
+            .putString("provider-unknown-backup", "sk-unknown-backup")
             .commit()
 
         val store =
@@ -346,8 +347,64 @@ class ApiSecretLocalStoreTest {
 
         assertEquals("sk-live", store.read("provider-shared"))
         assertEquals("sk-backup-only", store.read("provider-backup-only"))
+        assertNull(store.read("provider-unknown-backup"))
         assertNull(sameNamePreferences.getString("provider-shared", null))
         assertEquals("sk-unknown", sameNamePreferences.getString("provider-unknown", null))
+        assertEquals("keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_KEY_KEYSET, null))
+        assertEquals("value-keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_VALUE_KEYSET, null))
+        val backupPreferences =
+            context.getSharedPreferences(
+                migrationBackupPreferencesName(preferencesName),
+                android.content.Context.MODE_PRIVATE,
+            )
+        assertTrue(backupPreferences.all.isEmpty())
+    }
+
+    @Test
+    fun apiSecretLocalStore_ignoresUnknownBackupEntriesOutsideKnownSecretIds() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-backup-whitelist"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString(ANDROIDX_SECURITY_KEY_KEYSET, "keyset")
+                    .putString(ANDROIDX_SECURITY_VALUE_KEYSET, "value-keyset")
+                    .commit()
+            }
+        context.getSharedPreferences(
+            migrationBackupPreferencesName(preferencesName),
+            android.content.Context.MODE_PRIVATE,
+        ).edit()
+            .clear()
+            .putString("provider-known", "sk-known")
+            .putString("provider-unknown", "sk-unknown")
+            .commit()
+
+        val store =
+            createSecureApiSecretLocalStore(
+                context = context,
+                preferencesName = preferencesName,
+                knownSecretIdsProvider = { setOf("provider-known") },
+                hooks =
+                    SecretStoreTestHooks(
+                        createEncryptedPreferences = { _, _ ->
+                            PrefixingSharedPreferences(
+                                delegate = sameNamePreferences,
+                                prefix = "secure:",
+                            )
+                        },
+                    ),
+            )
+
+        assertEquals("sk-known", store.read("provider-known"))
+        assertNull(store.read("provider-unknown"))
+        val backupPreferences =
+            context.getSharedPreferences(
+                migrationBackupPreferencesName(preferencesName),
+                android.content.Context.MODE_PRIVATE,
+            )
+        assertTrue(backupPreferences.all.isEmpty())
         assertEquals("keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_KEY_KEYSET, null))
         assertEquals("value-keyset", sameNamePreferences.getString(ANDROIDX_SECURITY_VALUE_KEYSET, null))
     }

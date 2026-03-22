@@ -202,7 +202,11 @@ private fun preparePendingMigration(
             migrationBackupPreferencesName(preferencesName),
             Context.MODE_PRIVATE,
         )
-    val backupSecrets = loadStoredSecretsOrNull(backupPreferences).orEmpty()
+    val backupSecrets =
+        loadStoredSecretsOrNull(
+            preferences = backupPreferences,
+            knownSecretIds = knownSecretIds,
+        ).orEmpty()
     val livePlainLegacySecrets =
         loadLivePlainLegacySecretsOrNull(
             preferences = sameNamePreferences,
@@ -372,7 +376,16 @@ private fun persistBackupSecrets(
 }
 
 private fun loadStoredSecretsOrNull(preferences: SharedPreferences): List<Pair<String, String>>? =
+    loadStoredSecretsOrNull(preferences = preferences, knownSecretIds = null)
+
+private fun loadStoredSecretsOrNull(
+    preferences: SharedPreferences,
+    knownSecretIds: Set<String>?,
+): List<Pair<String, String>>? =
     preferences.all.mapNotNull { (secretId, value) ->
+        if (knownSecretIds != null && secretId !in knownSecretIds) {
+            return@mapNotNull null
+        }
         (value as? String)?.let { plainText -> secretId to plainText }
     }.ifEmpty { null }
 
