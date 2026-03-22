@@ -47,12 +47,12 @@ class EncryptedSharedPreferencesApiSecretLocalStore(
         deleteSecret(preferences, secretId)
     }
 
-    fun migrateFrom(legacyPreferences: SharedPreferences) {
-        migrateLegacySecrets(
-            legacyPreferences = legacyPreferences,
-            hasSecret = { secretId -> preferences.contains(secretId) },
-            persistMigrated = { secretId, plainText -> persistSecret(preferences, secretId, plainText) },
-        )
+    fun importPlainSecrets(secrets: List<Pair<String, String>>) {
+        secrets.forEach { (secretId, plainText) ->
+            if (!preferences.contains(secretId)) {
+                persistSecret(preferences, secretId, plainText)
+            }
+        }
     }
 }
 
@@ -61,50 +61,25 @@ private class RobolectricSecureApiSecretLocalStore(
     packageName: String,
     preferencesName: String,
 ) : ApiSecretLocalStore {
-    private val secretKey =
-        SecretKeySpec(
-            MessageDigest.getInstance("SHA-256")
-                .digest("$packageName:$preferencesName".encodeToByteArray()),
-            "AES",
-        )
+    private val cipherCodec = RobolectricCipherCodec(packageName = packageName, preferencesName = preferencesName)
 
     override suspend fun save(secretId: String, plainText: String) {
-        persistSecret(preferences, secretId, encrypt(plainText))
+        persistSecret(preferences, secretId, cipherCodec.encrypt(plainText))
     }
 
     override suspend fun read(secretId: String): String? =
-        preferences.getString(secretId, null)?.let(::decrypt)
+        preferences.getString(secretId, null)?.let(cipherCodec::decrypt)
 
     override suspend fun delete(secretId: String) {
         deleteSecret(preferences, secretId)
     }
 
-    fun migrateFrom(legacyPreferences: SharedPreferences) {
-        migrateLegacySecrets(
-            legacyPreferences = legacyPreferences,
-            hasSecret = { secretId -> preferences.contains(secretId) },
-            persistMigrated = { secretId, plainText -> persistSecret(preferences, secretId, encrypt(plainText)) },
-        )
-    }
-
-    private fun encrypt(plainText: String): String {
-        val iv = ByteArray(12)
-        SecureRandom().nextBytes(iv)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
-        val cipherBytes = cipher.doFinal(plainText.encodeToByteArray())
-        return "${iv.toBase64()}:${cipherBytes.toBase64()}"
-    }
-
-    private fun decrypt(encoded: String): String {
-        val (ivBase64, cipherBase64) = encoded.split(':', limit = 2)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            secretKey,
-            GCMParameterSpec(128, Base64.getDecoder().decode(ivBase64)),
-        )
-        return cipher.doFinal(Base64.getDecoder().decode(cipherBase64)).decodeToString()
+    fun importPlainSecrets(secrets: List<Pair<String, String>>) {
+        secrets.forEach { (secretId, plainText) ->
+            if (!preferences.contains(secretId)) {
+                persistSecret(preferences, secretId, cipherCodec.encrypt(plainText))
+            }
+        }
     }
 }
 
@@ -112,22 +87,30 @@ fun createSecureApiSecretLocalStore(
     context: Context,
     preferencesName: String,
 ): ApiSecretLocalStore {
-    val legacyPreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
-    val secureName = securePreferencesName(preferencesName)
+    val sameNamePreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+    val plainLegacySecrets =
+        loadPlainLegacySecretsOrNull(
+            preferences = sameNamePreferences,
+            packageName = context.packageName,
+            preferencesName = preferencesName,
+        )
+    if (plainLegacySecrets != null) {
+        clearPreferences(sameNamePreferences, "Failed to clear legacy plaintext secrets before secure migration")
+    }
     return runCatching {
         EncryptedSharedPreferencesApiSecretLocalStore(
-            preferences = createEncryptedPreferences(context, secureName),
+            preferences = createEncryptedPreferences(context, preferencesName),
         ).also { store ->
-            store.migrateFrom(legacyPreferences)
+            store.importPlainSecrets(plainLegacySecrets.orEmpty())
         }
     }.getOrElse { error ->
         if (shouldUseRobolectricFallback(error)) {
             RobolectricSecureApiSecretLocalStore(
-                preferences = context.getSharedPreferences(secureName, Context.MODE_PRIVATE),
+                preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE),
                 packageName = context.packageName,
-                preferencesName = secureName,
+                preferencesName = preferencesName,
             ).also { store ->
-                store.migrateFrom(legacyPreferences)
+                store.importPlainSecrets(plainLegacySecrets.orEmpty())
             }
         } else {
             throw error
@@ -151,8 +134,6 @@ internal fun createEncryptedPreferences(
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 }
-
-internal fun securePreferencesName(preferencesName: String): String = "$preferencesName.secure"
 
 private fun persistSecret(
     preferences: SharedPreferences,
@@ -179,33 +160,92 @@ private fun isRobolectricRuntime(): Boolean =
     Build.FINGERPRINT.equals("robolectric", ignoreCase = true)
 
 private fun shouldUseRobolectricFallback(error: Throwable): Boolean =
-    isRobolectricRuntime() && error.causalChain().any { cause ->
-        cause is KeyStoreException ||
-            cause is NoSuchAlgorithmException ||
-            cause.message?.contains("AndroidKeyStore", ignoreCase = true) == true
-    }
-
-private fun migrateLegacySecrets(
-    legacyPreferences: SharedPreferences,
-    hasSecret: (String) -> Boolean,
-    persistMigrated: (String, String) -> Unit,
-) {
-    val legacyEntries =
-        legacyPreferences.all
-            .mapNotNull { (secretId, value) ->
-                (value as? String)?.let { plainText -> secretId to plainText }
-            }
-    if (legacyEntries.isEmpty()) return
-
-    legacyEntries.forEach { (secretId, plainText) ->
-        if (!hasSecret(secretId)) {
-            persistMigrated(secretId, plainText)
-        }
-    }
-    check(legacyPreferences.edit().clear().commit()) {
-        "Failed to clear migrated legacy secrets"
-    }
-}
+    isRobolectricRuntime() && error.causalChain().any(::isAndroidKeyStoreUnavailable)
 
 private fun Throwable.causalChain(): Sequence<Throwable> =
     generateSequence(this) { current -> current.cause }
+
+private fun loadPlainLegacySecretsOrNull(
+    preferences: SharedPreferences,
+    packageName: String,
+    preferencesName: String,
+): List<Pair<String, String>>? {
+    val stringEntries =
+        preferences.all.mapNotNull { (secretId, value) ->
+            (value as? String)?.let { plainText -> secretId to plainText }
+        }
+    if (stringEntries.isEmpty()) return null
+    if (containsEncryptedSharedPreferencesKeysetEntries(preferences)) return null
+
+    val fallbackCodec = RobolectricCipherCodec(packageName = packageName, preferencesName = preferencesName)
+    if (stringEntries.all { (_, storedValue) -> fallbackCodec.canDecrypt(storedValue) }) {
+        return null
+    }
+
+    return stringEntries
+}
+
+private fun containsEncryptedSharedPreferencesKeysetEntries(preferences: SharedPreferences): Boolean =
+    preferences.contains(ANDROIDX_SECURITY_KEY_KEYSET) ||
+        preferences.contains(ANDROIDX_SECURITY_VALUE_KEYSET)
+
+private fun clearPreferences(
+    preferences: SharedPreferences,
+    failureMessage: String,
+) {
+    check(preferences.edit().clear().commit()) {
+        failureMessage
+    }
+}
+
+private fun isAndroidKeyStoreUnavailable(cause: Throwable): Boolean {
+    val className = cause::class.java.name
+    val message = cause.message.orEmpty()
+    val hasKeyStoreClue =
+        className.contains("KeyStore", ignoreCase = true) ||
+            message.contains("AndroidKeyStore", ignoreCase = true) ||
+            message.contains("KeyStore", ignoreCase = true)
+    if (!hasKeyStoreClue) return false
+    return cause is KeyStoreException ||
+        (cause is NoSuchAlgorithmException && message.contains("AndroidKeyStore", ignoreCase = true))
+}
+
+private class RobolectricCipherCodec(
+    packageName: String,
+    preferencesName: String,
+) {
+    private val secretKey =
+        SecretKeySpec(
+            MessageDigest.getInstance("SHA-256")
+                .digest("$packageName:$preferencesName".encodeToByteArray()),
+            "AES",
+        )
+
+    fun encrypt(plainText: String): String {
+        val iv = ByteArray(12)
+        SecureRandom().nextBytes(iv)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
+        val cipherBytes = cipher.doFinal(plainText.encodeToByteArray())
+        return "${iv.toBase64()}:${cipherBytes.toBase64()}"
+    }
+
+    fun decrypt(encoded: String): String {
+        val (ivBase64, cipherBase64) = encoded.split(':', limit = 2)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            secretKey,
+            GCMParameterSpec(128, Base64.getDecoder().decode(ivBase64)),
+        )
+        return cipher.doFinal(Base64.getDecoder().decode(cipherBase64)).decodeToString()
+    }
+
+    fun canDecrypt(encoded: String): Boolean =
+        runCatching {
+            decrypt(encoded)
+        }.isSuccess
+}
+
+private const val ANDROIDX_SECURITY_KEY_KEYSET = "__androidx_security_crypto_encrypted_prefs_key_keyset__"
+private const val ANDROIDX_SECURITY_VALUE_KEYSET = "__androidx_security_crypto_encrypted_prefs_value_keyset__"

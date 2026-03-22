@@ -1,6 +1,12 @@
 package com.wenwentome.reader.data.apihub.local
 
 import androidx.test.core.app.ApplicationProvider
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -43,33 +49,49 @@ class ApiSecretLocalStoreTest {
     }
 
     @Test
-    fun apiSecretLocalStore_migratesLegacyPlaintextSecretsIntoSecureBacking() = runTest {
+    fun apiSecretLocalStore_migratesSameNamePlainLegacySecretsIntoLatestSecureBacking() = runTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val preferencesName = "api-secret-store-test-migrate"
-        val legacyPreferences =
-            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE)
-                .also {
-                    it.edit()
-                        .clear()
-                        .putString("provider-legacy", "sk-legacy")
-                        .putString("github.bootstrap.token", "ghp-legacy")
-                        .commit()
-                }
-        val securePreferences =
-            context.getSharedPreferences("$preferencesName.secure", android.content.Context.MODE_PRIVATE)
-                .also { it.edit().clear().commit() }
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString("provider-legacy", "sk-legacy")
+                    .putString("github.bootstrap.token", "ghp-legacy")
+                    .commit()
+            }
 
         val store = createSecureApiSecretLocalStore(context, preferencesName)
 
         assertEquals("sk-legacy", store.read("provider-legacy"))
         assertEquals("ghp-legacy", store.read("github.bootstrap.token"))
-        assertTrue(legacyPreferences.all.isEmpty())
+        assertTrue(sameNamePreferences.all.isNotEmpty())
+        assertTrue(sameNamePreferences.all.values.none { it == "sk-legacy" || it == "ghp-legacy" })
 
         store.save("provider-legacy", "sk-updated")
 
-        assertTrue(securePreferences.all.isNotEmpty())
-        assertTrue(securePreferences.all.values.none { it == "sk-legacy" || it == "sk-updated" || it == "ghp-legacy" })
+        assertTrue(sameNamePreferences.all.isNotEmpty())
+        assertTrue(sameNamePreferences.all.values.none { it == "sk-legacy" || it == "sk-updated" || it == "ghp-legacy" })
         assertEquals("sk-updated", store.read("provider-legacy"))
+    }
+
+    @Test
+    fun apiSecretLocalStore_keepsSameNameSecureBackingFromPreviousVersionReadable() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferencesName = "api-secret-store-test-upgrade-secure"
+        val sameNamePreferences =
+            context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE).also {
+                it.edit()
+                    .clear()
+                    .putString("provider-legacy", encryptForPreviousRobolectricVersion(context, preferencesName, "sk-legacy"))
+                    .commit()
+            }
+
+        val store = createSecureApiSecretLocalStore(context, preferencesName)
+
+        assertEquals("sk-legacy", store.read("provider-legacy"))
+        assertTrue(sameNamePreferences.all.isNotEmpty())
+        assertTrue(sameNamePreferences.all.values.none { it == "sk-legacy" })
     }
 
     private fun createStore(name: String): StoreFixture {
@@ -78,10 +100,6 @@ class ApiSecretLocalStoreTest {
         val preferences =
             context.getSharedPreferences(preferencesName, android.content.Context.MODE_PRIVATE)
                 .also { it.edit().clear().commit() }
-        context.getSharedPreferences("$preferencesName.secure", android.content.Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .commit()
         return StoreFixture(
             store = createSecureApiSecretLocalStore(context, preferencesName),
             preferences = preferences,
@@ -92,4 +110,23 @@ class ApiSecretLocalStoreTest {
         val store: ApiSecretLocalStore,
         val preferences: android.content.SharedPreferences,
     )
+
+    private fun encryptForPreviousRobolectricVersion(
+        context: android.content.Context,
+        preferencesName: String,
+        plainText: String,
+    ): String {
+        val secretKey =
+            SecretKeySpec(
+                MessageDigest.getInstance("SHA-256")
+                    .digest("${context.packageName}:$preferencesName".encodeToByteArray()),
+                "AES",
+            )
+        val iv = ByteArray(12)
+        SecureRandom().nextBytes(iv)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
+        val cipherBytes = cipher.doFinal(plainText.encodeToByteArray())
+        return "${Base64.getEncoder().encodeToString(iv)}:${Base64.getEncoder().encodeToString(cipherBytes)}"
+    }
 }
