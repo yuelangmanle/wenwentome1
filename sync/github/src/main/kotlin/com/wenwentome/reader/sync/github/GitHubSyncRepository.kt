@@ -87,6 +87,7 @@ class GitHubSyncRepository(
         val sourceDefinitions = sourceDefinitionStore.getAll()
         val capabilityBindings = capabilityBindingStore.exportBindings()
         val preferences = preferencesStore.exportSnapshot()
+        val shouldPushSecretEnvelopes = auth.syncPassword.isNotBlank()
         val secretEnvelopes =
             auth.syncPassword
                 .takeIf { it.isNotBlank() }
@@ -100,7 +101,9 @@ class GitHubSyncRepository(
             add(manifest.sourceDefinitionsPath)
             add(manifest.preferencesPath)
             add(manifest.capabilityBindingsPath)
-            add(manifest.secretEnvelopesPath)
+            if (shouldPushSecretEnvelopes) {
+                add(manifest.secretEnvelopesPath)
+            }
             add(manifest.assetIndexPath)
             add(manifest.snapshotPath)
             addAll(assets.map { it.syncPath })
@@ -114,7 +117,9 @@ class GitHubSyncRepository(
         api.putJson(auth, manifest.sourceDefinitionsPath, serializer.encodeSourceDefinitions(sourceDefinitions), existingSha[manifest.sourceDefinitionsPath])
         api.putJson(auth, manifest.preferencesPath, serializer.encodePreferences(preferences), existingSha[manifest.preferencesPath])
         api.putJson(auth, manifest.capabilityBindingsPath, serializer.encodeCapabilityBindings(capabilityBindings), existingSha[manifest.capabilityBindingsPath])
-        api.putJson(auth, manifest.secretEnvelopesPath, serializer.encodeSecretEnvelopes(secretEnvelopes), existingSha[manifest.secretEnvelopesPath])
+        if (shouldPushSecretEnvelopes) {
+            api.putJson(auth, manifest.secretEnvelopesPath, serializer.encodeSecretEnvelopes(secretEnvelopes), existingSha[manifest.secretEnvelopesPath])
+        }
         api.putJson(auth, manifest.assetIndexPath, serializer.encodeAssets(assets), existingSha[manifest.assetIndexPath])
 
         assets.forEach { asset ->

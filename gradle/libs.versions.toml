@@ -18,6 +18,7 @@ serializationJson = "1.8.1"
 jsoup = "1.18.3"
 jsonPath = "2.9.0"
 rhino = "1.7.15"
+androidxSecurityCrypto = "1.1.0-alpha06"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCoreKtx" }
@@ -47,6 +48,7 @@ okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver",
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 json-path = { group = "com.jayway.jsonpath", name = "json-path", version.ref = "jsonPath" }
 rhino = { group = "org.mozilla", name = "rhino", version.ref = "rhino" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "androidxSecurityCrypto" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

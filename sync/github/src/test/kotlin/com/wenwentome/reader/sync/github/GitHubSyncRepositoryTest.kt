@@ -203,6 +203,55 @@ class GitHubSyncRepositoryTest {
     }
 
     @Test
+    fun pushSnapshot_withBlankSyncPassword_preservesRemoteSecretEnvelopesFile() = runTest {
+        val server = MockWebServer()
+        val dispatcher = FakeGitHubDispatcher()
+        server.dispatcher = dispatcher
+        server.start()
+        try {
+            val seedRepository = GitHubSyncRepository(
+                api = GitHubContentApi(server.url("/").toString()),
+                serializer = SyncManifestSerializer(),
+                bookRecordStore = FakeBookRecordStore(existing = listOf(sampleBookRecord())),
+                readingStateStore = FakeReadingStateStore(existing = listOf(sampleReadingState())),
+                remoteBindingStore = FakeRemoteBindingStore(existing = listOf(sampleRemoteBinding())),
+                sourceDefinitionStore = FakeSourceDefinitionStore(existing = listOf(sampleSourceDefinition())),
+                bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
+                preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
+                secretStore = FakeSyncSecretStore(exported = listOf(sampleSecretEnvelope(secretId = "provider/openai"))),
+                capabilityBindingStore = FakeCapabilityBindingSyncStore(),
+                fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
+            )
+            seedRepository.pushSnapshot(
+                auth = GitHubAuthConfig(owner = "me", repo = "books", branch = "main", token = "token", syncPassword = "sync-pass"),
+            )
+            val originalSecretsJson = dispatcher.readText("data/secret-envelopes.json")
+
+            val blankPasswordRepository = GitHubSyncRepository(
+                api = GitHubContentApi(server.url("/").toString()),
+                serializer = SyncManifestSerializer(),
+                bookRecordStore = FakeBookRecordStore(existing = listOf(sampleBookRecord())),
+                readingStateStore = FakeReadingStateStore(existing = listOf(sampleReadingState())),
+                remoteBindingStore = FakeRemoteBindingStore(existing = listOf(sampleRemoteBinding())),
+                sourceDefinitionStore = FakeSourceDefinitionStore(existing = listOf(sampleSourceDefinition())),
+                bookAssetStore = FakeBookAssetStore(existing = listOf(sampleAsset())),
+                preferencesStore = FakeSyncPreferencesStore(samplePreferences()),
+                secretStore = FakeSyncSecretStore(),
+                capabilityBindingStore = FakeCapabilityBindingSyncStore(),
+                fileStore = FakeSyncFileStore(existing = listOf(sampleAsset())),
+            )
+
+            blankPasswordRepository.pushSnapshot(
+                auth = GitHubAuthConfig(owner = "me", repo = "books", branch = "main", token = "token"),
+            )
+
+            assertEquals(originalSecretsJson, dispatcher.readText("data/secret-envelopes.json"))
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun pullLatestSnapshot_preservesLocalSourceDefinitionPayloadWhenRemoteSnapshotIsOlder() = runTest {
         val server = MockWebServer()
         server.dispatcher = FakeGitHubDispatcher()
@@ -395,6 +444,10 @@ private class FakeGitHubDispatcher : Dispatcher() {
     private var revision = 0
 
     fun readText(path: String): String = files.getValue(path).decodeToString()
+
+    fun writeText(path: String, text: String) {
+        files[path] = text.encodeToByteArray()
+    }
 
     override fun dispatch(request: RecordedRequest): MockResponse {
         val path = request.requestUrl?.encodedPath.orEmpty()

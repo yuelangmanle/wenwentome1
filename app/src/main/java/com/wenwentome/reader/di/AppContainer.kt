@@ -16,7 +16,7 @@ import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
 import com.wenwentome.reader.data.apihub.ApiHubModule
 import com.wenwentome.reader.data.apihub.local.ApiSecretLocalStore
-import com.wenwentome.reader.data.apihub.local.SharedPreferencesApiSecretLocalStore
+import com.wenwentome.reader.data.apihub.local.createSecureApiSecretLocalStore
 import com.wenwentome.reader.data.apihub.secret.SecretEnvelopeV1
 import com.wenwentome.reader.data.apihub.secret.SecretScope
 import com.wenwentome.reader.data.apihub.secret.SecretSyncCrypto
@@ -86,14 +86,16 @@ class AppContainer(
     }
 
     private val bootstrapSecretStore by lazy {
-        SharedPreferencesApiSecretLocalStore(
-            preferences = appContext.getSharedPreferences("bootstrap-secrets", Context.MODE_PRIVATE),
+        createSecureApiSecretLocalStore(
+            context = appContext,
+            preferencesName = "bootstrap-secrets",
         )
     }
 
     val apiSecretLocalStore: ApiSecretLocalStore by lazy {
-        SharedPreferencesApiSecretLocalStore(
-            preferences = appContext.getSharedPreferences("api-hub-secrets", Context.MODE_PRIVATE),
+        createSecureApiSecretLocalStore(
+            context = appContext,
+            preferencesName = "api-hub-secrets",
         )
     }
 
@@ -352,6 +354,9 @@ class AppContainer(
 
                 override suspend fun importSnapshot(snapshot: RemotePreferencesSnapshot) {
                     preferencesStore.importSnapshot(snapshot.toLocalSnapshot())
+                    if (snapshot.bootstrapToken.isNotBlank()) {
+                        bootstrapSecretStore.save(GITHUB_BOOTSTRAP_SECRET_ID, snapshot.bootstrapToken)
+                    }
                 }
 
                 override suspend fun getOrCreateDeviceId(): String =

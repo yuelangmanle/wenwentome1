@@ -34,6 +34,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.security.crypto)
 
     testImplementation(libs.junit4)
     testImplementation(libs.androidx.test.core)
