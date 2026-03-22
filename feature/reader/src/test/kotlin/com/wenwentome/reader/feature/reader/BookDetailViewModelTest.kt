@@ -6,6 +6,8 @@ import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.core.model.ReadingState
 import com.wenwentome.reader.core.model.buildReaderChapterLocator
+import com.wenwentome.reader.data.apihub.ability.BookMetadataEnhancementFacade
+import com.wenwentome.reader.data.apihub.ability.BookMetadataEnhancementResult
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -191,6 +193,71 @@ class BookDetailViewModelTest {
         assertEquals("上次读到 第三章", state.lastReadLabel)
     }
 
+    @Test
+    fun enhanceMetadata_updatesSummaryAndSuggestedCover() = runTest {
+        val facade = FakeBookMetadataEnhancementFacade(
+            result = BookMetadataEnhancementResult(
+                improvedSummary = "AI 优化后的简介",
+                suggestedCoverUri = "https://example.com/ai-cover.jpg",
+                authorIntroduction = "黑塞，德国作家。",
+                tags = listOf("成长", "哲思"),
+            ),
+        )
+        val viewModel = BookDetailViewModel(
+            bookId = "book-1",
+            observeBook = flowOf(sampleLocalBook()),
+            observeReadingState = flowOf(ReadingState(bookId = "book-1")),
+            observeChapters = flowOf(sampleChapters()),
+            observeLatestChapterRef = flowOf("chapter-12"),
+            observeAutomaticCover = flowOf("file:///cover.jpg"),
+            observeManualCover = flowOf(null),
+            metadataEnhancementFacade = facade,
+            updateReadingState = {},
+        )
+
+        viewModel.uiState.first { it.book != null }
+        viewModel.enhanceMetadata()
+        advanceUntilIdle()
+
+        assertEquals("AI 优化后的简介", viewModel.uiState.value.aiSummary)
+        assertEquals("https://example.com/ai-cover.jpg", viewModel.uiState.value.suggestedCoverUri)
+        assertEquals(listOf("成长", "哲思"), viewModel.uiState.value.aiTags)
+        assertEquals(1, facade.callCount)
+    }
+
+    @Test
+    fun applyEnhancedMetadata_persistsUpdatedSummaryAndCover() = runTest {
+        var updatedBook: BookRecord? = null
+        val viewModel = BookDetailViewModel(
+            bookId = "book-1",
+            observeBook = flowOf(sampleLocalBook()),
+            observeReadingState = flowOf(ReadingState(bookId = "book-1")),
+            observeChapters = flowOf(sampleChapters()),
+            observeLatestChapterRef = flowOf("chapter-12"),
+            observeAutomaticCover = flowOf("file:///cover.jpg"),
+            observeManualCover = flowOf(null),
+            metadataEnhancementFacade = FakeBookMetadataEnhancementFacade(
+                result = BookMetadataEnhancementResult(
+                    improvedSummary = "AI 优化后的简介",
+                    suggestedCoverUri = "https://example.com/ai-cover.jpg",
+                    authorIntroduction = "黑塞，德国作家。",
+                    tags = listOf("成长"),
+                ),
+            ),
+            applyMetadataAction = { book -> updatedBook = book },
+            updateReadingState = {},
+        )
+
+        viewModel.uiState.first { it.book != null }
+        viewModel.enhanceMetadata()
+        advanceUntilIdle()
+        viewModel.applyMetadataSuggestion()
+        advanceUntilIdle()
+
+        assertEquals("AI 优化后的简介", updatedBook?.summary)
+        assertEquals("https://example.com/ai-cover.jpg", updatedBook?.cover)
+    }
+
     private fun sampleLocalBook(): BookRecord =
         BookRecord(
             id = "book-1",
@@ -240,5 +307,16 @@ class BookDetailViewModelTest {
 
     private companion object {
         val sampleImageBytes = byteArrayOf(1, 2, 3, 4)
+    }
+
+    private class FakeBookMetadataEnhancementFacade(
+        private val result: BookMetadataEnhancementResult,
+    ) : BookMetadataEnhancementFacade {
+        var callCount: Int = 0
+
+        override suspend fun enhance(book: BookRecord): BookMetadataEnhancementResult {
+            callCount += 1
+            return result
+        }
     }
 }

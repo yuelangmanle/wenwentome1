@@ -6,6 +6,7 @@ data class ApiUsageLog(
     val providerId: String,
     val modelId: String,
     val success: Boolean,
+    val usedFallback: Boolean = false,
     val bookId: String? = null,
     val chapterRef: String? = null,
     val durationMs: Long? = null,

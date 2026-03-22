@@ -14,6 +14,7 @@ data class LibraryBookItem(
 
 data class LibraryUiState(
     val filter: LibraryFilter = LibraryFilter.DEFAULT,
+    val sort: LibrarySort = LibrarySort.LAST_READ_DESC,
     val continueReading: LibraryBookItem? = null,
     val visibleBooks: List<LibraryBookItem> = emptyList(),
 )

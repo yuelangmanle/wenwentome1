@@ -4,6 +4,7 @@ import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -169,6 +171,52 @@ class LibraryViewModelTest {
 
         assertEquals(1, refreshCount)
         assertFalse(viewModel.uiState.value.visibleBooks.first { it.book.id == "web-1" }.hasUpdates)
+    }
+
+    @Test
+    fun setFilterAndSort_updatesVisibleBooksInExpectedOrder() = runTest {
+        val bookshelf = MutableStateFlow(
+            listOf(
+                sampleItem(
+                    book = BookRecord.newLocal("悉达多", "黑塞", BookFormat.EPUB),
+                    lastReadAt = 1_000L,
+                ),
+                sampleItem(
+                    book = BookRecord(
+                        id = "web-2",
+                        title = "诡秘之主",
+                        author = "爱潜水的乌贼",
+                        originType = OriginType.WEB,
+                        primaryFormat = BookFormat.WEB,
+                    ),
+                    lastReadAt = 2_000L,
+                ),
+                sampleItem(
+                    book = BookRecord(
+                        id = "web-1",
+                        title = "雪中悍刀行",
+                        author = "烽火戏诸侯",
+                        originType = OriginType.WEB,
+                        primaryFormat = BookFormat.WEB,
+                    ),
+                    lastReadAt = 4_000L,
+                ),
+            )
+        )
+        val viewModel = LibraryViewModel(
+            observeBookshelf = fakeObserveBookshelfUseCase(bookshelf),
+            importLocalBook = { _ -> },
+            refreshCatalogAction = {},
+        )
+
+        viewModel.setFilter(LibraryFilter.WEB_ONLY)
+        viewModel.setSort(LibrarySort.TITLE_ASC)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(LibraryFilter.WEB_ONLY, state.filter)
+        assertEquals(LibrarySort.TITLE_ASC, state.sort)
+        assertEquals(listOf("web-2", "web-1"), state.visibleBooks.map { it.book.id })
     }
 
     private fun fakeObserveBookshelfUseCase(flow: Flow<List<LibraryBookItem>>): ObserveBookshelfUseCase =

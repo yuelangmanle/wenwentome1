@@ -18,6 +18,7 @@ import com.wenwentome.reader.core.model.ApiProviderProfile
 import com.wenwentome.reader.core.model.ApiUsageLog
 import com.wenwentome.reader.core.model.DEFAULT_API_BUDGET_POLICY_ID
 import com.wenwentome.reader.data.apihub.local.ApiSecretLocalStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -30,14 +31,19 @@ class ApiHubRepository(
     private val priceOverrideDao: ApiPriceOverrideDao,
     private val abilityCacheDao: ApiAbilityCacheDao,
     private val secretLocalStore: ApiSecretLocalStore,
-) {
+) : ApiHubStore {
     // Task 2 约定：provider 自身的本地 secret 以 providerId 作为 secret key 存取。
     private fun providerSecretId(providerId: String): String = providerId
 
     fun observeProviders(): Flow<List<ApiProviderProfile>> =
         providerDao.observeAll().map { items -> items.map { it.toModel() } }
 
-    suspend fun upsertProvider(profile: ApiProviderProfile) {
+    override suspend fun getProviders(): List<ApiProviderProfile> = providerDao.getAll().map { item -> item.toModel() }
+
+    override suspend fun getProvider(providerId: String): ApiProviderProfile? =
+        getProviders().firstOrNull { it.providerId == providerId }
+
+    override suspend fun upsertProvider(profile: ApiProviderProfile) {
         providerDao.upsert(profile.toEntity())
     }
 
@@ -64,6 +70,9 @@ class ApiHubRepository(
     fun observeModels(providerId: String): Flow<List<ApiModelProfile>> =
         modelDao.observeByProviderId(providerId).map { items -> items.map { it.toModel() } }
 
+    override suspend fun getModels(providerId: String): List<ApiModelProfile> =
+        modelDao.getByProviderId(providerId).map { item -> item.toModel() }
+
     suspend fun upsertModel(profile: ApiModelProfile) {
         modelDao.upsert(profile.toEntity())
     }
@@ -82,7 +91,13 @@ class ApiHubRepository(
     fun observeCapabilityBindings(): Flow<List<ApiCapabilityBinding>> =
         capabilityBindingDao.observeAll().map { items -> items.map { it.toModel() } }
 
-    suspend fun upsertCapabilityBinding(binding: ApiCapabilityBinding) {
+    override suspend fun getCapabilityBindings(): List<ApiCapabilityBinding> =
+        capabilityBindingDao.getAll().map { item -> item.toModel() }
+
+    override suspend fun getCapabilityBinding(capabilityId: String): ApiCapabilityBinding? =
+        getCapabilityBindings().firstOrNull { it.capabilityId == capabilityId }
+
+    override suspend fun upsertCapabilityBinding(binding: ApiCapabilityBinding) {
         capabilityBindingDao.upsert(binding.toEntity())
     }
 
@@ -92,6 +107,9 @@ class ApiHubRepository(
 
     fun observeBudgetPolicy(): Flow<ApiBudgetPolicy?> =
         budgetPolicyDao.observeById(DEFAULT_API_BUDGET_POLICY_ID).map { it?.toModel() }
+
+    suspend fun getBudgetPolicy(policyId: String = DEFAULT_API_BUDGET_POLICY_ID): ApiBudgetPolicy? =
+        budgetPolicyDao.getById(policyId)?.toModel()
 
     suspend fun upsertBudgetPolicy(policy: ApiBudgetPolicy) {
         budgetPolicyDao.upsert(policy.toEntity())
@@ -104,6 +122,8 @@ class ApiHubRepository(
     fun observeUsageLogs(): Flow<List<ApiUsageLog>> =
         usageLogDao.observeLatest().map { items -> items.map { it.toModel() } }
 
+    override suspend fun getUsageLogs(): List<ApiUsageLog> = observeUsageLogs().first()
+
     suspend fun appendUsageLog(log: ApiUsageLog) {
         usageLogDao.upsert(log.toEntity())
     }
@@ -114,6 +134,11 @@ class ApiHubRepository(
 
     fun observePriceOverrides(): Flow<List<ApiPriceOverride>> =
         priceOverrideDao.observeAll().map { items -> items.map { it.toModel() } }
+
+    suspend fun getPriceOverrides(): List<ApiPriceOverride> = observePriceOverrides().first()
+
+    suspend fun findPriceOverride(providerId: String, modelId: String): ApiPriceOverride? =
+        priceOverrideDao.findById(providerId, modelId)?.toModel()
 
     suspend fun upsertPriceOverride(override: ApiPriceOverride) {
         priceOverrideDao.upsert(override.toEntity())

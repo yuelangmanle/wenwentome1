@@ -43,7 +43,14 @@ import com.wenwentome.reader.feature.discover.SourceManagementViewModel
 import com.wenwentome.reader.feature.apihub.ApiHubOverviewScreen
 import com.wenwentome.reader.feature.apihub.ApiHubUiState
 import com.wenwentome.reader.feature.apihub.ApiHubViewModel
+import com.wenwentome.reader.feature.apihub.BudgetFallbackScreen
+import com.wenwentome.reader.feature.apihub.BindingConflictDialog
+import com.wenwentome.reader.feature.apihub.ModelBindingScreen
+import com.wenwentome.reader.feature.apihub.PriceCatalogScreen
+import com.wenwentome.reader.feature.apihub.ProviderManagementScreen
+import com.wenwentome.reader.feature.apihub.UsageLogScreen
 import com.wenwentome.reader.feature.library.LibraryScreen
+import com.wenwentome.reader.feature.library.LibrarySort
 import com.wenwentome.reader.feature.library.LibraryUiState
 import com.wenwentome.reader.feature.library.LibraryViewModel
 import com.wenwentome.reader.feature.library.ObserveBookshelfUseCase
@@ -80,6 +87,11 @@ private const val ReaderRoute = "reader/{bookId}"
 private const val DiscoverSourcesRoute = "discover/sources"
 private const val SettingsChangelogRoute = "settings/changelog"
 private const val SettingsApiHubRoute = "settings/api-hub"
+private const val SettingsApiHubProvidersRoute = "settings/api-hub-providers"
+private const val SettingsApiHubBindingsRoute = "settings/api-hub-bindings"
+private const val SettingsApiHubBudgetsRoute = "settings/api-hub-budgets"
+private const val SettingsApiHubPricesRoute = "settings/api-hub-prices"
+private const val SettingsApiHubUsageLogsRoute = "settings/api-hub-usage-logs"
 
 @Composable
 fun AppNavHost(
@@ -162,6 +174,7 @@ fun AppNavHost(
             updateReadingState = { state ->
                 readingStateDao.upsert(state.toEntity())
             },
+            healthTracker = appContainer.sourceHealthTracker,
             ioDispatcher = appContainer.discoverIoDispatcher,
         )
     }
@@ -229,6 +242,8 @@ fun AppNavHost(
                         restoreAutomaticCover(bookId = bookId, appContainer = appContainer)
                     }
                 },
+                onFilterChange = libraryViewModel::setFilter,
+                onSortChange = libraryViewModel::setSort,
             )
         }
         composable(TopLevelDestination.DISCOVER.route) {
@@ -286,10 +301,61 @@ fun AppNavHost(
             val state by viewModel.uiState.collectAsState(initial = ApiHubUiState())
             ApiHubOverviewScreen(
                 state = state,
-                onOpenProviders = {},
-                onOpenBindings = {},
-                onOpenBudgets = {},
+                onOpenProviders = { navController.navigate(SettingsApiHubProvidersRoute) },
+                onOpenBindings = { navController.navigate(SettingsApiHubBindingsRoute) },
+                onOpenBudgets = { navController.navigate(SettingsApiHubBudgetsRoute) },
+                onOpenPrices = { navController.navigate(SettingsApiHubPricesRoute) },
+                onOpenUsageLogs = { navController.navigate(SettingsApiHubUsageLogsRoute) },
             )
+        }
+        composable(SettingsApiHubProvidersRoute) {
+            val viewModel = remember(appContainer) {
+                ApiHubViewModel(module = appContainer.apiHubModule)
+            }
+            val state by viewModel.uiState.collectAsState(initial = ApiHubUiState())
+            ProviderManagementScreen(
+                state = state,
+                onValidateProvider = viewModel::validateProvider,
+                onToggleProviderEnabled = viewModel::toggleProviderEnabled,
+                onAddProvider = viewModel::addSuggestedProvider,
+                onSelectProvider = viewModel::selectProvider,
+            )
+        }
+        composable(SettingsApiHubBindingsRoute) {
+            val viewModel = remember(appContainer) {
+                ApiHubViewModel(module = appContainer.apiHubModule)
+            }
+            val state by viewModel.uiState.collectAsState(initial = ApiHubUiState())
+            ModelBindingScreen(state = state)
+            state.pendingConflict?.let { conflict ->
+                BindingConflictDialog(
+                    conflict = conflict,
+                    onDismissRequest = viewModel::keepLocalBinding,
+                    onKeepLocal = viewModel::keepLocalBinding,
+                    onUseRemote = viewModel::useRemoteBinding,
+                )
+            }
+        }
+        composable(SettingsApiHubBudgetsRoute) {
+            val viewModel = remember(appContainer) {
+                ApiHubViewModel(module = appContainer.apiHubModule)
+            }
+            val state by viewModel.uiState.collectAsState(initial = ApiHubUiState())
+            BudgetFallbackScreen(summary = state.budgetSummary)
+        }
+        composable(SettingsApiHubPricesRoute) {
+            val viewModel = remember(appContainer) {
+                ApiHubViewModel(module = appContainer.apiHubModule)
+            }
+            val state by viewModel.uiState.collectAsState(initial = ApiHubUiState())
+            PriceCatalogScreen(entries = state.priceCatalogEntries)
+        }
+        composable(SettingsApiHubUsageLogsRoute) {
+            val viewModel = remember(appContainer) {
+                ApiHubViewModel(module = appContainer.apiHubModule)
+            }
+            val state by viewModel.uiState.collectAsState(initial = ApiHubUiState())
+            UsageLogScreen(entries = state.usageLogEntries)
         }
         composable(BookDetailRoute) { backStackEntry ->
             val bookId = requireNotNull(backStackEntry.arguments?.getString("bookId"))
@@ -322,6 +388,8 @@ fun AppNavHost(
                         )
                     },
                     onRestoreAutomaticCoverClick = viewModel::restoreAutomaticCover,
+                    onEnhanceMetadataClick = viewModel::enhanceMetadata,
+                    onApplyMetadataClick = viewModel::applyMetadataSuggestion,
                 )
             }
         }
@@ -352,6 +420,10 @@ fun AppNavHost(
                     viewModel.updatePresentation(state.presentation.copy(brightnessPercent = brightness))
                 },
                 onChapterSelected = viewModel::jumpToChapter,
+                onSummarizeChapter = viewModel::generateChapterSummary,
+                onExplainParagraph = viewModel::explainCurrentParagraph,
+                onTranslateParagraph = viewModel::translateCurrentParagraph,
+                onSpeakChapter = viewModel::speakCurrentChapter,
             )
         }
     }
@@ -397,6 +469,7 @@ private fun rememberReaderViewModel(
             saveReaderMode = preferencesStore::saveReaderMode,
             savePresentationPrefs = preferencesStore::savePresentationPrefs,
             updateReadingState = { state -> readingStateDao.upsert(state.toEntity()) },
+            readerAbilityFacade = appContainer.readerAbilityFacade,
         )
     }
 }
@@ -408,6 +481,7 @@ private fun rememberBookDetailViewModel(
 ): BookDetailViewModel {
     val readingStateDao = appContainer.database.readingStateDao()
     val bookAssetDao = appContainer.database.bookAssetDao()
+    val bookRecordDao = appContainer.database.bookRecordDao()
     val observeBook = rememberObserveBook(bookId = bookId, appContainer = appContainer)
     val observeBinding = rememberObserveBinding(bookId = bookId, appContainer = appContainer)
     val observeReadingState = rememberObserveReadingState(bookId = bookId, appContainer = appContainer)
@@ -461,6 +535,10 @@ private fun rememberBookDetailViewModel(
                     bookId = bookId,
                     appContainer = appContainer,
                 )
+            },
+            metadataEnhancementFacade = appContainer.bookMetadataEnhancementFacade,
+            applyMetadataAction = { updatedBook ->
+                bookRecordDao.upsert(updatedBook.toEntity())
             },
             updateReadingState = { state -> readingStateDao.upsert(state.toEntity()) },
         )

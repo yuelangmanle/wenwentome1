@@ -177,14 +177,32 @@ internal class FakeSourceBridgeRepository(
         coverUrl = "https://example.com/cover.jpg",
     ),
     private val toc: List<RemoteChapter> = listOf(RemoteChapter(chapterRef = "chapter-1", title = "第一章")),
+    private val searchResults: List<RemoteSearchResult> = emptyList(),
+    private val searchResultsBySourceId: Map<String, List<RemoteSearchResult>> = emptyMap(),
+    private val detailBySourceAndBook: Map<Pair<String, String>, RemoteBookDetail> = emptyMap(),
+    private val tocBySourceAndBook: Map<Pair<String, String>, List<RemoteChapter>> = emptyMap(),
+    private val failingDetailSources: Set<String> = emptySet(),
+    private val failingTocSources: Set<String> = emptySet(),
 ) : SourceBridgeRepository {
-    override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> = emptyList()
+    override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
+        if (sourceIds.isEmpty()) {
+            searchResults
+        } else {
+            sourceIds.flatMap { sourceId ->
+                searchResultsBySourceId[sourceId]
+                    ?: searchResults.filter { result -> result.sourceId == sourceId }
+            }
+        }
 
-    override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail =
-        detail
+    override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail {
+        require(sourceId !in failingDetailSources) { "Detail fetch failed for $sourceId" }
+        return detailBySourceAndBook[sourceId to remoteBookId] ?: detail
+    }
 
-    override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> =
-        toc
+    override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> {
+        require(sourceId !in failingTocSources) { "TOC fetch failed for $sourceId" }
+        return tocBySourceAndBook[sourceId to remoteBookId] ?: toc
+    }
 
     override suspend fun fetchChapterContent(sourceId: String, chapterRef: String): RemoteChapterContent =
         RemoteChapterContent(

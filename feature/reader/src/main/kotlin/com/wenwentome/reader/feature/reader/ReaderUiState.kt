@@ -20,4 +20,5 @@ data class ReaderUiState(
     val chapterRef: String? = null,
     val paragraphs: List<String> = emptyList(),
     val bookmarks: List<ReadingBookmark> = emptyList(),
+    val assistant: ReaderAssistantUiState = ReaderAssistantUiState(),
 )

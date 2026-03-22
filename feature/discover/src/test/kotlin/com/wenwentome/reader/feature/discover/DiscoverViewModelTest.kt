@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
@@ -43,7 +44,7 @@ class DiscoverViewModelTest {
 
         viewModel.search("雪中悍刀行")
         advanceUntilIdle()
-        viewModel.addToShelf(viewModel.uiState.value.results.single())
+        viewModel.addToShelf(viewModel.uiState.value.results.single().result)
         advanceUntilIdle()
 
         assertEquals("雪中悍刀行", viewModel.uiState.value.lastAddedTitle)
@@ -116,9 +117,59 @@ class DiscoverViewModelTest {
         advanceUntilIdle()
 
         assertEquals("remote-1", viewModel.uiState.value.selectedResultId)
-        assertEquals(sampleSearchResult(), viewModel.uiState.value.selectedResult)
+        assertEquals(sampleSearchResult(), viewModel.uiState.value.selectedResult?.result)
         assertEquals("雪中悍刀行", viewModel.uiState.value.selectedPreview?.title)
         assertEquals("最新章", viewModel.uiState.value.selectedPreview?.lastChapter)
+    }
+
+    @Test
+    fun refreshSelected_usesSwitchedSourcePreviewAndHint() = runTest {
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                detailByRemoteBookId = mapOf(
+                    "remote-1" to RemoteBookDetail(
+                        title = "雪中悍刀行",
+                        author = "烽火戏诸侯",
+                        summary = "主源预览。",
+                        lastChapter = "第十章",
+                    ),
+                    "backup-1" to RemoteBookDetail(
+                        title = "雪中悍刀行",
+                        author = "烽火戏诸侯",
+                        summary = "已切换备用源。",
+                        lastChapter = "第十二章",
+                    ),
+                ),
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            resolveShelfBookId = { "book-remote-1" },
+            refreshRemoteBook = {
+                RefreshRemoteBookResult(
+                    latestKnownChapterRef = "chapter-12",
+                    hasUpdates = true,
+                    activeSourceId = "backup-source",
+                    activeRemoteBookId = "backup-1",
+                    activeRemoteBookUrl = "https://example.com/book/backup-1",
+                    autoSwitched = true,
+                    primarySourceId = "source-1",
+                    primarySourceFailed = true,
+                )
+            },
+            ioDispatcher = Dispatchers.Main,
+        )
+
+        viewModel.search("雪中")
+        advanceUntilIdle()
+        viewModel.selectResult("remote-1")
+        advanceUntilIdle()
+
+        viewModel.refreshSelected()
+        advanceUntilIdle()
+
+        assertEquals("第十二章", viewModel.uiState.value.selectedPreview?.lastChapter)
+        assertEquals("已自动切换到书源：backup-source", viewModel.uiState.value.lastRefreshHint)
+        assertEquals(true, viewModel.uiState.value.selectedResult?.sourceId == "backup-source")
     }
 
     @Test
@@ -145,6 +196,12 @@ class DiscoverViewModelTest {
                 RefreshRemoteBookResult(
                     latestKnownChapterRef = "chapter-10",
                     hasUpdates = true,
+                    activeSourceId = "source-1",
+                    activeRemoteBookId = "remote-1",
+                    activeRemoteBookUrl = "https://example.com/book/1",
+                    autoSwitched = false,
+                    primarySourceId = "source-1",
+                    primarySourceFailed = false,
                 )
             },
             updateReadingState = { state ->
@@ -170,6 +227,31 @@ class DiscoverViewModelTest {
         )
         assertEquals(emptySet<String>(), viewModel.uiState.value.refreshingResultIds)
         assertEquals("第十章", viewModel.uiState.value.selectedPreview?.lastChapter)
+    }
+
+    @Test
+    fun searchRanksResultsByHealthScoreAndApiBoost() = runTest {
+        val tracker = SourceHealthTracker(nowProvider = { 1_000L })
+        repeat(10) {
+            tracker.recordResult(sourceId = "source-fast", success = true, latencyMs = 300)
+        }
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(
+                    sampleSearchResult(id = "slow-1", sourceId = "source-slow"),
+                    sampleSearchResult(id = "fast-1", sourceId = "source-fast"),
+                ),
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            healthTracker = tracker,
+            ioDispatcher = Dispatchers.Main,
+        )
+
+        viewModel.search("雪中悍刀行")
+        advanceUntilIdle()
+
+        assertEquals("source-fast", viewModel.uiState.value.results.first().sourceId)
+        assertTrue(viewModel.uiState.value.results.first().healthScore > 0.8f)
     }
 }
 
@@ -204,13 +286,15 @@ private class FakeBridgeRepository(
 private fun sampleSearchResult(
     id: String = "remote-1",
     title: String = "雪中悍刀行",
+    sourceId: String = "source-1",
+    detailUrl: String = "https://example.com/book/1",
 ): RemoteSearchResult =
     RemoteSearchResult(
         id = id,
-        sourceId = "source-1",
+        sourceId = sourceId,
         title = title,
         author = "烽火戏诸侯",
-        detailUrl = "https://example.com/book/1",
+        detailUrl = detailUrl,
     )
 
 class MainDispatcherRule(

@@ -40,6 +40,10 @@ class ReaderScreenTest {
                 onLineHeightChange = {},
                 onBrightnessChange = {},
                 onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
             )
         }
 
@@ -62,6 +66,10 @@ class ReaderScreenTest {
                 onLineHeightChange = {},
                 onBrightnessChange = {},
                 onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
             )
         }
 
@@ -80,6 +88,10 @@ class ReaderScreenTest {
                 onLineHeightChange = {},
                 onBrightnessChange = {},
                 onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
             )
         }
 
@@ -98,6 +110,10 @@ class ReaderScreenTest {
                 onLineHeightChange = {},
                 onBrightnessChange = {},
                 onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
             )
         }
 
@@ -118,6 +134,10 @@ class ReaderScreenTest {
                 onLineHeightChange = {},
                 onBrightnessChange = {},
                 onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
             )
         }
 
@@ -142,6 +162,10 @@ class ReaderScreenTest {
                 onLineHeightChange = {},
                 onBrightnessChange = {},
                 onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
             )
         }
 
@@ -174,6 +198,10 @@ class ReaderScreenTest {
                 onLineHeightChange = {},
                 onBrightnessChange = {},
                 onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
             )
         }
 
@@ -213,10 +241,40 @@ class ReaderScreenTest {
                 onLineHeightChange = {},
                 onBrightnessChange = {},
                 onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
             )
         }
 
         composeTestRule.waitUntilTextExists("第 2 / 2 页")
+    }
+
+    @Test
+    fun readerScreen_showsAssistantSheetActions() {
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("AI").performClick()
+        composeTestRule.onNodeWithText("章节总结").assertExists()
+        composeTestRule.onNodeWithText("段落解释").assertExists()
+        composeTestRule.onNodeWithText("AI 翻译").assertExists()
+        composeTestRule.onNodeWithText("TTS 朗读").assertExists()
     }
 
     private fun sampleState(
@@ -263,6 +321,7 @@ class ReaderScreenTest {
                 "正文第四段",
                 "正文第五段",
             ),
+            assistant = ReaderAssistantUiState(),
         )
 }
 

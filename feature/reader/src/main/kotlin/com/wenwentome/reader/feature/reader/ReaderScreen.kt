@@ -58,6 +58,10 @@ fun ReaderScreen(
     onLineHeightChange: (Float) -> Unit,
     onBrightnessChange: (Int) -> Unit,
     onChapterSelected: (String) -> Unit,
+    onSummarizeChapter: () -> Unit,
+    onExplainParagraph: () -> Unit,
+    onTranslateParagraph: () -> Unit,
+    onSpeakChapter: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = state.readerPalette()
@@ -106,6 +110,7 @@ fun ReaderScreen(
     var showModePicker by remember { mutableIntStateOf(0) }
     var showSettings by remember { mutableIntStateOf(0) }
     var showToc by remember { mutableIntStateOf(0) }
+    var showAssistant by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(state.locator, state.readerMode, readerPages.size) {
         val targetPage = pageIndexFromLocator(
@@ -180,6 +185,9 @@ fun ReaderScreen(
                 TextButton(onClick = { showSettings = 1 - showSettings }) {
                     Text("设置")
                 }
+                TextButton(onClick = { showAssistant = 1 - showAssistant }) {
+                    Text("AI")
+                }
             }
             if (showModePicker == 1) {
                 ReaderModePicker(
@@ -216,6 +224,16 @@ fun ReaderScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 280.dp),
+                )
+            }
+            if (showAssistant == 1) {
+                ReaderAssistantSheet(
+                    state = state.assistant,
+                    onSummarizeChapter = onSummarizeChapter,
+                    onExplainParagraph = onExplainParagraph,
+                    onTranslateParagraph = onTranslateParagraph,
+                    onSpeakChapter = onSpeakChapter,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }

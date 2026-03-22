@@ -2,7 +2,7 @@
 
 ## 项目目标
 
-WenwenToMe 是一个统一支持本地书和网文的 Android 阅读器，第一阶段重点是统一书库、阅读体验和 GitHub 私有仓库同步。
+WenwenToMe 是一个统一支持本地书和网文的 Android 阅读器，第一阶段重点是统一书库、阅读体验和 GitHub 私有仓库同步，并通过 API Hub 统一管理 AI 能力、预算与调用记录。
 
 ## 模块边界
 
@@ -14,12 +14,16 @@ WenwenToMe 是一个统一支持本地书和网文的 Android 阅读器，第一
   - Room、DAO、DataStore
 - `data:localbooks`
   - TXT / EPUB 导入与解析
+- `data:apihub`
+  - API Hub 数据与调用管理
 - `bridge:source`
   - 书源桥接、规则解析、网文抓取
 - `feature:library`
   - 统一书库
 - `feature:discover`
   - 网文发现、书源管理、加入书库
+- `feature:apihub`
+  - API Hub 总览、Provider 与模型管理
 - `feature:reader`
   - 详情页、阅读页、阅读状态
 - `feature:settings`

@@ -32,6 +32,7 @@ android {
 
 dependencies {
     implementation(project(":data:apihub"))
+    implementation(project(":core:model"))
 
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
@@ -41,7 +42,10 @@ dependencies {
 
     testImplementation(libs.junit4)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.room.runtime)
     testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(project(":core:database"))
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
 

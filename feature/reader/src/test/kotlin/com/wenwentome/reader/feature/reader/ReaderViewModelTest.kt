@@ -9,6 +9,9 @@ import com.wenwentome.reader.core.model.ReaderTheme
 import com.wenwentome.reader.core.model.ReadingBookmark
 import com.wenwentome.reader.core.model.ReadingState
 import com.wenwentome.reader.core.model.buildReaderChapterLocator
+import com.wenwentome.reader.data.apihub.ability.ReaderAbilityFacade
+import com.wenwentome.reader.data.apihub.ability.ReaderAbilityInput
+import com.wenwentome.reader.data.apihub.ability.ReaderAbilityResult
 import com.wenwentome.reader.data.localbooks.ReaderContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -151,6 +154,47 @@ class ReaderViewModelTest {
         assertEquals("chapter-3", viewModel.uiState.value.chapterRef)
         assertEquals(ReaderMode.HORIZONTAL_PAGING, viewModel.uiState.value.readerMode)
         assertEquals(ReaderMode.HORIZONTAL_PAGING, persistedMode)
+    }
+
+    @Test
+    fun switchingReaderMode_keepsCurrentLocatorAndProgress() = runTest {
+        val readerMode = MutableStateFlow(ReaderMode.SIMULATED_PAGE_TURN)
+        var persistedState: ReadingState? = null
+        val viewModel = ReaderViewModel(
+            bookId = "book-1",
+            observeReadingState = flowOf(
+                ReadingState(
+                    bookId = "book-1",
+                    locator = "chapter:chapter-2#paragraph:7",
+                    chapterRef = "chapter-2",
+                    progressPercent = 0.42f,
+                )
+            ),
+            observeBook = flowOf(readerBook()),
+            observeContent = flowOf(
+                ReaderContent(
+                    chapterTitle = "第二章",
+                    paragraphs = listOf("正文第一段"),
+                    chapterRef = "chapter-2",
+                )
+            ),
+            observeReaderMode = readerMode,
+            observePresentationPrefs = MutableStateFlow(ReaderPresentationPrefs()),
+            observeChapters = flowOf(readerChapters()),
+            observeLatestChapterRef = flowOf("chapter-8"),
+            saveReaderMode = { mode -> readerMode.value = mode },
+            savePresentationPrefs = {},
+            updateReadingState = { state -> persistedState = state },
+        )
+
+        viewModel.uiState.first { it.book != null }
+        viewModel.setReaderMode(ReaderMode.HORIZONTAL_PAGING)
+        advanceUntilIdle()
+
+        assertEquals("chapter:chapter-2#paragraph:7", persistedState?.locator)
+        assertEquals("chapter-2", persistedState?.chapterRef)
+        assertEquals(0.42f, persistedState?.progressPercent)
+        assertEquals(ReaderMode.HORIZONTAL_PAGING, viewModel.uiState.value.readerMode)
     }
 
     @Test
@@ -301,6 +345,47 @@ class ReaderViewModelTest {
         assertEquals(0f, persistedState?.progressPercent)
     }
 
+    @Test
+    fun generateChapterSummary_updatesAssistantPanelAndUsesCache() = runTest {
+        val facade = FakeReaderAbilityFacade().also { it.summaryResponse = "这是第三章总结" }
+        val viewModel = ReaderViewModel(
+            bookId = "book-1",
+            observeReadingState = flowOf(
+                ReadingState(
+                    bookId = "book-1",
+                    locator = "chapter:chapter-3#paragraph:0",
+                    chapterRef = "chapter-3",
+                    progressPercent = 0.5f,
+                )
+            ),
+            observeBook = flowOf(readerBook()),
+            observeContent = flowOf(
+                ReaderContent(
+                    chapterTitle = "第三章",
+                    paragraphs = listOf("正文第一段", "正文第二段"),
+                    chapterRef = "chapter-3",
+                )
+            ),
+            observeReaderMode = MutableStateFlow(ReaderMode.SIMULATED_PAGE_TURN),
+            observePresentationPrefs = MutableStateFlow(ReaderPresentationPrefs()),
+            observeChapters = flowOf(readerChapters()),
+            observeLatestChapterRef = flowOf("chapter-8"),
+            saveReaderMode = {},
+            savePresentationPrefs = {},
+            updateReadingState = {},
+            readerAbilityFacade = facade,
+        )
+
+        viewModel.uiState.first { it.book != null }
+        viewModel.generateChapterSummary()
+        viewModel.generateChapterSummary()
+        advanceUntilIdle()
+
+        assertEquals("这是第三章总结", viewModel.uiState.value.assistant.summary)
+        assertEquals("reader.summary", facade.lastCapabilityId)
+        assertEquals(1, facade.summaryCallCount)
+    }
+
     private fun readerBook(): BookRecord =
         BookRecord.newLocal("悉达多", "黑塞", BookFormat.EPUB).copy(id = "book-1")
 
@@ -322,6 +407,40 @@ class ReaderViewModelTest {
                 isLatest = true,
             ),
         )
+
+    private class FakeReaderAbilityFacade : ReaderAbilityFacade {
+        var summaryResponse: String = ""
+        var lastCapabilityId: String? = null
+        var summaryCallCount: Int = 0
+        private var cachedSummary: String? = null
+
+        override suspend fun summarizeChapter(input: ReaderAbilityInput): ReaderAbilityResult {
+            lastCapabilityId = "reader.summary"
+            cachedSummary?.let { cached ->
+                return ReaderAbilityResult(
+                    capabilityId = "reader.summary",
+                    text = cached,
+                    cached = true,
+                )
+            }
+            summaryCallCount += 1
+            cachedSummary = summaryResponse
+            return ReaderAbilityResult(
+                capabilityId = "reader.summary",
+                text = summaryResponse,
+                cached = false,
+            )
+        }
+
+        override suspend fun explainParagraph(input: ReaderAbilityInput): ReaderAbilityResult =
+            ReaderAbilityResult(capabilityId = "reader.explain", text = "解释结果", cached = false)
+
+        override suspend fun translateParagraph(input: ReaderAbilityInput): ReaderAbilityResult =
+            ReaderAbilityResult(capabilityId = "reader.translate", text = "翻译结果", cached = false)
+
+        override suspend fun speakChapter(input: ReaderAbilityInput): ReaderAbilityResult =
+            ReaderAbilityResult(capabilityId = "reader.tts", text = "朗读文稿", cached = false)
+    }
 }
 
 class MainDispatcherRule(

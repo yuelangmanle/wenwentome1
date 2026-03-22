@@ -2,6 +2,7 @@ package com.wenwentome.reader.feature.discover
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
@@ -46,15 +47,47 @@ class DiscoverScreenTest {
 
         composeTestRule.onNodeWithTag("discover-preview-add-button").performClick()
 
-        assertEquals(selected, added)
+        assertEquals(selected.result, added)
+    }
+
+    @Test
+    fun discoverScreen_showsSourceHealthBadge() {
+        val selected = sampleResult()
+
+        composeTestRule.setContent {
+            DiscoverScreen(
+                state = DiscoverUiState(
+                    query = "雪中",
+                    results = listOf(selected),
+                    selectedResultId = selected.id,
+                    selectedResult = selected,
+                    selectedPreview = RemoteBookDetail(
+                        title = selected.title,
+                        author = selected.author,
+                    ),
+                ),
+                onSearch = {},
+                onPreview = {},
+                onAddToShelf = {},
+                onRefreshSelected = {},
+                onReadLatest = {},
+                onManageSources = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("source-health-badge-preview").fetchSemanticsNode()
     }
 }
 
 private fun sampleResult() =
-    RemoteSearchResult(
-        id = "remote-1",
-        sourceId = "source-1",
-        title = "雪中悍刀行",
-        author = "烽火戏诸侯",
-        detailUrl = "https://example.com/book/1",
+    DiscoverSearchResult(
+        result = RemoteSearchResult(
+            id = "remote-1",
+            sourceId = "source-1",
+            title = "雪中悍刀行",
+            author = "烽火戏诸侯",
+            detailUrl = "https://example.com/book/1",
+        ),
+        healthScore = 0.92f,
+        healthLabel = "优秀",
     )

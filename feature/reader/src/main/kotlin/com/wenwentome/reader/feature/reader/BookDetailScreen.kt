@@ -63,6 +63,8 @@ fun BookDetailScreen(
     onRefreshCoverClick: () -> Unit,
     onImportPhotoClick: () -> Unit,
     onRestoreAutomaticCoverClick: () -> Unit,
+    onEnhanceMetadataClick: () -> Unit,
+    onApplyMetadataClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showCatalog by rememberSaveable { mutableStateOf(false) }
@@ -94,6 +96,14 @@ fun BookDetailScreen(
                 lastReadLabel = state.lastReadLabel,
                 readActionLabel = state.readActionLabel,
                 onReadClick = onReadClick,
+            )
+        }
+
+        item {
+            MetadataEnhancementSection(
+                state = state,
+                onEnhanceMetadataClick = onEnhanceMetadataClick,
+                onApplyMetadataClick = onApplyMetadataClick,
             )
         }
 
@@ -131,6 +141,92 @@ fun BookDetailScreen(
                 currentChapterRef = state.currentChapterRef,
                 onChapterClick = onChapterClick,
             )
+        }
+    }
+}
+
+@Composable
+private fun MetadataEnhancementSection(
+    state: BookDetailUiState,
+    onEnhanceMetadataClick: () -> Unit,
+    onApplyMetadataClick: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "AI 信息增强",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onEnhanceMetadataClick,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("AI 补全信息")
+                }
+                if (
+                    state.canApplyMetadataSuggestion ||
+                    !state.aiSummary.isNullOrBlank() ||
+                    !state.suggestedCoverUri.isNullOrBlank()
+                ) {
+                    OutlinedButton(
+                        onClick = onApplyMetadataClick,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("应用到书籍")
+                    }
+                }
+            }
+            if (state.isEnhancingMetadata) {
+                Text(
+                    text = "AI 正在整理书籍信息…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF8B5E34),
+                )
+            }
+            state.metadataError?.takeIf { it.isNotBlank() }?.let { error ->
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            state.aiSummary?.takeIf { it.isNotBlank() }?.let { summary ->
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            state.authorIntroduction?.takeIf { it.isNotBlank() }?.let { intro ->
+                Text(
+                    text = "作者介绍：$intro",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (state.aiTags.isNotEmpty()) {
+                Text(
+                    text = state.aiTags.joinToString(separator = " · "),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFF8B5E34),
+                )
+            }
+            state.suggestedCoverUri?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = "推荐封面已生成",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFF8B5E34),
+                )
+            }
         }
     }
 }

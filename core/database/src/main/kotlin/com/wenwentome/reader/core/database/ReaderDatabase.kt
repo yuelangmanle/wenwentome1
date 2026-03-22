@@ -43,7 +43,7 @@ import com.wenwentome.reader.core.database.entity.SourceDefinitionEntity
         ApiPriceOverrideEntity::class,
         ApiAbilityCacheEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)

@@ -9,14 +9,33 @@ import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.SourceRuleParser
 import com.wenwentome.reader.core.database.MIGRATION_2_3
 import com.wenwentome.reader.core.database.MIGRATION_3_4
+import com.wenwentome.reader.core.database.MIGRATION_4_5
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.core.database.datastore.PreferencesSnapshot as LocalPreferencesSnapshot
 import com.wenwentome.reader.core.database.datastore.ReaderPreferencesStore
 import com.wenwentome.reader.core.database.toEntity
 import com.wenwentome.reader.core.database.toModel
 import com.wenwentome.reader.data.apihub.ApiHubModule
+import com.wenwentome.reader.data.apihub.ApiHubRepository
+import com.wenwentome.reader.data.apihub.ability.BookMetadataEnhancementFacade
+import com.wenwentome.reader.data.apihub.ability.DefaultBookMetadataEnhancementFacade
+import com.wenwentome.reader.data.apihub.ability.DefaultReaderAbilityFacade
+import com.wenwentome.reader.data.apihub.ability.ReaderAbilityFacade
+import com.wenwentome.reader.data.apihub.cache.AbilityCacheStore
+import com.wenwentome.reader.data.apihub.cache.AbilityResultCacheRepository
 import com.wenwentome.reader.data.apihub.local.ApiSecretLocalStore
 import com.wenwentome.reader.data.apihub.local.createSecureApiSecretLocalStore
+import com.wenwentome.reader.data.apihub.provider.ModelDiscoveryService
+import com.wenwentome.reader.data.apihub.provider.NoOpModelDiscoveryService
+import com.wenwentome.reader.data.apihub.provider.ProviderCatalogRepository
+import com.wenwentome.reader.data.apihub.provider.ProviderValidationService
+import com.wenwentome.reader.data.apihub.pricing.ApiPricingRepository
+import com.wenwentome.reader.data.apihub.pricing.PriceEstimator
+import com.wenwentome.reader.data.apihub.runtime.ApiAbilityDispatcher
+import com.wenwentome.reader.data.apihub.runtime.ApiBudgetGuard
+import com.wenwentome.reader.data.apihub.runtime.ApiCallLogger
+import com.wenwentome.reader.data.apihub.runtime.ApiFallbackExecutor
+import com.wenwentome.reader.data.apihub.runtime.NoOpApiAbilityExecutor
 import com.wenwentome.reader.data.apihub.secret.SecretEnvelopeV1
 import com.wenwentome.reader.data.apihub.secret.SecretScope
 import com.wenwentome.reader.data.apihub.secret.SecretSyncCrypto
@@ -34,6 +53,7 @@ import com.wenwentome.reader.feature.settings.ChangelogRepository
 import com.wenwentome.reader.feature.settings.SyncSettingsConfigStore
 import com.wenwentome.reader.feature.discover.RefreshRemoteBook
 import com.wenwentome.reader.feature.discover.RefreshRemoteBookUseCase
+import com.wenwentome.reader.feature.discover.SourceHealthTracker
 import com.wenwentome.reader.sync.github.ApiCapabilityBindingSyncStore
 import com.wenwentome.reader.sync.github.BookAssetSyncStore
 import com.wenwentome.reader.sync.github.BookRecordSyncStore
@@ -52,6 +72,7 @@ import com.wenwentome.reader.sync.github.SyncManifestSerializer
 import com.wenwentome.reader.sync.github.SyncPreferencesStore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
@@ -63,7 +84,12 @@ class AppContainer(
     private val gitHubContentApiOverride: GitHubContentApi? = null,
 ) {
     val apiHubModule: ApiHubModule by lazy {
-        ApiHubModule()
+        ApiHubModule(
+            repository = apiHubRepository,
+            providerCatalogRepository = providerCatalogRepository,
+            providerValidationService = providerValidationService,
+            mergeResolver = apiHubMergeResolver,
+        )
     }
 
     val appContext: Context = application
@@ -75,6 +101,7 @@ class AppContainer(
             "reader.db",
         )
             .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_4_5)
             .build()
     }
 
@@ -103,6 +130,94 @@ class AppContainer(
                     database.apiProviderDao().getAll().map { provider -> provider.providerId }.toSet()
                 }
             },
+        )
+    }
+
+    val apiHubRepository: ApiHubRepository by lazy {
+        ApiHubRepository(
+            providerDao = database.apiProviderDao(),
+            modelDao = database.apiModelDao(),
+            capabilityBindingDao = database.apiCapabilityBindingDao(),
+            budgetPolicyDao = database.apiBudgetPolicyDao(),
+            usageLogDao = database.apiUsageLogDao(),
+            priceOverrideDao = database.apiPriceOverrideDao(),
+            abilityCacheDao = database.apiAbilityCacheDao(),
+            secretLocalStore = apiSecretLocalStore,
+        )
+    }
+
+    private val modelDiscoveryService: ModelDiscoveryService by lazy {
+        NoOpModelDiscoveryService
+    }
+
+    private val providerCatalogRepository: ProviderCatalogRepository by lazy {
+        ProviderCatalogRepository(
+            apiHubRepository = apiHubRepository,
+            modelDiscoveryService = modelDiscoveryService,
+        )
+    }
+
+    private val providerValidationService: ProviderValidationService by lazy {
+        ProviderValidationService(
+            providerCatalogRepository = providerCatalogRepository,
+        )
+    }
+
+    val apiPricingRepository: ApiPricingRepository by lazy {
+        ApiPricingRepository(apiHubRepository)
+    }
+
+    val apiBudgetGuard: ApiBudgetGuard by lazy {
+        ApiBudgetGuard(apiHubRepository)
+    }
+
+    private val apiFallbackExecutor: ApiFallbackExecutor by lazy {
+        ApiFallbackExecutor(NoOpApiAbilityExecutor())
+    }
+
+    private val apiCallLogger: ApiCallLogger by lazy {
+        ApiCallLogger(apiHubRepository)
+    }
+
+    val apiAbilityDispatcher: ApiAbilityDispatcher by lazy {
+        ApiAbilityDispatcher(
+            repository = apiHubRepository,
+            priceEstimator = PriceEstimator(apiPricingRepository),
+            budgetGuard = apiBudgetGuard,
+            fallbackExecutor = apiFallbackExecutor,
+            callLogger = apiCallLogger,
+        )
+    }
+
+    private val abilityCacheStore: AbilityCacheStore by lazy {
+        object : AbilityCacheStore {
+            override suspend fun find(cacheKey: String) = apiHubRepository.findAbilityCache(cacheKey)
+
+            override suspend fun upsert(entry: com.wenwentome.reader.core.model.ApiAbilityCacheEntry) {
+                apiHubRepository.upsertAbilityCache(entry)
+            }
+
+            override suspend fun deleteExpired(expiredAt: Long) {
+                apiHubRepository.deleteExpiredAbilityCache(expiredAt)
+            }
+        }
+    }
+
+    val abilityResultCacheRepository: AbilityResultCacheRepository by lazy {
+        AbilityResultCacheRepository(store = abilityCacheStore)
+    }
+
+    val readerAbilityFacade: ReaderAbilityFacade by lazy {
+        DefaultReaderAbilityFacade(
+            invoker = apiAbilityDispatcher::invoke,
+            cacheRepository = abilityResultCacheRepository,
+        )
+    }
+
+    val bookMetadataEnhancementFacade: BookMetadataEnhancementFacade by lazy {
+        DefaultBookMetadataEnhancementFacade(
+            invoker = apiAbilityDispatcher::invoke,
+            cacheRepository = abilityResultCacheRepository,
         )
     }
 
@@ -256,11 +371,49 @@ class AppContainer(
         )
     }
 
+    val sourceHealthTracker: SourceHealthTracker by lazy {
+        SourceHealthTracker()
+    }
+
     val refreshRemoteBook: RefreshRemoteBook by lazy {
         RefreshRemoteBookUseCase(
             sourceBridgeRepository = sourceBridgeRepository,
             remoteBindingDao = database.remoteBindingDao(),
             readingStateDao = database.readingStateDao(),
+            healthTracker = sourceHealthTracker,
+            findFallbackCandidates = { bookId, primarySourceId, query ->
+                val book = database.bookRecordDao().observeById(bookId).first()
+                val preferredTitle = book?.title?.takeIf { it.isNotBlank() } ?: query
+                val preferredAuthor = book?.author?.takeIf { it.isNotBlank() }
+                val sourceIds =
+                    database.sourceDefinitionDao().getAll()
+                        .asSequence()
+                        .filter { source -> source.enabled && source.sourceId != primarySourceId }
+                        .map { source -> source.sourceId }
+                        .toList()
+                if (sourceIds.isEmpty()) {
+                    emptyList()
+                } else {
+                    val results = sourceBridgeRepository.search(preferredTitle, sourceIds)
+                    val matchedResults =
+                        results.filter { result ->
+                            isLikelyFallbackCandidate(
+                                candidateTitle = result.title,
+                                preferredTitle = preferredTitle,
+                                candidateAuthor = result.author,
+                                preferredAuthor = preferredAuthor,
+                            )
+                        }
+                    val resultMap = matchedResults.associateBy { result -> result.sourceId to result.id }
+                    sourceHealthTracker
+                        .enhanceResults(
+                            results = matchedResults,
+                            preferredTitle = preferredTitle,
+                            preferredAuthor = preferredAuthor,
+                        )
+                        .mapNotNull { candidate -> resultMap[candidate.sourceId to candidate.id] }
+                }
+            },
         )
     }
 
@@ -383,6 +536,32 @@ class AppContainer(
         )
     }
 }
+
+private fun isLikelyFallbackCandidate(
+    candidateTitle: String,
+    preferredTitle: String,
+    candidateAuthor: String?,
+    preferredAuthor: String?,
+): Boolean {
+    val normalizedPreferredTitle = normalizeSourceLookup(preferredTitle)
+    val normalizedCandidateTitle = normalizeSourceLookup(candidateTitle)
+    if (normalizedPreferredTitle.isBlank()) return true
+    val titleMatched =
+        normalizedCandidateTitle == normalizedPreferredTitle ||
+            normalizedCandidateTitle.contains(normalizedPreferredTitle) ||
+            normalizedPreferredTitle.contains(normalizedCandidateTitle)
+    if (!titleMatched) return false
+    val normalizedPreferredAuthor = normalizeSourceLookup(preferredAuthor)
+    if (normalizedPreferredAuthor.isBlank()) return true
+    return normalizeSourceLookup(candidateAuthor) == normalizedPreferredAuthor
+}
+
+private fun normalizeSourceLookup(value: String?): String =
+    value
+        .orEmpty()
+        .lowercase()
+        .replace(Regex("\\s+"), "")
+        .replace(Regex("[：:·•,，。.!！?？\\-_/\\\\()（）\\[\\]【】]"), "")
 
 private fun LocalPreferencesSnapshot.toRemoteSnapshot(): RemotePreferencesSnapshot =
     RemotePreferencesSnapshot(

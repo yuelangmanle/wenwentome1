@@ -32,6 +32,7 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":data:apihub"))
     implementation(project(":data:localbooks"))
 
     implementation(libs.androidx.lifecycle.runtime.ktx)

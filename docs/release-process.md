@@ -13,7 +13,7 @@
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-当前 `1.0` 发版使用 PKCS12 签名文件（`.p12`）。建议将本地留档放在 `.local-secrets/android-release/`，不要提交到仓库。
+当前 `1.2` 发版使用 PKCS12 签名文件（`.p12`）。建议将本地留档放在 `.local-secrets/android-release/`，不要提交到仓库。
 
 ## 发版前检查
 
@@ -29,7 +29,7 @@
 
 1. 切到 `main`
 2. 确认工作区干净
-3. 打 tag，例如 `v1.0`
+3. 打 tag，例如 `v1.2`
 4. 推送 tag
 5. 等待 GitHub Actions 的 `android-release` workflow 完成
 6. 在 GitHub Releases 页面检查 Release 标题、说明和 APK 附件
@@ -42,7 +42,7 @@
 1. 从 Actions 打开 `android-release`
 2. 选择 `Run workflow`
 3. `Use workflow from` 选择 `main`
-4. 填入 `tag_name`，例如 `v1.0`
+4. 填入 `tag_name`，例如 `v1.2`
 5. 运行后由 workflow 校验 `tag_name`、`versionName` 和 `CHANGELOG.md`
 6. 成功后自动创建或更新对应 GitHub Release
 
@@ -54,10 +54,10 @@
 ## 规则
 
 - tag 必须与 `versionName` 一致
-- 例如 `versionName = 1.0` 时，tag 必须是 `v1.0`
+- 例如 `versionName = 1.2` 时，tag 必须是 `v1.2`
 - tag 对应提交必须来自 `main`
 - 手动触发当前版本 release 时也必须显式填写 `tag_name`
-- `versionCode` 必须符合迭代规则，例如 `1.1 -> 110`
+- `versionCode` 必须符合迭代规则，例如 `1.2 -> 120`
 - `CHANGELOG.md`、`app/src/main/assets/changelog.json` 和 `README.md` 中的正式版本号必须与 `versionName` 一致
 
 ## 无本地 Java 时的云端验证

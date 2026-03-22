@@ -8,13 +8,17 @@ import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.core.model.ReaderMode
 import com.wenwentome.reader.core.model.ReaderPresentationPrefs
 import com.wenwentome.reader.core.model.ReadingState
+import com.wenwentome.reader.data.apihub.ability.ReaderAbilityFacade
+import com.wenwentome.reader.data.apihub.ability.ReaderAbilityInput
 import com.wenwentome.reader.data.localbooks.ReaderContent
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ReaderViewModel(
@@ -29,7 +33,10 @@ class ReaderViewModel(
     private val saveReaderMode: suspend (ReaderMode) -> Unit = {},
     private val savePresentationPrefs: suspend (ReaderPresentationPrefs) -> Unit = {},
     private val updateReadingState: suspend (ReadingState) -> Unit,
+    private val readerAbilityFacade: ReaderAbilityFacade? = null,
 ) : ViewModel() {
+    private val assistantState = MutableStateFlow(ReaderAssistantUiState())
+
     private val observeBookState =
         combine(observeBook, observeReadingState, observeContent) { book, state, content ->
             Triple(book, state, content)
@@ -46,7 +53,7 @@ class ReaderViewModel(
         }
 
     val uiState: StateFlow<ReaderUiState> =
-        combine(observeBookState, observeReaderPrefs, observeCatalog) { bookState, prefs, catalog ->
+        combine(observeBookState, observeReaderPrefs, observeCatalog, assistantState) { bookState, prefs, catalog, assistant ->
             val (book, state, content) = bookState
             val (readerMode, presentation) = prefs
             val (chapters, latestChapterRef) = catalog
@@ -66,6 +73,7 @@ class ReaderViewModel(
                 chapterRef = chapterRef,
                 paragraphs = content.paragraphs,
                 bookmarks = state?.bookmarks.orEmpty(),
+                assistant = assistant,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -75,6 +83,7 @@ class ReaderViewModel(
 
     fun setReaderMode(mode: ReaderMode) {
         viewModelScope.launch {
+            persistCurrentReadingState()
             saveReaderMode(mode)
         }
     }
@@ -126,6 +135,115 @@ class ReaderViewModel(
                 )
             )
         }
+    }
+
+    fun generateChapterSummary() {
+        executeAssistantRequest { facade, input ->
+            val result = facade.summarizeChapter(input)
+            assistantState.update {
+                it.copy(
+                    isLoading = false,
+                    summary = result.text,
+                    errorMessage = null,
+                )
+            }
+        }
+    }
+
+    fun explainCurrentParagraph() {
+        executeAssistantRequest { facade, input ->
+            val result = facade.explainParagraph(input)
+            assistantState.update {
+                it.copy(
+                    isLoading = false,
+                    explanation = result.text,
+                    errorMessage = null,
+                )
+            }
+        }
+    }
+
+    fun translateCurrentParagraph() {
+        executeAssistantRequest { facade, input ->
+            val result = facade.translateParagraph(input)
+            assistantState.update {
+                it.copy(
+                    isLoading = false,
+                    translation = result.text,
+                    errorMessage = null,
+                )
+            }
+        }
+    }
+
+    fun speakCurrentChapter() {
+        executeAssistantRequest { facade, input ->
+            val result = facade.speakChapter(input)
+            assistantState.update {
+                it.copy(
+                    isLoading = false,
+                    ttsScript = result.text,
+                    errorMessage = null,
+                )
+            }
+        }
+    }
+
+    private fun executeAssistantRequest(
+        block: suspend (ReaderAbilityFacade, ReaderAbilityInput) -> Unit,
+    ) {
+        val facade = readerAbilityFacade
+        if (facade == null) {
+            assistantState.update { it.copy(errorMessage = "当前还没有配置可用的 AI 能力。") }
+            return
+        }
+
+        val input = currentAbilityInput()
+        if (input == null) {
+            assistantState.update { it.copy(errorMessage = "当前章节暂无可分析的正文内容。") }
+            return
+        }
+
+        viewModelScope.launch {
+            assistantState.update { it.copy(isLoading = true, errorMessage = null) }
+            runCatching {
+                block(facade, input)
+            }.onFailure { error ->
+                assistantState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "调用 AI 失败",
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun persistCurrentReadingState() {
+        val state = uiState.value
+        val locator = state.locatorForSave() ?: return
+        updateReadingState(
+            ReadingState(
+                bookId = state.book?.id ?: bookId,
+                locator = locator,
+                chapterRef = state.chapterRef,
+                progressPercent = state.progressPercent,
+                bookmarks = state.bookmarks,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    private fun currentAbilityInput(): ReaderAbilityInput? {
+        val state = uiState.value
+        val paragraphs = state.paragraphs.takeIf { it.isNotEmpty() } ?: return null
+        return ReaderAbilityInput(
+            bookId = state.book?.id ?: bookId,
+            chapterRef = state.chapterRef,
+            chapterTitle = state.chapterTitle,
+            paragraphs = paragraphs,
+            selectedParagraph = paragraphs.firstOrNull(),
+        )
     }
 }
 

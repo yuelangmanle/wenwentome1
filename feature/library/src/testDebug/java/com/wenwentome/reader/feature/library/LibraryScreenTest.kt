@@ -40,6 +40,8 @@ class LibraryScreenTest {
                 onRefreshCover = {},
                 onImportPhoto = {},
                 onRestoreAutomaticCover = {},
+                onFilterChange = {},
+                onSortChange = {},
             )
         }
 
@@ -67,6 +69,8 @@ class LibraryScreenTest {
                 onRefreshCover = {},
                 onImportPhoto = {},
                 onRestoreAutomaticCover = {},
+                onFilterChange = {},
+                onSortChange = {},
             )
         }
 
@@ -103,6 +107,8 @@ class LibraryScreenTest {
                 onRefreshCover = { refreshedBookIds += it },
                 onImportPhoto = { importedPhotoBookIds += it },
                 onRestoreAutomaticCover = { restoredCoverBookIds += it },
+                onFilterChange = {},
+                onSortChange = {},
             )
         }
 
@@ -123,6 +129,32 @@ class LibraryScreenTest {
     }
 
     @Test
+    fun libraryScreen_showsFilterAndSortControls() {
+        composeTestRule.setContent {
+            LibraryScreen(
+                state = sampleState().copy(
+                    filter = LibraryFilter.WEB_ONLY,
+                    sort = LibrarySort.LAST_READ_DESC,
+                ),
+                onImportClick = {},
+                onContinueReadingClick = {},
+                onBookClick = {},
+                onRefreshCatalog = {},
+                onRefreshCover = {},
+                onImportPhoto = {},
+                onRestoreAutomaticCover = {},
+                onFilterChange = {},
+                onSortChange = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("全部").assertExistsCompat()
+        composeTestRule.onNodeWithText("本地").assertExistsCompat()
+        composeTestRule.onNodeWithText("网文").assertExistsCompat()
+        composeTestRule.onNodeWithText("最近阅读").assertExistsCompat()
+    }
+
+    @Test
     fun loadReadableCoverBitmap_decodesIndependentReadableLocalCoverUris() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val continueReadingCoverUri = createReadableLocalCoverUri("continue-reading")
@@ -136,6 +168,8 @@ class LibraryScreenTest {
         bookshelfCoverUri: String? = null,
     ) =
         LibraryUiState(
+            filter = LibraryFilter.DEFAULT,
+            sort = LibrarySort.LAST_READ_DESC,
             continueReading = LibraryBookItem(
                 book = BookRecord(
                     id = "book-2",

@@ -47,6 +47,8 @@ class BookDetailScreenTest {
                 onRefreshCoverClick = {},
                 onImportPhotoClick = { pickerRequested = true },
                 onRestoreAutomaticCoverClick = {},
+                onEnhanceMetadataClick = {},
+                onApplyMetadataClick = {},
             )
         }
 
@@ -69,6 +71,8 @@ class BookDetailScreenTest {
                 onRefreshCoverClick = {},
                 onImportPhotoClick = {},
                 onRestoreAutomaticCoverClick = {},
+                onEnhanceMetadataClick = {},
+                onApplyMetadataClick = {},
             )
         }
 
@@ -93,6 +97,8 @@ class BookDetailScreenTest {
                 onRefreshCoverClick = {},
                 onImportPhotoClick = {},
                 onRestoreAutomaticCoverClick = {},
+                onEnhanceMetadataClick = {},
+                onApplyMetadataClick = {},
             )
         }
 
@@ -121,6 +127,8 @@ class BookDetailScreenTest {
                 onRefreshCoverClick = {},
                 onImportPhotoClick = {},
                 onRestoreAutomaticCoverClick = {},
+                onEnhanceMetadataClick = {},
+                onApplyMetadataClick = {},
             )
         }
 
@@ -183,6 +191,8 @@ class BookDetailScreenTest {
                     onRefreshCoverClick = {},
                     onImportPhotoClick = {},
                     onRestoreAutomaticCoverClick = {},
+                    onEnhanceMetadataClick = {},
+                    onApplyMetadataClick = {},
                 )
             }
 
@@ -192,6 +202,35 @@ class BookDetailScreenTest {
         } finally {
             server.shutdown()
         }
+    }
+
+    @Test
+    fun detailScreen_showsAiEnhancementActionsAndSuggestionCard() {
+        composeTestRule.setContent {
+            BookDetailScreen(
+                state = sampleState().copy(
+                    aiSummary = "AI 重写后的简介",
+                    suggestedCoverUri = "https://example.com/ai-cover.jpg",
+                    aiTags = listOf("成长", "哲思"),
+                ),
+                onReadClick = {},
+                onToggleCatalog = {},
+                onChapterClick = {},
+                onRefreshCatalogClick = {},
+                onJumpToLatestClick = {},
+                onRefreshCoverClick = {},
+                onImportPhotoClick = {},
+                onRestoreAutomaticCoverClick = {},
+                onEnhanceMetadataClick = {},
+                onApplyMetadataClick = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("book-detail")
+            .performScrollToNode(hasTextExactlyCompat("AI 补全信息"))
+        composeTestRule.onNodeWithText("AI 补全信息").assertExistsCompat()
+        composeTestRule.onNodeWithText("应用到书籍").assertExistsCompat()
+        composeTestRule.onNodeWithText("AI 重写后的简介").assertExistsCompat()
     }
 
     private fun sampleState() =
@@ -216,6 +255,9 @@ class BookDetailScreenTest {
             showRefreshCatalogAction = true,
             showJumpToLatestAction = true,
             canRestoreAutomaticCover = true,
+            aiSummary = null,
+            suggestedCoverUri = null,
+            aiTags = emptyList(),
             latestChapterRef = "chapter-8",
             latestChapterTitle = "第八章",
             chapters = listOf(

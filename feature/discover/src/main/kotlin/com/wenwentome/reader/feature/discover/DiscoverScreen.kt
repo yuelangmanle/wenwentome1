@@ -57,6 +57,13 @@ fun DiscoverScreen(
                 .testTag("discover-search-input"),
             label = { Text("搜索网文") },
         )
+        state.enhancementHint?.let { hint ->
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         state.lastAddedTitle?.let { title ->
             Text(
                 text = "已加入书库：$title",
@@ -82,7 +89,25 @@ fun DiscoverScreen(
                         .clickable { onPreview(result.id) }
                         .testTag("discover-result-${result.id}"),
                     headlineContent = { Text(result.title) },
-                    supportingContent = { Text(result.author ?: "未知作者") },
+                    supportingContent = {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(result.author ?: "未知作者")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SourceHealthBadge(
+                                    score = result.healthScore,
+                                    label = result.healthLabel,
+                                    modifier = Modifier.testTag("source-health-badge-${result.id}"),
+                                )
+                                result.boostReason?.let { reason ->
+                                    Text(
+                                        text = reason,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                        }
+                    },
                     overlineContent = {
                         if (state.selectedResultId == result.id) {
                             Text("预览中")
@@ -91,7 +116,7 @@ fun DiscoverScreen(
                     trailingContent = {
                         val isAdding = result.id in state.addingResultIds
                         Button(
-                            onClick = { onAddToShelf(result) },
+                            onClick = { onAddToShelf(result.result) },
                             enabled = !isAdding,
                             modifier = Modifier.testTag("discover-result-add-${result.id}"),
                         ) {
@@ -137,11 +162,32 @@ private fun SelectedPreviewCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SourceHealthBadge(
+                    score = selectedResult.healthScore,
+                    label = selectedResult.healthLabel,
+                    modifier = Modifier.testTag("source-health-badge-preview"),
+                )
+                selectedResult.boostReason?.let { reason ->
+                    Text(
+                        text = reason,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
             preview?.lastChapter?.takeIf { it.isNotBlank() }?.let { lastChapter ->
                 Text(
                     text = "最新章节：$lastChapter",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            state.lastRefreshHint?.let { hint ->
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
                 )
             }
             preview?.summary?.takeIf { it.isNotBlank() }?.let { summary ->
@@ -156,7 +202,7 @@ private fun SelectedPreviewCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Button(
-                    onClick = { onAddToShelf(selectedResult) },
+                    onClick = { onAddToShelf(selectedResult.result) },
                     enabled = !isAdding,
                     modifier = Modifier
                         .weight(1f)

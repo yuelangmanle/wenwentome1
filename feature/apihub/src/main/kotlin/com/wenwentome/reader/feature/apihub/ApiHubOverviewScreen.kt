@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
@@ -21,10 +23,13 @@ fun ApiHubOverviewScreen(
     onOpenProviders: () -> Unit,
     onOpenBindings: () -> Unit,
     onOpenBudgets: () -> Unit,
+    onOpenPrices: () -> Unit,
+    onOpenUsageLogs: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
             .testTag("api-hub-overview-screen"),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -45,21 +50,43 @@ fun ApiHubOverviewScreen(
         }
         Button(
             onClick = onOpenProviders,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("api-hub-open-providers"),
         ) {
-            Text("管理 Providers")
+            Text("Provider 管理")
         }
         Button(
             onClick = onOpenBindings,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("api-hub-open-bindings"),
         ) {
-            Text("管理能力绑定")
+            Text("模型绑定")
         }
         Button(
             onClick = onOpenBudgets,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("api-hub-open-budgets"),
         ) {
-            Text("管理预算")
+            Text("预算与回退")
+        }
+        Button(
+            onClick = onOpenPrices,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("api-hub-open-prices"),
+        ) {
+            Text("价格目录")
+        }
+        Button(
+            onClick = onOpenUsageLogs,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("api-hub-open-usage-logs"),
+        ) {
+            Text("调用记录")
         }
     }
 }

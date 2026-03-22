@@ -35,11 +35,20 @@ class DiscoverViewModel(
         RefreshRemoteBookResult(
             latestKnownChapterRef = null,
             hasUpdates = false,
+            activeSourceId = "",
+            activeRemoteBookId = "",
+            activeRemoteBookUrl = "",
+            autoSwitched = false,
+            primarySourceId = "",
+            primarySourceFailed = false,
         )
     },
     private val loadReadingState: suspend (String) -> ReadingState? = { null },
     private val updateReadingState: suspend (ReadingState) -> Unit = {},
+    private val healthTracker: SourceHealthTracker = SourceHealthTracker(),
+    private val boostedSourceIdsProvider: () -> Set<String> = { emptySet() },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val nowProvider: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(DiscoverUiState())
     val uiState: StateFlow<DiscoverUiState> = mutableUiState.asStateFlow()
@@ -59,6 +68,8 @@ class DiscoverViewModel(
                 selectedResult = null,
                 selectedPreview = null,
                 refreshingResultIds = emptySet(),
+                enhancementHint = null,
+                lastRefreshHint = null,
             )
         }
         searchJob?.cancel()
@@ -71,7 +82,20 @@ class DiscoverViewModel(
             val results = sourceBridgeRepository.search(query, emptyList())
             val state = mutableUiState.value
             if (currentToken != searchToken || state.query != query) return@launch
-            mutableUiState.update { it.copy(results = results) }
+            val boostedSourceIds = boostedSourceIdsProvider()
+            val enhanced =
+                healthTracker.enhanceResults(
+                    results = results,
+                    boostedSourceIds = boostedSourceIds,
+                    preferredTitle = query,
+                )
+            val hint =
+                if (enhanced.isNotEmpty()) {
+                    if (boostedSourceIds.isNotEmpty()) "已按书源健康分与增强信号排序" else "已按书源健康分排序"
+                } else {
+                    null
+                }
+            mutableUiState.update { it.copy(results = enhanced, enhancementHint = hint) }
         }
     }
 
@@ -87,10 +111,39 @@ class DiscoverViewModel(
         previewJob?.cancel()
         val currentToken = ++previewToken
         previewJob = viewModelScope.launch {
-            val detail = sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
-            val state = mutableUiState.value
-            if (currentToken != previewToken || state.selectedResultId != resultId) return@launch
-            mutableUiState.update { it.copy(selectedPreview = detail) }
+            val start = nowProvider()
+            try {
+                val detail = sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                healthTracker.recordResult(
+                    sourceId = result.sourceId,
+                    success = true,
+                    latencyMs = nowProvider() - start,
+                )
+                val state = mutableUiState.value
+                if (currentToken != previewToken || state.selectedResultId != resultId) return@launch
+                mutableUiState.update {
+                    val updatedResults = reEnhanceResults(preferredTitle = it.query)
+                    it.copy(
+                        selectedPreview = detail,
+                        results = updatedResults,
+                        selectedResult = updatedResults.firstOrNull { item -> item.id == resultId } ?: it.selectedResult,
+                    )
+                }
+            } catch (error: Throwable) {
+                healthTracker.recordResult(
+                    sourceId = result.sourceId,
+                    success = false,
+                    latencyMs = nowProvider() - start,
+                )
+                mutableUiState.update {
+                    val updatedResults = reEnhanceResults(preferredTitle = it.query)
+                    it.copy(
+                        results = updatedResults,
+                        selectedResult = updatedResults.firstOrNull { item -> item.id == resultId } ?: it.selectedResult,
+                        lastRefreshHint = "当前书源预览失败，请稍后重试",
+                    )
+                }
+            }
         }
     }
 
@@ -122,24 +175,37 @@ class DiscoverViewModel(
             mutableUiState.update { it.copy(refreshingResultIds = it.refreshingResultIds + result.id) }
             try {
                 val ensured = withContext(ioDispatcher) {
-                    ensureBookOnShelf(result)
+                    ensureBookOnShelf(result.result)
                 }
-                withContext(ioDispatcher) {
+                val refreshResult = withContext(ioDispatcher) {
                     refreshRemoteBook(ensured.bookId)
                 }
+                val activeSource = resolveActiveSource(refreshResult, result.result)
                 val detail = withContext(ioDispatcher) {
-                    sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                    sourceBridgeRepository.fetchBookDetail(activeSource.sourceId, activeSource.remoteBookId)
                 }
+                val updatedResults = reEnhanceResults(preferredTitle = mutableUiState.value.query)
                 mutableUiState.update {
                     it.copy(
                         selectedPreview = detail,
                         refreshingResultIds = it.refreshingResultIds - result.id,
                         lastAddedTitle = result.title.takeIf { ensured.wasAdded } ?: it.lastAddedTitle,
+                        results = updatedResults,
+                        selectedResult = updateSelectedResult(result, activeSource, updatedResults),
+                        selectedResultId = if (refreshResult.autoSwitched) activeSource.remoteBookId else it.selectedResultId,
+                        lastRefreshHint = refreshHint(refreshResult, activeSource.sourceId),
                     )
                 }
             } catch (error: Throwable) {
-                mutableUiState.update { it.copy(refreshingResultIds = it.refreshingResultIds - result.id) }
-                throw error
+                mutableUiState.update {
+                    val updatedResults = reEnhanceResults(preferredTitle = it.query)
+                    it.copy(
+                        refreshingResultIds = it.refreshingResultIds - result.id,
+                        results = updatedResults,
+                        selectedResult = updatedResults.firstOrNull { item -> item.id == result.id } ?: it.selectedResult,
+                        lastRefreshHint = "刷新目录失败，请稍后再试",
+                    )
+                }
             }
         }
     }
@@ -151,7 +217,7 @@ class DiscoverViewModel(
             mutableUiState.update { it.copy(refreshingResultIds = it.refreshingResultIds + result.id) }
             try {
                 val ensured = withContext(ioDispatcher) {
-                    ensureBookOnShelf(result)
+                    ensureBookOnShelf(result.result)
                 }
                 val refreshResult = withContext(ioDispatcher) {
                     refreshRemoteBook(ensured.bookId)
@@ -178,24 +244,37 @@ class DiscoverViewModel(
                     }
                     mutableEvents.tryEmit(DiscoverEvent.OpenReader(bookId = ensured.bookId))
                 }
+                val activeSource = resolveActiveSource(refreshResult, result.result)
                 val detail = withContext(ioDispatcher) {
-                    sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
+                    sourceBridgeRepository.fetchBookDetail(activeSource.sourceId, activeSource.remoteBookId)
                 }
+                val updatedResults = reEnhanceResults(preferredTitle = mutableUiState.value.query)
                 mutableUiState.update {
                     it.copy(
                         selectedPreview = detail,
                         refreshingResultIds = it.refreshingResultIds - result.id,
                         lastAddedTitle = result.title.takeIf { ensured.wasAdded } ?: it.lastAddedTitle,
+                        results = updatedResults,
+                        selectedResult = updateSelectedResult(result, activeSource, updatedResults),
+                        selectedResultId = if (refreshResult.autoSwitched) activeSource.remoteBookId else it.selectedResultId,
+                        lastRefreshHint = refreshHint(refreshResult, activeSource.sourceId),
                     )
                 }
             } catch (error: Throwable) {
-                mutableUiState.update { it.copy(refreshingResultIds = it.refreshingResultIds - result.id) }
-                throw error
+                mutableUiState.update {
+                    val updatedResults = reEnhanceResults(preferredTitle = it.query)
+                    it.copy(
+                        refreshingResultIds = it.refreshingResultIds - result.id,
+                        results = updatedResults,
+                        selectedResult = updatedResults.firstOrNull { item -> item.id == result.id } ?: it.selectedResult,
+                        lastRefreshHint = "阅读最新失败，请稍后再试",
+                    )
+                }
             }
         }
     }
 
-    private fun selectedResult(): RemoteSearchResult? {
+    private fun selectedResult(): DiscoverSearchResult? {
         return mutableUiState.value.selectedResult
     }
 
@@ -212,4 +291,65 @@ class DiscoverViewModel(
         val bookId: String,
         val wasAdded: Boolean,
     )
+
+    private data class ActiveSource(
+        val sourceId: String,
+        val remoteBookId: String,
+        val remoteBookUrl: String,
+    )
+
+    private fun resolveActiveSource(
+        refreshResult: RefreshRemoteBookResult,
+        fallback: RemoteSearchResult,
+    ): ActiveSource {
+        val sourceId = refreshResult.activeSourceId.ifBlank { fallback.sourceId }
+        val remoteBookId = refreshResult.activeRemoteBookId.ifBlank { fallback.id }
+        val remoteBookUrl = refreshResult.activeRemoteBookUrl.ifBlank { fallback.detailUrl }
+        return ActiveSource(
+            sourceId = sourceId,
+            remoteBookId = remoteBookId,
+            remoteBookUrl = remoteBookUrl,
+        )
+    }
+
+    private fun reEnhanceResults(preferredTitle: String? = null): List<DiscoverSearchResult> {
+        val boostedSourceIds = boostedSourceIdsProvider()
+        return healthTracker.enhanceResults(
+            results = mutableUiState.value.results.map { it.result },
+            boostedSourceIds = boostedSourceIds,
+            preferredTitle = preferredTitle,
+        )
+    }
+
+    private fun updateSelectedResult(
+        current: DiscoverSearchResult,
+        activeSource: ActiveSource,
+        updatedResults: List<DiscoverSearchResult>,
+    ): DiscoverSearchResult {
+        if (activeSource.sourceId == current.sourceId && activeSource.remoteBookId == current.id) {
+            return updatedResults.firstOrNull { it.id == current.id } ?: current
+        }
+        val updatedRemote =
+            current.result.copy(
+                id = activeSource.remoteBookId,
+                sourceId = activeSource.sourceId,
+                detailUrl = activeSource.remoteBookUrl,
+            )
+        val score = healthTracker.healthScore(updatedRemote.sourceId)
+        return current.copy(
+            result = updatedRemote,
+            healthScore = score,
+            healthLabel = healthTracker.healthLabel(score),
+        )
+    }
+
+    private fun refreshHint(
+        refreshResult: RefreshRemoteBookResult,
+        activeSourceId: String,
+    ): String? =
+        when {
+            refreshResult.autoSwitched -> "已自动切换到书源：$activeSourceId"
+            refreshResult.hasUpdates -> "已检测到更新"
+            else -> null
+        }
 }

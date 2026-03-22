@@ -77,6 +77,81 @@ class AppNavigationSmokeTest {
         composeTestRule.onNodeWithTag("nav-settings").assertIsSelected()
     }
 
+    @Test
+    fun apiHubOverview_actionsOpenFollowUpScreens() {
+        val appContainer = createInMemoryAppContainer()
+        var navController: NavHostController? = null
+
+        composeTestRule.setContent {
+            val controller = rememberNavController()
+            SideEffect { navController = controller }
+            ReaderApp(appContainer = appContainer, navController = controller)
+        }
+
+        composeTestRule.onNodeWithTag("nav-settings").performClick()
+        composeTestRule.onNodeWithText("API 中心").performScrollTo().performClick()
+
+        composeTestRule.onNodeWithTag("api-hub-open-providers").performScrollTo().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            navController!!.currentDestination?.route == "settings/api-hub-providers"
+        }
+        composeTestRule.runOnIdle {
+            assertEquals("settings/api-hub-providers", navController!!.currentDestination?.route)
+        }
+        composeTestRule.onNodeWithText("从模板新增").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("nav-settings").assertIsSelected()
+
+        composeTestRule.runOnIdle {
+            assertEquals(true, navController!!.navigateUp())
+        }
+        composeTestRule.onNodeWithTag("api-hub-overview-screen").assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("api-hub-open-bindings").performScrollTo().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            navController!!.currentDestination?.route == "settings/api-hub-bindings"
+        }
+        composeTestRule.runOnIdle {
+            assertEquals("settings/api-hub-bindings", navController!!.currentDestination?.route)
+        }
+        composeTestRule.onNodeWithText("尚未配置能力绑定").assertIsDisplayed()
+
+        composeTestRule.runOnIdle {
+            assertEquals(true, navController!!.navigateUp())
+        }
+        composeTestRule.onNodeWithTag("api-hub-overview-screen").assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("api-hub-open-budgets").performScrollTo().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            navController!!.currentDestination?.route == "settings/api-hub-budgets"
+        }
+        composeTestRule.runOnIdle {
+            assertEquals("settings/api-hub-budgets", navController!!.currentDestination?.route)
+        }
+        composeTestRule.onNodeWithTag("api-hub-budget-placeholder-screen").assertIsDisplayed()
+
+        composeTestRule.runOnIdle {
+            assertEquals(true, navController!!.navigateUp())
+        }
+        composeTestRule.onNodeWithTag("api-hub-overview-screen").assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("api-hub-open-prices").performScrollTo().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            navController!!.currentDestination?.route == "settings/api-hub-prices"
+        }
+        composeTestRule.onNodeWithTag("api-hub-price-catalog-screen").assertIsDisplayed()
+
+        composeTestRule.runOnIdle {
+            assertEquals(true, navController!!.navigateUp())
+        }
+        composeTestRule.onNodeWithTag("api-hub-overview-screen").assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("api-hub-open-usage-logs").performScrollTo().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            navController!!.currentDestination?.route == "settings/api-hub-usage-logs"
+        }
+        composeTestRule.onNodeWithTag("api-hub-usage-log-screen").assertIsDisplayed()
+    }
+
     private fun createInMemoryAppContainer(): AppContainer {
         val application = ApplicationProvider.getApplicationContext<Application>()
         val database = Room.inMemoryDatabaseBuilder(application, ReaderDatabase::class.java)

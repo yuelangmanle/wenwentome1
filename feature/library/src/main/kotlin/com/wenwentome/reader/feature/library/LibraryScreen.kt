@@ -12,10 +12,12 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +37,8 @@ fun LibraryScreen(
     onRefreshCover: (String) -> Unit,
     onImportPhoto: (String) -> Unit,
     onRestoreAutomaticCover: (String) -> Unit,
+    onFilterChange: (LibraryFilter) -> Unit,
+    onSortChange: (LibrarySort) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(16.dp),
 ) {
@@ -72,6 +76,12 @@ fun LibraryScreen(
                         modifier = Modifier.testTag("continue-reading-card"),
                     )
                 }
+                LibraryShelfControls(
+                    selectedFilter = state.filter,
+                    selectedSort = state.sort,
+                    onFilterChange = onFilterChange,
+                    onSortChange = onSortChange,
+                )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -131,5 +141,50 @@ fun LibraryScreen(
                 { onRestoreAutomaticCover(item.book.id) }
             },
         )
+    }
+}
+
+@Composable
+private fun LibraryShelfControls(
+    selectedFilter: LibraryFilter,
+    selectedSort: LibrarySort,
+    onFilterChange: (LibraryFilter) -> Unit,
+    onSortChange: (LibrarySort) -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = selectedFilter == LibraryFilter.DEFAULT,
+                onClick = { onFilterChange(LibraryFilter.DEFAULT) },
+                label = { Text("全部") },
+            )
+            FilterChip(
+                selected = selectedFilter == LibraryFilter.LOCAL_ONLY,
+                onClick = { onFilterChange(LibraryFilter.LOCAL_ONLY) },
+                label = { Text("本地") },
+            )
+            FilterChip(
+                selected = selectedFilter == LibraryFilter.WEB_ONLY,
+                onClick = { onFilterChange(LibraryFilter.WEB_ONLY) },
+                label = { Text("网文") },
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            LibrarySort.entries.forEach { sort ->
+                FilterChip(
+                    selected = selectedSort == sort,
+                    onClick = { onSortChange(sort) },
+                    label = { Text(sort.label) },
+                )
+            }
+        }
     }
 }
