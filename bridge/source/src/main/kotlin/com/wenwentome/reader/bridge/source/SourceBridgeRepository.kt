@@ -1,14 +1,15 @@
 package com.wenwentome.reader.bridge.source
 
 import com.wenwentome.reader.bridge.source.model.NormalizedSourceDefinition
+import com.wenwentome.reader.bridge.source.model.ParsedSearchUrlTemplate
+import com.wenwentome.reader.bridge.source.model.ResponseKind
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
 import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import com.wenwentome.reader.bridge.source.model.RuleEngine
+import com.wenwentome.reader.bridge.source.model.RuleExpression
+import com.wenwentome.reader.bridge.source.model.TextCleaner
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -47,8 +48,6 @@ class RealSourceBridgeRepository(
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val jsoupRuleExecutor: JsoupRuleExecutor = JsoupRuleExecutor(),
 ) : SourceBridgeRepository {
-    private val json = Json { ignoreUnknownKeys = true }
-
     override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> {
         val sources = sourceProvider.getAll()
             .filter { it.enabled && (sourceIds.isEmpty() || it.id in sourceIds) }
@@ -89,24 +88,21 @@ class RealSourceBridgeRepository(
 
     private suspend fun executeTemplateRequest(
         source: NormalizedSourceDefinition,
-        rawTemplate: String,
+        template: ParsedSearchUrlTemplate,
         query: String,
         page: Int = 1,
     ): String {
-        require(!rawTemplate.startsWith("<js>")) {
+        require(!template.requiresJsTemplate) {
             "JS templates are not supported in the core bridge yet"
         }
-        val urlPart = rawTemplate.substringBefore(",{")
-        val configPart = rawTemplate.substringAfter(urlPart, "").removePrefix(",")
         val resolvedUrl = resolveUrl(
             source.baseUrl,
-            interpolate(urlPart, query, page),
+            interpolate(template.urlTemplate, query, page),
         )
-        val request = if (configPart.startsWith("{")) {
-            val config = json.parseToJsonElement(configPart).jsonObject
-            val method = config["method"]?.jsonPrimitive?.contentOrNull?.uppercase().orEmpty()
+        val request = template.requestConfig?.let { config ->
+            val method = config.method.uppercase()
             if (method == "POST") {
-                val body = interpolate(config["body"]?.jsonPrimitive?.contentOrNull.orEmpty(), query, page)
+                val body = interpolate(config.bodyTemplate.orEmpty(), query, page)
                 Request.Builder()
                     .url(resolvedUrl)
                     .post(body.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
@@ -114,9 +110,7 @@ class RealSourceBridgeRepository(
             } else {
                 Request.Builder().url(resolvedUrl).get().build()
             }
-        } else {
-            Request.Builder().url(resolvedUrl).get().build()
-        }
+        } ?: Request.Builder().url(resolvedUrl).get().build()
         return executeRequest(request)
     }
 
@@ -125,10 +119,10 @@ class RealSourceBridgeRepository(
         document: Document,
     ): List<RemoteSearchResult> {
         val rule = source.searchRule ?: return emptyList()
-        if (rule.bookList.startsWith("$")) {
+        if (rule.responseKind != ResponseKind.HTML || rule.bookList.engine != RuleEngine.HTML_CSS) {
             return emptyList()
         }
-        return jsoupRuleExecutor.selectElements(document, rule.bookList).mapNotNull { item ->
+        return jsoupRuleExecutor.selectElements(document, rule.bookList.toLegacyExpression()).mapNotNull { item ->
             val detailUrl = item.extract(rule.bookUrl) ?: return@mapNotNull null
             val title = item.extract(rule.name) ?: return@mapNotNull null
             RemoteSearchResult(
@@ -154,7 +148,10 @@ class RealSourceBridgeRepository(
 
     private fun executeToc(source: NormalizedSourceDefinition, document: Document): List<RemoteChapter> {
         val rule = source.tocRule ?: return emptyList()
-        return jsoupRuleExecutor.selectElements(document, rule.chapterList).mapNotNull { element ->
+        if (rule.responseKind != ResponseKind.HTML || rule.chapterList.engine != RuleEngine.HTML_CSS) {
+            return emptyList()
+        }
+        return jsoupRuleExecutor.selectElements(document, rule.chapterList.toLegacyExpression()).mapNotNull { element ->
             val title = element.extract(rule.chapterName) ?: return@mapNotNull null
             val url = element.extract(rule.chapterUrl) ?: return@mapNotNull null
             RemoteChapter(
@@ -171,9 +168,7 @@ class RealSourceBridgeRepository(
     ): RemoteChapterContent {
         val rule = source.contentRule
         val rawContent = document.extract(rule?.content) ?: document.body().text()
-        val content = rule?.replaceRegex?.takeIf { it.isNotBlank() }?.let { regex ->
-            rawContent.replace(Regex(regex), "")
-        } ?: rawContent
+        val content = rule?.let { applyCleaners(rawContent, it.content.cleaners) } ?: rawContent
         return RemoteChapterContent(
             chapterRef = chapterRef,
             title = document.title().ifBlank { chapterRef },
@@ -204,9 +199,24 @@ class RealSourceBridgeRepository(
     private fun urlEncode(value: String): String =
         URLEncoder.encode(value, Charsets.UTF_8.name())
 
-    private fun Document.extract(expression: String?): String? =
-        expression?.let { jsoupRuleExecutor.select(this, it).firstOrNull() }
+    private fun Document.extract(expression: RuleExpression?): String? =
+        expression
+            ?.takeIf { it.engine == RuleEngine.HTML_CSS }
+            ?.let { jsoupRuleExecutor.select(this, it.toLegacyExpression()).firstOrNull() }
 
-    private fun org.jsoup.nodes.Element.extract(expression: String?): String? =
-        expression?.let { jsoupRuleExecutor.select(this, it).firstOrNull() }
+    private fun org.jsoup.nodes.Element.extract(expression: RuleExpression?): String? =
+        expression
+            ?.takeIf { it.engine == RuleEngine.HTML_CSS }
+            ?.let { jsoupRuleExecutor.select(this, it.toLegacyExpression()).firstOrNull() }
+
+    private fun RuleExpression.toLegacyExpression(): String =
+        if (extractor.isNullOrBlank()) selector else "$selector@$extractor"
+
+    private fun applyCleaners(raw: String, cleaners: List<TextCleaner>): String =
+        cleaners.fold(raw) { current, cleaner ->
+            when (cleaner) {
+                is TextCleaner.RemoveRegex -> current.replace(Regex(cleaner.pattern), "")
+                is TextCleaner.ReplaceRegex -> current.replace(Regex(cleaner.pattern), cleaner.replacement)
+            }
+        }
 }

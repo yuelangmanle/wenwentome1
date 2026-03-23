@@ -5,10 +5,16 @@ import com.wenwentome.reader.bridge.source.model.ContentRule
 import com.wenwentome.reader.bridge.source.model.LegacyRuleDefinition
 import com.wenwentome.reader.bridge.source.model.LegacySourceDefinition
 import com.wenwentome.reader.bridge.source.model.NormalizedSourceDefinition
+import com.wenwentome.reader.bridge.source.model.ResponseKind
+import com.wenwentome.reader.bridge.source.model.RuleEngine
+import com.wenwentome.reader.bridge.source.model.RuleExpression
 import com.wenwentome.reader.bridge.source.model.SearchRule
+import com.wenwentome.reader.bridge.source.model.TextCleaner
 import com.wenwentome.reader.bridge.source.model.TocRule
 
-class LegacySourceMapper {
+class LegacySourceMapper(
+    private val expressionParser: RuleExpressionParser = RuleExpressionParser(),
+) {
     fun map(source: LegacySourceDefinition): NormalizedSourceDefinition =
         NormalizedSourceDefinition(
             id = source.bookSourceUrl,
@@ -17,7 +23,7 @@ class LegacySourceMapper {
             sourceType = source.bookSourceType,
             baseUrl = source.bookSourceUrl.toBaseUrl(),
             enabled = source.enabled,
-            searchUrlTemplate = source.searchUrl,
+            searchUrlTemplate = expressionParser.parseSearchTemplate(source.searchUrl),
             searchRule = source.ruleSearch?.toSearchRule(),
             bookInfoRule = source.ruleBookInfo?.toBookInfoRule(),
             tocRule = source.ruleToc?.toTocRule(),
@@ -28,49 +34,83 @@ class LegacySourceMapper {
         val bookList = this["bookList"] ?: return null
         val name = this["name"] ?: return null
         val bookUrl = this["bookUrl"] ?: return null
+        val bookListExpression = expressionParser.parse(bookList)
         return SearchRule(
-            bookList = bookList,
-            name = name,
-            bookUrl = bookUrl,
-            author = this["author"],
-            coverUrl = this["coverUrl"],
-            intro = this["intro"],
+            responseKind = responseKindOf(bookListExpression.engine),
+            bookList = bookListExpression,
+            name = expressionParser.parse(name),
+            bookUrl = expressionParser.parse(bookUrl),
+            author = this["author"]?.let(expressionParser::parse),
+            coverUrl = this["coverUrl"]?.let(expressionParser::parse),
+            intro = this["intro"]?.let(expressionParser::parse),
         )
     }
 
-    private fun LegacyRuleDefinition.toBookInfoRule(): BookInfoRule? =
-        BookInfoRule(
-            name = this["name"],
-            author = this["author"],
-            intro = this["intro"],
-            coverUrl = this["coverUrl"],
-            kind = this["kind"],
-            lastChapter = this["lastChapter"],
+    private fun LegacyRuleDefinition.toBookInfoRule(): BookInfoRule? {
+        val name = this["name"]?.let(expressionParser::parse)
+        val author = this["author"]?.let(expressionParser::parse)
+        val intro = this["intro"]?.let(expressionParser::parse)
+        val coverUrl = this["coverUrl"]?.let(expressionParser::parse)
+        val kind = this["kind"]?.let(expressionParser::parse)
+        val lastChapter = this["lastChapter"]?.let(expressionParser::parse)
+        return BookInfoRule(
+            responseKind = responseKindOf(name, author, intro, coverUrl, kind, lastChapter),
+            name = name,
+            author = author,
+            intro = intro,
+            coverUrl = coverUrl,
+            kind = kind,
+            lastChapter = lastChapter,
         ).takeIf {
-            it.name != null || it.author != null || it.intro != null || it.coverUrl != null
+            it.name != null || it.author != null || it.intro != null || it.coverUrl != null ||
+                it.kind != null || it.lastChapter != null
         }
+    }
 
     private fun LegacyRuleDefinition.toTocRule(): TocRule? {
         val chapterList = this["chapterList"] ?: return null
         val chapterName = this["chapterName"] ?: return null
         val chapterUrl = this["chapterUrl"] ?: return null
+        val chapterListExpression = expressionParser.parse(chapterList)
+        val chapterNameExpression = expressionParser.parse(chapterName)
+        val chapterUrlExpression = expressionParser.parse(chapterUrl)
         return TocRule(
-            chapterList = chapterList,
-            chapterName = chapterName,
-            chapterUrl = chapterUrl,
-            nextTocUrl = this["nextTocUrl"],
+            responseKind = responseKindOf(chapterListExpression, chapterNameExpression, chapterUrlExpression),
+            chapterList = chapterListExpression,
+            chapterName = chapterNameExpression,
+            chapterUrl = chapterUrlExpression,
+            nextTocUrl = this["nextTocUrl"]?.let(expressionParser::parse),
         )
     }
 
     private fun LegacyRuleDefinition.toContentRule(): ContentRule? {
         val content = this["content"] ?: return null
+        val contentExpression = expressionParser.parse(content)
+        val mergedContentExpression = this["replaceRegex"]
+            ?.takeIf { it.isNotBlank() }
+            ?.let { regex ->
+                contentExpression.copy(
+                    cleaners = contentExpression.cleaners + TextCleaner.RemoveRegex(regex),
+                )
+            } ?: contentExpression
+        val nextContentUrl = this["nextContentUrl"]?.let(expressionParser::parse)
         return ContentRule(
-            content = content,
-            nextContentUrl = this["nextContentUrl"],
-            replaceRegex = this["replaceRegex"],
+            responseKind = responseKindOf(mergedContentExpression, nextContentUrl),
+            content = mergedContentExpression,
+            nextContentUrl = nextContentUrl,
             sourceRegex = this["sourceRegex"],
         )
     }
+
+    private fun responseKindOf(engine: RuleEngine): ResponseKind =
+        if (engine == RuleEngine.JSON_PATH) ResponseKind.JSON else ResponseKind.HTML
+
+    private fun responseKindOf(vararg expressions: RuleExpression?): ResponseKind =
+        if (expressions.filterNotNull().any { it.engine == RuleEngine.JSON_PATH }) {
+            ResponseKind.JSON
+        } else {
+            ResponseKind.HTML
+        }
 
     private fun String.toBaseUrl(): String =
         substringBefore("##")

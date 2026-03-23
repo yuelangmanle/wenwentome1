@@ -13,7 +13,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 class SourceRuleParser(
-    private val mapper: LegacySourceMapper = LegacySourceMapper(),
+    private val expressionParser: RuleExpressionParser = RuleExpressionParser(),
+    private val mapper: LegacySourceMapper = LegacySourceMapper(expressionParser),
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
