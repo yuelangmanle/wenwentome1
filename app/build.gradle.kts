@@ -14,8 +14,8 @@ android {
         applicationId = "com.wenwentome.reader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 130
-        versionName = "1.3"
+        versionCode = 140
+        versionName = "1.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

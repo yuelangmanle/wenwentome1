@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4] - 2026-03-23
+
+### Added
+- 书源兼容底座第一阶段：结构化规则模型、统一规则执行器，以及 HTML/CSS、XPath、JSONPath 三条主链执行能力
+- `##` 文本清洗、轻量 `@js:` 字段后处理与 unsupported 规则显式诊断
+- 首批 10 个目标源离线 fixture、shared archetype 响应体与 round-trip 验收测试
+
+### Changed
+- 详情、目录、正文链路统一改走 bridge 内部规则执行层，不再依赖业务流程里的字符串截断
+- Discover 侧对 unsupported 规则和普通请求失败做了区分提示，刷新目录时同步接入 source health 记录
+- `publish/main` 与 `main` 均已通过 GitHub Actions 云端 `testDebugUnitTest + assembleDebug` 验证
+
 ## [1.3] - 2026-03-23
 
 ### Fixed

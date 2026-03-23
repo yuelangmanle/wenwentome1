@@ -2,9 +2,9 @@
 
 ## 当前阶段
 
-- 阶段：`1.3` 作为当前正式版本基线，`1.4` 书源兼容底座第一阶段开发中
-- 当前基线：`1.3`
-- 当前目标：收口 `1.4` 的书源兼容底座 phase1，并在具备 JDK 17 的环境里补齐 bridge / discover / app 三段验证，再决定是否同步正式发版资料
+- 阶段：`1.4` 发版资料同步中
+- 当前基线：`1.4`
+- 当前目标：基于已经通过的 GitHub 云端验证，收口 `1.4` release metadata、tag 与正式发布链路
 
 ## 已完成
 
@@ -49,13 +49,12 @@
 - `1.4 / Task 4` 详情、目录、正文链路已改走统一规则执行器
 - `1.4 / Task 5` discover 侧已区分 unsupported 与普通失败，刷新目录也已接入健康追踪
 - `1.4 / Task 6` 首批 10 个目标源的离线 fixture、目标清单文档与 shared archetype 结构已补齐
-- `1.4 / Task 6` 当前缺口只剩在具备 Java Runtime 的环境里补跑 `SourceCompatibilityPhase1FixtureTest`
+- `1.4 / Task 6` `publish/main` 与 `main` 都已通过 GitHub Actions 云端 `testDebugUnitTest + assembleDebug`
 
 ## 当前风险
 
-- `1.3` 发版准备已完成，以下风险均为后续迭代项，不阻塞当前版本交付
+- `1.4` 功能主链已通过云端验证，以下风险均为后续迭代项，不阻塞当前版本交付
 - app 级回归仍以 `WEB` 主链为主，`TXT/EPUB` 的端到端烟雾覆盖仍可继续补宽
-- 当前书源兼容底座虽已补到 phase1，但真实 Gradle 验证还受本机缺少 Java Runtime 影响，暂时只能做静态收口
 - 当前书源兼容底座仍只覆盖较基础规则，`书源.json` 中大量 `@js:` / `$` / `##` 规则尚未完整兼容
 - PDF 阅读仍未实现，这一项按现阶段规划继续后置到 `1.4+`
 - Release 签名沿用仓库现有 GitHub secrets，暂未做签名轮换，以避免升级兼容风险
@@ -63,7 +62,7 @@
 
 ## 下一步
 
-1. `1.4` 第一优先级：在 JDK 17 环境跑完 bridge / discover / app 验证，确认 source compatibility phase1 可以正式收口
+1. `1.4` 第一优先级：触发正式 release tag，产出 signed release APK 与 GitHub Release
 2. 阅读体验继续深化：补 PDF 阅读链路、更多阅读主题、排版配置、仿真翻页细节和更完整的端到端回归
 3. API Hub 按路线图继续推进：阅读问答、多段落批量翻译、书摘总结卡片、Provider 远端模型发现、调用日志导出
 4. 网文链路继续补强：书源健康仪表板、自动切源策略面板、发现页推荐与刷新策略优化
