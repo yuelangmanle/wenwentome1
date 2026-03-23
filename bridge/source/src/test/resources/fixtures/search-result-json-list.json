@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "name": "将夜",
+      "author": "猫腻",
+      "url": "/book/jiangye",
+      "cover": "/cover/jiangye.jpg",
+      "intro": "昊天之下，众生皆苦"
+    },
+    {
+      "name": "庆余年",
+      "author": "猫腻",
+      "url": "/book/qingyunian",
+      "cover": "/cover/qingyunian.jpg",
+      "intro": "余年有幸，再入京都"
+    }
+  ]
+}

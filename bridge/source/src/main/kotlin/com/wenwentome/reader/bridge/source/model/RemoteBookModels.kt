@@ -6,6 +6,8 @@ data class RemoteSearchResult(
     val title: String,
     val author: String? = null,
     val detailUrl: String,
+    val coverUrl: String? = null,
+    val intro: String? = null,
 )
 
 data class RemoteBookDetail(

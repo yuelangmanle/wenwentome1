@@ -23,4 +23,5 @@ dependencies {
     implementation(libs.rhino)
 
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

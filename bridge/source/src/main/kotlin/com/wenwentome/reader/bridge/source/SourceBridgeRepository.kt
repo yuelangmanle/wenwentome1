@@ -7,6 +7,7 @@ import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
 import com.wenwentome.reader.bridge.source.model.RemoteChapterContent
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
+import com.wenwentome.reader.bridge.source.model.RuleTarget
 import com.wenwentome.reader.bridge.source.model.RuleEngine
 import com.wenwentome.reader.bridge.source.model.RuleExpression
 import com.wenwentome.reader.bridge.source.model.TextCleaner
@@ -47,15 +48,16 @@ class RealSourceBridgeRepository(
     private val sourceProvider: SourceDefinitionProvider,
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val jsoupRuleExecutor: JsoupRuleExecutor = JsoupRuleExecutor(),
+    private val ruleExecutionEngine: RuleExecutionEngine = RuleExecutionEngine(),
+    private val diagnosticReporter: SourceBridgeDiagnosticReporter = NoOpSourceBridgeDiagnosticReporter,
 ) : SourceBridgeRepository {
     override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> {
         val sources = sourceProvider.getAll()
             .filter { it.enabled && (sourceIds.isEmpty() || it.id in sourceIds) }
         return sources.flatMap { source ->
             runCatching {
-                val body = executeTemplateRequest(source, requireNotNull(source.searchUrlTemplate), query)
-                val document = Jsoup.parse(body, source.baseUrl)
-                executeSearch(source, document)
+                val response = executeTemplateRequest(source, requireNotNull(source.searchUrlTemplate), query)
+                executeSearch(source, response.body, response.url)
             }.getOrDefault(emptyList())
         }
     }
@@ -91,7 +93,7 @@ class RealSourceBridgeRepository(
         template: ParsedSearchUrlTemplate,
         query: String,
         page: Int = 1,
-    ): String {
+    ): RequestExecutionResult {
         require(!template.requiresJsTemplate) {
             "JS templates are not supported in the core bridge yet"
         }
@@ -111,28 +113,45 @@ class RealSourceBridgeRepository(
                 Request.Builder().url(resolvedUrl).get().build()
             }
         } ?: Request.Builder().url(resolvedUrl).get().build()
-        return executeRequest(request)
+        return RequestExecutionResult(
+            url = resolvedUrl,
+            body = executeRequest(request),
+        )
     }
 
     private suspend fun executeSearch(
         source: NormalizedSourceDefinition,
-        document: Document,
+        body: String,
+        pageUrl: String,
     ): List<RemoteSearchResult> {
         val rule = source.searchRule ?: return emptyList()
-        if (rule.responseKind != ResponseKind.HTML || rule.bookList.engine != RuleEngine.HTML_CSS) {
-            return emptyList()
-        }
-        return jsoupRuleExecutor.selectElements(document, rule.bookList.toLegacyExpression()).mapNotNull { item ->
-            val detailUrl = item.extract(rule.bookUrl) ?: return@mapNotNull null
-            val title = item.extract(rule.name) ?: return@mapNotNull null
+        val diagnostics = mutableListOf<RuleExecutionDiagnostic>()
+        val context = RuleExecutionContext(
+            baseUrl = source.baseUrl,
+            pageUrl = pageUrl,
+        )
+        val target = rule.responseKind.toRuleTarget(body, pageUrl)
+        val items = ruleExecutionEngine.extractList(target, rule.bookList, context).captureInto(diagnostics)
+        val results = items.mapNotNull { item ->
+            val detailUrl = ruleExecutionEngine.extractValue(item, rule.bookUrl, context).captureInto(diagnostics)
+                ?: return@mapNotNull null
+            val title = ruleExecutionEngine.extractValue(item, rule.name, context).captureInto(diagnostics)
+                ?: return@mapNotNull null
+            val resolvedDetailUrl = resolveUrl(source.baseUrl, detailUrl)
             RemoteSearchResult(
-                id = resolveUrl(source.baseUrl, detailUrl),
+                id = resolvedDetailUrl,
                 sourceId = source.id,
                 title = title,
-                author = item.extract(rule.author),
-                detailUrl = resolveUrl(source.baseUrl, detailUrl),
+                author = rule.author?.let { ruleExecutionEngine.extractValue(item, it, context).captureInto(diagnostics) },
+                detailUrl = resolvedDetailUrl,
+                coverUrl = rule.coverUrl
+                    ?.let { ruleExecutionEngine.extractValue(item, it, context).captureInto(diagnostics) }
+                    ?.let { resolveUrl(source.baseUrl, it) },
+                intro = rule.intro?.let { ruleExecutionEngine.extractValue(item, it, context).captureInto(diagnostics) },
             )
         }
+        reportDiagnostics(source.id, pageUrl, diagnostics)
+        return results
     }
 
     private fun executeDetail(source: NormalizedSourceDefinition, document: Document): RemoteBookDetail {
@@ -199,6 +218,25 @@ class RealSourceBridgeRepository(
     private fun urlEncode(value: String): String =
         URLEncoder.encode(value, Charsets.UTF_8.name())
 
+    private fun ResponseKind.toRuleTarget(
+        body: String,
+        pageUrl: String,
+    ): RuleTarget =
+        when (this) {
+            ResponseKind.HTML -> RuleTarget.Html(Jsoup.parse(body, pageUrl))
+            ResponseKind.JSON -> RuleTarget.Json(body)
+        }
+
+    private fun reportDiagnostics(
+        sourceId: String,
+        pageUrl: String,
+        diagnostics: List<RuleExecutionDiagnostic>,
+    ) {
+        if (diagnostics.isNotEmpty()) {
+            diagnosticReporter.report(sourceId, pageUrl, diagnostics)
+        }
+    }
+
     private fun Document.extract(expression: RuleExpression?): String? =
         expression
             ?.takeIf { it.engine == RuleEngine.HTML_CSS }
@@ -219,4 +257,9 @@ class RealSourceBridgeRepository(
                 is TextCleaner.ReplaceRegex -> current.replace(Regex(cleaner.pattern), cleaner.replacement)
             }
         }
+
+    private data class RequestExecutionResult(
+        val url: String,
+        val body: String,
+    )
 }
