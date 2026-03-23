@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.fail
 import org.junit.Test
 
 class RefreshRemoteBookUseCaseTest {
@@ -244,7 +243,7 @@ class RefreshRemoteBookUseCaseTest {
 
         val error = try {
             useCase("book-1")
-            fail("expected unsupported error")
+            error("expected unsupported error")
         } catch (exception: SourceBridgeException) {
             exception
         }
