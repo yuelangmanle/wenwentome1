@@ -1,6 +1,8 @@
 package com.wenwentome.reader.feature.discover
 
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
+import com.wenwentome.reader.bridge.source.SourceBridgeErrorCode
+import com.wenwentome.reader.bridge.source.sourceBridgeCodeOrNull
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.database.dao.ReadingStateDao
@@ -54,33 +56,36 @@ class RefreshRemoteBookUseCase(
 
         return primaryAttempt.fold(
             onSuccess = { refreshed ->
-            val latestKnownChapterRef =
+                val latestKnownChapterRef =
                     resolveLatestKnownChapterRefForRefresh(
                         refreshed.detail,
                         refreshed.toc,
                         binding.latestKnownChapterRef,
                     )
-            val hasUpdates =
-                latestKnownChapterRef != null && latestKnownChapterRef != readingState?.chapterRef
-            remoteBindingDao.upsert(
-                binding.copy(
-                    tocRef = refreshed.toc.firstOrNull()?.chapterRef ?: binding.tocRef,
-                    latestKnownChapterRef = latestKnownChapterRef,
-                    lastCatalogRefreshAt = now(),
-                ),
-            )
+                val hasUpdates =
+                    latestKnownChapterRef != null && latestKnownChapterRef != readingState?.chapterRef
+                remoteBindingDao.upsert(
+                    binding.copy(
+                        tocRef = refreshed.toc.firstOrNull()?.chapterRef ?: binding.tocRef,
+                        latestKnownChapterRef = latestKnownChapterRef,
+                        lastCatalogRefreshAt = now(),
+                    ),
+                )
                 RefreshRemoteBookResult(
-                latestKnownChapterRef = latestKnownChapterRef,
-                hasUpdates = hasUpdates,
-                activeSourceId = primarySourceId,
-                activeRemoteBookId = primaryRemoteBookId,
-                activeRemoteBookUrl = primaryRemoteBookUrl,
-                autoSwitched = false,
-                primarySourceId = primarySourceId,
-                primarySourceFailed = false,
-            )
+                    latestKnownChapterRef = latestKnownChapterRef,
+                    hasUpdates = hasUpdates,
+                    activeSourceId = primarySourceId,
+                    activeRemoteBookId = primaryRemoteBookId,
+                    activeRemoteBookUrl = primaryRemoteBookUrl,
+                    autoSwitched = false,
+                    primarySourceId = primarySourceId,
+                    primarySourceFailed = false,
+                )
             },
             onFailure = { primaryError ->
+                if (!primaryError.canFallbackSource()) {
+                    throw primaryError
+                }
                 val query = resolveFallbackQuery(binding.remoteBookUrl, binding.remoteBookId, null)
                     ?: throw primaryError
                 val fallback =
@@ -134,16 +139,15 @@ class RefreshRemoteBookUseCase(
             val toc = sourceBridgeRepository.fetchToc(sourceId, remoteBookId)
             RefreshedRemoteBook(detail = detail, toc = toc)
         }.onSuccess {
-            healthTracker.recordResult(
+            healthTracker.recordSuccess(
                 sourceId = sourceId,
-                success = true,
                 latencyMs = System.currentTimeMillis() - startedAt,
             )
         }.onFailure {
-            healthTracker.recordResult(
+            healthTracker.recordFailure(
                 sourceId = sourceId,
-                success = false,
                 latencyMs = System.currentTimeMillis() - startedAt,
+                error = it,
             )
         }
     }
@@ -165,4 +169,10 @@ class RefreshRemoteBookUseCase(
         val detail: RemoteBookDetail,
         val toc: List<com.wenwentome.reader.bridge.source.model.RemoteChapter>,
     )
+
+    private fun Throwable.canFallbackSource(): Boolean =
+        when (sourceBridgeCodeOrNull()) {
+            SourceBridgeErrorCode.UNSUPPORTED_RULE_KIND -> false
+            else -> true
+        }
 }

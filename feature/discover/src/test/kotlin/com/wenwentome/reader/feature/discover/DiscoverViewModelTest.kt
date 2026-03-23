@@ -1,5 +1,7 @@
 package com.wenwentome.reader.feature.discover
 
+import com.wenwentome.reader.bridge.source.SourceBridgeErrorCode
+import com.wenwentome.reader.bridge.source.SourceBridgeException
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
@@ -127,6 +129,50 @@ class DiscoverViewModelTest {
         assertEquals(sampleSearchResult(), viewModel.uiState.value.selectedResult?.result)
         assertEquals("雪中悍刀行", viewModel.uiState.value.selectedPreview?.title)
         assertEquals("最新章", viewModel.uiState.value.selectedPreview?.lastChapter)
+    }
+
+    @Test
+    fun selectResult_showsUnsupportedHintWhenBridgeRejectsRule() = runTest {
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                fetchBookDetailError = SourceBridgeException(
+                    code = SourceBridgeErrorCode.UNSUPPORTED_RULE_KIND,
+                    message = "JS_TEMPLATE",
+                ),
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            ioDispatcher = Dispatchers.Main,
+        )
+
+        viewModel.search("雪中")
+        advanceUntilIdle()
+        viewModel.selectResult("remote-1")
+        advanceUntilIdle()
+
+        assertEquals("当前书源规则超出 1.4 第一阶段支持范围", viewModel.uiState.value.lastRefreshHint)
+    }
+
+    @Test
+    fun selectResult_keepsGenericHintWhenBridgeFailsNormally() = runTest {
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                fetchBookDetailError = SourceBridgeException(
+                    code = SourceBridgeErrorCode.REQUEST_FAILED,
+                    message = "network down",
+                ),
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            ioDispatcher = Dispatchers.Main,
+        )
+
+        viewModel.search("雪中")
+        advanceUntilIdle()
+        viewModel.selectResult("remote-1")
+        advanceUntilIdle()
+
+        assertEquals("当前书源预览失败，请稍后重试", viewModel.uiState.value.lastRefreshHint)
     }
 
     @Test
@@ -379,6 +425,7 @@ private class FakeBridgeRepository(
     private val searchResults: List<RemoteSearchResult> = emptyList(),
     private val deferredSearchResults: Map<String, CompletableDeferred<List<RemoteSearchResult>>> = emptyMap(),
     private val detailByRemoteBookId: Map<String, RemoteBookDetail> = emptyMap(),
+    private val fetchBookDetailError: Throwable? = null,
     private val onSearch: suspend () -> Unit = {},
     private val onFetchBookDetail: suspend () -> Unit = {},
 ) : SourceBridgeRepository {
@@ -389,6 +436,7 @@ private class FakeBridgeRepository(
 
     override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail {
         onFetchBookDetail()
+        fetchBookDetailError?.let { throw it }
         return detailByRemoteBookId[remoteBookId] ?: RemoteBookDetail(title = remoteBookId)
     }
 

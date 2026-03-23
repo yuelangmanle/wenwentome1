@@ -13,3 +13,6 @@ class SourceBridgeException(
     override val message: String,
     cause: Throwable? = null,
 ) : IllegalStateException(message, cause)
+
+fun Throwable.sourceBridgeCodeOrNull(): SourceBridgeErrorCode? =
+    (this as? SourceBridgeException)?.code

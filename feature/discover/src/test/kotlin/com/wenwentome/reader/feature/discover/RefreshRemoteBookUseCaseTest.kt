@@ -1,5 +1,7 @@
 package com.wenwentome.reader.feature.discover
 
+import com.wenwentome.reader.bridge.source.SourceBridgeErrorCode
+import com.wenwentome.reader.bridge.source.SourceBridgeException
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteChapter
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Test
 
 class RefreshRemoteBookUseCaseTest {
@@ -153,7 +156,12 @@ class RefreshRemoteBookUseCaseTest {
                         RemoteChapter(chapterRef = "chapter-3", title = "第三章"),
                     ),
                 ),
-                failingTocSources = setOf("source-1"),
+                tocErrorsBySource = mapOf(
+                    "source-1" to SourceBridgeException(
+                        code = SourceBridgeErrorCode.REQUEST_FAILED,
+                        message = "Toc failed for sourceId=source-1",
+                    ),
+                ),
             ),
             remoteBindingDao = remoteBindingDao,
             readingStateDao = readingStateDao,
@@ -194,29 +202,79 @@ class RefreshRemoteBookUseCaseTest {
         assertEquals("chapter-1", updatedBinding.tocRef)
         assertEquals(888L, updatedBinding.lastCatalogRefreshAt)
     }
+
+    @Test
+    fun refreshRemoteBook_doesNotFallbackWhenPrimarySourceIsUnsupported() = runTest {
+        val remoteBindingDao = FakeRemoteBindingDao()
+        val readingStateDao = FakeReadingStateDao()
+        val useCase = RefreshRemoteBookUseCase(
+            sourceBridgeRepository = SwitchingSourceBridgeRepository(
+                searchResults = listOf(
+                    RemoteSearchResult(
+                        id = "remote-backup",
+                        sourceId = "backup-source",
+                        title = "雪中悍刀行",
+                        detailUrl = "https://backup.example.com/books/1",
+                    ),
+                ),
+                detailByKey = emptyMap(),
+                tocByKey = emptyMap(),
+                detailErrorsBySource = mapOf(
+                    "source-1" to SourceBridgeException(
+                        code = SourceBridgeErrorCode.UNSUPPORTED_RULE_KIND,
+                        message = "JS_TEMPLATE",
+                    ),
+                ),
+            ),
+            remoteBindingDao = remoteBindingDao,
+            readingStateDao = readingStateDao,
+            now = { 777L },
+        )
+        remoteBindingDao.upsert(
+            RemoteBindingEntity(
+                bookId = "book-1",
+                sourceId = "source-1",
+                remoteBookId = "remote-1",
+                remoteBookUrl = "https://example.com/books/1",
+                tocRef = "chapter-1",
+                latestKnownChapterRef = "chapter-2",
+                lastCatalogRefreshAt = null,
+            ),
+        )
+
+        val error = try {
+            useCase("book-1")
+            fail("expected unsupported error")
+        } catch (exception: SourceBridgeException) {
+            exception
+        }
+
+        assertEquals(SourceBridgeErrorCode.UNSUPPORTED_RULE_KIND, error.code)
+        val binding = remoteBindingDao.bindings.getValue("book-1")
+        assertEquals("source-1", binding.sourceId)
+        assertEquals("remote-1", binding.remoteBookId)
+        assertEquals("https://example.com/books/1", binding.remoteBookUrl)
+        assertEquals(null, binding.lastCatalogRefreshAt)
+    }
 }
 
 private class SwitchingSourceBridgeRepository(
     private val searchResults: List<RemoteSearchResult>,
     private val detailByKey: Map<String, RemoteBookDetail>,
     private val tocByKey: Map<String, List<RemoteChapter>>,
-    private val failingDetailSources: Set<String> = emptySet(),
-    private val failingTocSources: Set<String> = emptySet(),
+    private val detailErrorsBySource: Map<String, Throwable> = emptyMap(),
+    private val tocErrorsBySource: Map<String, Throwable> = emptyMap(),
 ) : com.wenwentome.reader.bridge.source.SourceBridgeRepository {
     override suspend fun search(query: String, sourceIds: List<String>): List<RemoteSearchResult> =
         searchResults
 
     override suspend fun fetchBookDetail(sourceId: String, remoteBookId: String): RemoteBookDetail {
-        if (sourceId in failingDetailSources) {
-            throw IllegalStateException("Detail failed for sourceId=$sourceId")
-        }
+        detailErrorsBySource[sourceId]?.let { throw it }
         return detailByKey.getValue("$sourceId|$remoteBookId")
     }
 
     override suspend fun fetchToc(sourceId: String, remoteBookId: String): List<RemoteChapter> {
-        if (sourceId in failingTocSources) {
-            throw IllegalStateException("Toc failed for sourceId=$sourceId")
-        }
+        tocErrorsBySource[sourceId]?.let { throw it }
         return tocByKey.getValue("$sourceId|$remoteBookId")
     }
 

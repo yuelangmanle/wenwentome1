@@ -3,6 +3,8 @@ package com.wenwentome.reader.feature.discover
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wenwentome.reader.bridge.source.SourceBridgeRepository
+import com.wenwentome.reader.bridge.source.SourceBridgeErrorCode
+import com.wenwentome.reader.bridge.source.sourceBridgeCodeOrNull
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.model.ReadingState
 import kotlinx.coroutines.CoroutineDispatcher
@@ -118,9 +120,8 @@ class DiscoverViewModel(
                 val detail = withContext(ioDispatcher) {
                     sourceBridgeRepository.fetchBookDetail(result.sourceId, result.id)
                 }
-                healthTracker.recordResult(
+                healthTracker.recordSuccess(
                     sourceId = result.sourceId,
-                    success = true,
                     latencyMs = nowProvider() - start,
                 )
                 val state = mutableUiState.value
@@ -134,17 +135,17 @@ class DiscoverViewModel(
                     )
                 }
             } catch (error: Throwable) {
-                healthTracker.recordResult(
+                healthTracker.recordFailure(
                     sourceId = result.sourceId,
-                    success = false,
                     latencyMs = nowProvider() - start,
+                    error = error,
                 )
                 mutableUiState.update {
                     val updatedResults = reEnhanceResults(preferredTitle = it.query)
                     it.copy(
                         results = updatedResults,
                         selectedResult = updatedResults.firstOrNull { item -> item.id == resultId } ?: it.selectedResult,
-                        lastRefreshHint = "当前书源预览失败，请稍后重试",
+                        lastRefreshHint = error.toDiscoverHint(defaultMessage = "当前书源预览失败，请稍后重试"),
                     )
                 }
             }
@@ -207,7 +208,7 @@ class DiscoverViewModel(
                         refreshingResultIds = it.refreshingResultIds - result.id,
                         results = updatedResults,
                         selectedResult = updatedResults.firstOrNull { item -> item.id == result.id } ?: it.selectedResult,
-                        lastRefreshHint = "刷新目录失败，请稍后再试",
+                        lastRefreshHint = error.toDiscoverHint(defaultMessage = "刷新目录失败，请稍后再试"),
                     )
                 }
             }
@@ -271,7 +272,7 @@ class DiscoverViewModel(
                         refreshingResultIds = it.refreshingResultIds - result.id,
                         results = updatedResults,
                         selectedResult = updatedResults.firstOrNull { item -> item.id == result.id } ?: it.selectedResult,
-                        lastRefreshHint = "阅读最新失败，请稍后再试",
+                        lastRefreshHint = error.toDiscoverHint(defaultMessage = "阅读最新失败，请稍后再试"),
                     )
                 }
             }
@@ -355,5 +356,11 @@ class DiscoverViewModel(
             refreshResult.autoSwitched -> "已自动切换到书源：$activeSourceId"
             refreshResult.hasUpdates -> "已检测到更新"
             else -> null
+        }
+
+    private fun Throwable.toDiscoverHint(defaultMessage: String): String =
+        when (sourceBridgeCodeOrNull()) {
+            SourceBridgeErrorCode.UNSUPPORTED_RULE_KIND -> "当前书源规则超出 1.4 第一阶段支持范围"
+            else -> defaultMessage
         }
 }

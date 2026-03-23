@@ -30,6 +30,29 @@ class SourceHealthTracker(
         )
     }
 
+    fun recordSuccess(
+        sourceId: String,
+        latencyMs: Long,
+    ) {
+        recordResult(
+            sourceId = sourceId,
+            success = true,
+            latencyMs = latencyMs,
+        )
+    }
+
+    fun recordFailure(
+        sourceId: String,
+        latencyMs: Long,
+        error: Throwable,
+    ) {
+        recordResult(
+            sourceId = sourceId,
+            success = false,
+            latencyMs = latencyMs,
+        )
+    }
+
     fun healthScore(sourceId: String): Float =
         delegate.healthScore(sourceId)
 
@@ -45,6 +68,7 @@ class SourceHealthTracker(
         preferredAuthor: String? = null,
     ): List<DiscoverSearchResult> {
         if (results.isEmpty()) return emptyList()
+        val originalResults = results.associateBy { it.sourceId to it.id }
         return delegate
             .enhanceSearchResults(
                 results =
@@ -62,6 +86,7 @@ class SourceHealthTracker(
                 preferredAuthor = preferredAuthor,
             )
             .map { result ->
+                val original = originalResults[result.sourceId to result.id]
                 DiscoverSearchResult(
                     result =
                         RemoteSearchResult(
@@ -69,7 +94,9 @@ class SourceHealthTracker(
                             sourceId = result.sourceId,
                             title = result.title,
                             author = result.author,
-                            detailUrl = result.detailUrl.orEmpty(),
+                            detailUrl = result.detailUrl ?: original?.detailUrl.orEmpty(),
+                            coverUrl = original?.coverUrl,
+                            intro = original?.intro,
                         ),
                     healthScore = result.healthScore,
                     healthLabel = result.healthLabel,
