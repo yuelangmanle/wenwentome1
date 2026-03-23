@@ -5,7 +5,9 @@ import org.mozilla.javascript.ScriptableObject
 
 class RhinoScriptEvaluator {
     fun eval(script: String, bindings: Map<String, Any?>): String {
-        val context = Context.enter()
+        val context = Context.enter().apply {
+            optimizationLevel = -1
+        }
         return try {
             val scope = context.initSafeStandardObjects()
             bindings.forEach { (key, value) ->

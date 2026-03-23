@@ -19,6 +19,13 @@ class JsoupRuleExecutor {
     fun selectElements(element: Element, expression: String): List<Element> {
         val cleaned = cleanExpression(expression)
         val selector = cleaned.substringBefore("@").trim()
+        return selectElementsBySelector(element, selector)
+    }
+
+    fun selectElementsBySelector(
+        element: Element,
+        selector: String,
+    ): List<Element> {
         if (selector.isBlank() || selector == "text") {
             return listOf(element)
         }
@@ -27,18 +34,27 @@ class JsoupRuleExecutor {
         return index?.let { matches.getOrNull(it)?.let(::listOf).orEmpty() } ?: matches
     }
 
+    fun selectValues(
+        element: Element,
+        selector: String,
+        extractor: String? = null,
+    ): List<String> {
+        val normalizedExtractor = extractor?.trim().orEmpty().ifBlank { "text" }
+        val matches = selectElementsBySelector(element, selector)
+        return matches.mapNotNull { match ->
+            when {
+                normalizedExtractor == "text" -> match.text()
+                normalizedExtractor == "html" -> match.html()
+                else -> match.attr(normalizedExtractor.removePrefix("attr:"))
+            }.takeIf { it.isNotBlank() }
+        }
+    }
+
     private fun selectSingle(element: Element, expression: String): List<String> {
         val cleaned = cleanExpression(expression)
         val selector = cleaned.substringBefore("@").trim()
         val extractor = cleaned.substringAfter("@", "text").trim()
-        val matches = selectElements(element, selector)
-        return matches.mapNotNull { match ->
-            when {
-                extractor.isBlank() || extractor == "text" -> match.text()
-                extractor == "html" -> match.html()
-                else -> match.attr(extractor.removePrefix("attr:"))
-            }.takeIf { it.isNotBlank() }
-        }
+        return selectValues(element, selector, extractor)
     }
 
     private fun cleanExpression(expression: String): String =
