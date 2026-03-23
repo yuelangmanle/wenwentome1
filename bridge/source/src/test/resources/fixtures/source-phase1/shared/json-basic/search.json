@@ -1,0 +1,11 @@
+{
+  "result": [
+    {
+      "bookTitle": "疯读测试书",
+      "bookAuthor": "接口作者",
+      "bookCoverImage": "https://fixture.wenwentome.test/json/cover/fengdu.jpg",
+      "bookDesc": "接口分支稳定命中",
+      "url": "https://fixture.wenwentome.test/json/book/fengdu"
+    }
+  ]
+}

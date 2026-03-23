@@ -1,0 +1,65 @@
+{
+  "slug": "txtduo",
+  "sourceId": "https://www.txtduo.net",
+  "sourceName": "❤️多多书院",
+  "sampleBookTitle": "雪中悍刀行",
+  "query": "雪中悍刀行",
+  "primaryEngine": "HTML_XPATH",
+  "hasJsonRule": false,
+  "hasXPathRule": true,
+  "hasCleanerOrScript": true,
+  "source": {
+    "searchUrl": "https://fixture.wenwentome.test/xpath/search?title={{key}}",
+    "ruleSearch": {
+      "bookList": "//div[@class='search-result']",
+      "name": "//h2[@class='title']",
+      "bookUrl": "//a[@class='detail-link']",
+      "author": "//div[@class='author']",
+      "coverUrl": "//div[@class='cover-url']",
+      "intro": "//div[@class='intro']"
+    },
+    "ruleBookInfo": {
+      "name": "//h1",
+      "author": "//span[@class='author']",
+      "intro": "//div[@id='intro']/p",
+      "coverUrl": "//div[@class='cover-url']",
+      "lastChapter": "//div[@id='info']/p[1]/a"
+    },
+    "ruleToc": {
+      "chapterList": "//dd[@class='chapter-item']",
+      "chapterName": "//span[@class='chapter-title']",
+      "chapterUrl": "//a[@class='chapter-link']"
+    },
+    "ruleContent": {
+      "content": "//*[@id='content']##请记住本书.*"
+    }
+  },
+  "requests": {
+    "search": {
+      "url": "https://fixture.wenwentome.test/xpath/search?title=%E9%9B%AA%E4%B8%AD%E6%82%8D%E5%88%80%E8%A1%8C",
+      "bodyFile": "shared/xpath-basic/search.html"
+    },
+    "detail": {
+      "url": "https://fixture.wenwentome.test/xpath/book/xuezhong",
+      "bodyFile": "shared/xpath-basic/detail.html"
+    },
+    "toc": {
+      "url": "https://fixture.wenwentome.test/xpath/book/xuezhong",
+      "bodyFile": "shared/xpath-basic/detail.html"
+    },
+    "content": {
+      "url": "https://fixture.wenwentome.test/xpath/chapter/1",
+      "bodyFile": "shared/xpath-basic/content.html"
+    }
+  },
+  "expected": {
+    "searchTitle": "雪中悍刀行",
+    "searchAuthor": "烽火戏诸侯",
+    "detailTitle": "雪中悍刀行",
+    "detailAuthor": "烽火戏诸侯",
+    "lastChapter": "第一卷 北凉雪",
+    "firstChapterTitle": "第一章 北凉王府",
+    "firstChapterRef": "https://fixture.wenwentome.test/xpath/chapter/1",
+    "contentSnippet": "真正正文 第一段。真正正文第二段。"
+  }
+}

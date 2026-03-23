@@ -1,0 +1,19 @@
+{
+  "data": {
+    "title": "疯读测试书",
+    "author": "接口作者",
+    "intro": "接口分支稳定命中",
+    "cover": "https://fixture.wenwentome.test/json/cover/fengdu.jpg",
+    "lastChapter": "第一卷 接口夜"
+  },
+  "chapters": [
+    {
+      "chapterTitle": "第一章 开端（求更）",
+      "content_url": "https://fixture.wenwentome.test/json/content/1"
+    },
+    {
+      "chapterTitle": "第二章 入城",
+      "content_url": "https://fixture.wenwentome.test/json/content/2"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "slug": "fengdu-warmth",
+  "sourceId": "https://touchlife.cootekservice.com#温暖满怀",
+  "sourceName": "疯读小说",
+  "sampleBookTitle": "疯读测试书",
+  "query": "疯读测试书",
+  "primaryEngine": "JSON_PATH",
+  "hasJsonRule": true,
+  "hasXPathRule": false,
+  "hasCleanerOrScript": true,
+  "source": {
+    "searchUrl": "https://fixture.wenwentome.test/json/search?keyword={{key}}",
+    "ruleSearch": {
+      "bookList": "$.result[*]",
+      "name": "$.bookTitle",
+      "bookUrl": "$.url",
+      "author": "$.bookAuthor",
+      "coverUrl": "$.bookCoverImage",
+      "intro": "$.bookDesc"
+    },
+    "ruleBookInfo": {
+      "name": "$.data.title",
+      "author": "$.data.author",
+      "intro": "$.data.intro",
+      "coverUrl": "$.data.cover",
+      "lastChapter": "$.data.lastChapter"
+    },
+    "ruleToc": {
+      "chapterList": "$.chapters[*]",
+      "chapterName": "$.chapterTitle##[\\(（].*[求更谢乐发推].*[）\\)]",
+      "chapterUrl": "$.content_url"
+    },
+    "ruleContent": {
+      "content": "$.content##广告位##@js:result.trim()"
+    }
+  },
+  "requests": {
+    "search": {
+      "url": "https://fixture.wenwentome.test/json/search?keyword=%E7%96%AF%E8%AF%BB%E6%B5%8B%E8%AF%95%E4%B9%A6",
+      "bodyFile": "shared/json-basic/search.json"
+    },
+    "detail": {
+      "url": "https://fixture.wenwentome.test/json/book/fengdu",
+      "bodyFile": "shared/json-basic/detail.json"
+    },
+    "toc": {
+      "url": "https://fixture.wenwentome.test/json/book/fengdu",
+      "bodyFile": "shared/json-basic/detail.json"
+    },
+    "content": {
+      "url": "https://fixture.wenwentome.test/json/content/1",
+      "bodyFile": "shared/json-basic/content.json"
+    }
+  },
+  "expected": {
+    "searchTitle": "疯读测试书",
+    "searchAuthor": "接口作者",
+    "detailTitle": "疯读测试书",
+    "detailAuthor": "接口作者",
+    "lastChapter": "第一卷 接口夜",
+    "firstChapterTitle": "第一章 开端",
+    "firstChapterRef": "https://fixture.wenwentome.test/json/content/1",
+    "contentSnippet": "真正正文 第一段。真正正文第二段。"
+  }
+}

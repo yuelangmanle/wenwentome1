@@ -1,0 +1,65 @@
+{
+  "slug": "xxsy",
+  "sourceId": "https://www.xxsy.net/",
+  "sourceName": "潇湘书院",
+  "sampleBookTitle": "将夜",
+  "query": "将夜",
+  "primaryEngine": "HTML_CSS",
+  "hasJsonRule": false,
+  "hasXPathRule": false,
+  "hasCleanerOrScript": true,
+  "source": {
+    "searchUrl": "https://fixture.wenwentome.test/css/search?title={{key}}",
+    "ruleSearch": {
+      "bookList": ".result-item",
+      "name": "h3@text",
+      "bookUrl": "a@href",
+      "author": ".author@text",
+      "coverUrl": "img@src",
+      "intro": ".intro@text"
+    },
+    "ruleBookInfo": {
+      "name": "h1@text",
+      "author": ".author@text",
+      "intro": ".intro@text",
+      "coverUrl": ".cover@src",
+      "lastChapter": ".last@text"
+    },
+    "ruleToc": {
+      "chapterList": ".chapters li",
+      "chapterName": "a@text",
+      "chapterUrl": "a@href"
+    },
+    "ruleContent": {
+      "content": "#content@text##广告位##@js:result.trim()"
+    }
+  },
+  "requests": {
+    "search": {
+      "url": "https://fixture.wenwentome.test/css/search?title=%E5%B0%86%E5%A4%9C",
+      "bodyFile": "shared/css-clean/search.html"
+    },
+    "detail": {
+      "url": "https://fixture.wenwentome.test/css/book/jiangye",
+      "bodyFile": "shared/css-clean/detail.html"
+    },
+    "toc": {
+      "url": "https://fixture.wenwentome.test/css/book/jiangye",
+      "bodyFile": "shared/css-clean/detail.html"
+    },
+    "content": {
+      "url": "https://fixture.wenwentome.test/css/chapter/1",
+      "bodyFile": "shared/css-clean/content.html"
+    }
+  },
+  "expected": {
+    "searchTitle": "将夜",
+    "searchAuthor": "猫腻",
+    "detailTitle": "将夜",
+    "detailAuthor": "猫腻",
+    "lastChapter": "第一卷 长安雪",
+    "firstChapterTitle": "第一章 长夜将至",
+    "firstChapterRef": "https://fixture.wenwentome.test/css/chapter/1",
+    "contentSnippet": "真正正文 第一段。真正正文第二段。"
+  }
+}
