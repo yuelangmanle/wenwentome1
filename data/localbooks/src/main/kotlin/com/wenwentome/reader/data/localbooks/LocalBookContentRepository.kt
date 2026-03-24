@@ -6,6 +6,10 @@ import nl.siegmann.epublib.domain.Book
 import nl.siegmann.epublib.domain.SpineReference
 import nl.siegmann.epublib.epub.EpubReader
 import java.io.InputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.Charset
+import java.nio.charset.CodingErrorAction
 
 class LocalBookContentRepository(
     private val bookAssetDao: BookAssetDao,
@@ -13,7 +17,8 @@ class LocalBookContentRepository(
     private val epubCatalogParser: EpubCatalogParser = EpubCatalogParser(),
 ) {
     // Locator 语义:
-    // - TXT: 段落 index 字符串，比如 "0", "18"
+    // - TXT 兼容旧格式: 段落 index 字符串，比如 "0", "18"（按整本书的全局段落序号）
+    // - TXT 新格式: "chapter:<chapterRef>#paragraph:<paragraphIndex>"
     // - EPUB 新格式: "chapter:<chapterRef>#paragraph:<paragraphIndex>"
     // - EPUB 兼容旧格式: "<legacySpineIndex>:<paragraphIndex>"
     suspend fun load(bookId: String, locator: String?): ReaderContent {
@@ -35,16 +40,18 @@ class LocalBookContentRepository(
         }
         return fileStore.open(asset.storageUri).use { inputStream ->
             when (asset.mime) {
-                "text/plain" ->
-                    listOf(
+                "text/plain" -> {
+                    val parsed = parseTxtBook(inputStream.readBytes())
+                    parsed.chapters.map { chapter ->
                         ReaderChapter(
-                            chapterRef = "txt-body",
-                            title = "正文",
-                            orderIndex = 0,
+                            chapterRef = chapter.chapterRef,
+                            title = chapter.title,
+                            orderIndex = chapter.orderIndex,
                             sourceType = com.wenwentome.reader.core.model.BookFormat.TXT,
-                            locatorHint = "0",
+                            locatorHint = "chapter:${chapter.chapterRef}#paragraph:0",
                         )
-                    )
+                    }
+                }
 
                 "application/epub+zip" -> EpubReader().readEpub(inputStream).let(epubCatalogParser::catalog)
                 else -> emptyList()
@@ -53,25 +60,35 @@ class LocalBookContentRepository(
     }
 
     private fun renderTxt(inputStream: InputStream, locator: String?): ReaderContent {
-        val paragraphs = inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
-            reader.readText()
-                .lineSequence()
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-                .toList()
+        val parsed = parseTxtBook(inputStream.readBytes())
+        val totalParagraphCount = parsed.chapters.sumOf { it.paragraphs.size }
+
+        // Structured locator: chapter:<chapterRef>#paragraph:<paragraphIndex>
+        parseStructuredLocator(locator)?.let { structured ->
+            val chapter = parsed.chapters.firstOrNull { it.chapterRef == structured.chapterRef } ?: parsed.chapters.first()
+            val startIndex = structured.paragraphIndex.coerceIn(0, chapter.paragraphs.lastIndex.coerceAtLeast(0))
+            val globalStartIndex = resolveTxtGlobalParagraphIndex(parsed, chapter, startIndex)
+            return ReaderContent(
+                chapterTitle = chapter.title,
+                paragraphs = chapter.paragraphs.drop(startIndex).take(60),
+                chapterRef = chapter.chapterRef,
+                windowStartParagraphIndex = globalStartIndex,
+                totalParagraphCount = totalParagraphCount,
+            )
         }
-        val startIndex =
-            if (paragraphs.isEmpty()) {
-                0
-            } else {
-                val resolvedIndex = locator?.toIntOrNull() ?: 0
-                resolvedIndex.takeIf { it in paragraphs.indices } ?: 0
-            }
+
+        // Legacy locator: global paragraph index (across the whole book)
+        val globalStartIndex = locator?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val resolved = resolveTxtLegacyParagraphIndex(parsed, globalStartIndex)
+        val chapter = resolved.chapter
+        val startIndex = resolved.paragraphIndex
+        val resolvedGlobalStartIndex = resolveTxtGlobalParagraphIndex(parsed, chapter, startIndex)
         return ReaderContent(
-            chapterTitle = "正文",
-            paragraphs = paragraphs.drop(startIndex).take(60),
-            windowStartParagraphIndex = startIndex,
-            totalParagraphCount = paragraphs.size,
+            chapterTitle = chapter.title,
+            paragraphs = chapter.paragraphs.drop(startIndex).take(60),
+            chapterRef = chapter.chapterRef,
+            windowStartParagraphIndex = resolvedGlobalStartIndex,
+            totalParagraphCount = totalParagraphCount,
         )
     }
 
@@ -228,7 +245,7 @@ class LocalBookContentRepository(
         if (value.isBlank()) {
             return null
         }
-        val match = STRUCTURED_EPUB_LOCATOR.matchEntire(value) ?: return null
+        val match = STRUCTURED_LOCATOR.matchEntire(value) ?: return null
         val chapterRef = match.groupValues[1].trim()
         if (chapterRef.isBlank()) {
             return null
@@ -346,6 +363,330 @@ class LocalBookContentRepository(
     }
 
     private companion object {
-        private val STRUCTURED_EPUB_LOCATOR = Regex("^chapter:(.+)#paragraph:(\\d+)$")
+        private val STRUCTURED_LOCATOR = Regex("^chapter:(.+)#paragraph:(\\d+)$")
+        private val TXT_CHAPTER_TITLE = Regex(
+            // Examples:
+            // - 第一章 起始
+            // - 第1章: 起始
+            // - 第十卷 终章
+            // - 序章 / 楔子 / 后记 / 尾声 / 番外
+            "^(?:" +
+                "(第\\s*[0-9零一二三四五六七八九十百千万两〇○０-９]+\\s*[章节回卷篇节集话])" +
+                "(?:\\s*[:：\\-—_]+\\s*|\\s+)?(.*)" +
+                "|" +
+                "((?:序章|序|楔子|引子|前言|后记|尾声|番外))(?:\\s*[:：\\-—_]+\\s*|\\s+)?(.*)" +
+                ")$"
+        )
+    }
+
+    private data class StructuredLocator(
+        val chapterRef: String,
+        val paragraphIndex: Int,
+    )
+
+    private data class TxtChapter(
+        val chapterRef: String,
+        val title: String,
+        val orderIndex: Int,
+        val paragraphs: List<String>,
+    )
+
+    private data class TxtParsedBook(
+        val charset: Charset,
+        val chapters: List<TxtChapter>,
+    )
+
+    private data class TxtResolvedLocation(
+        val chapter: TxtChapter,
+        val paragraphIndex: Int,
+    )
+
+    private fun parseStructuredLocator(locator: String?): StructuredLocator? {
+        val value = locator?.trim().orEmpty()
+        if (value.isBlank()) return null
+        val match = STRUCTURED_LOCATOR.matchEntire(value) ?: return null
+        val chapterRef = match.groupValues[1].trim()
+        if (chapterRef.isBlank()) return null
+        val paragraphIndex = match.groupValues[2].toIntOrNull()?.coerceAtLeast(0) ?: return null
+        return StructuredLocator(
+            chapterRef = chapterRef,
+            paragraphIndex = paragraphIndex,
+        )
+    }
+
+    private fun resolveTxtLegacyParagraphIndex(parsed: TxtParsedBook, globalParagraphIndex: Int): TxtResolvedLocation {
+        var remaining = globalParagraphIndex.coerceAtLeast(0)
+        parsed.chapters.forEach { chapter ->
+            val size = chapter.paragraphs.size
+            if (remaining < size) {
+                return TxtResolvedLocation(chapter = chapter, paragraphIndex = remaining)
+            }
+            remaining -= size
+        }
+        // Out of range: fall back to last chapter start.
+        val last = parsed.chapters.last()
+        return TxtResolvedLocation(chapter = last, paragraphIndex = 0)
+    }
+
+    private fun resolveTxtGlobalParagraphIndex(
+        parsed: TxtParsedBook,
+        targetChapter: TxtChapter,
+        paragraphIndex: Int,
+    ): Int {
+        var offset = 0
+        parsed.chapters.forEach { chapter ->
+            if (chapter.chapterRef == targetChapter.chapterRef) {
+                return offset + paragraphIndex.coerceIn(0, chapter.paragraphs.lastIndex.coerceAtLeast(0))
+            }
+            offset += chapter.paragraphs.size
+        }
+        return 0
+    }
+
+    private fun parseTxtBook(bytes: ByteArray): TxtParsedBook {
+        val charset = sniffTxtCharset(bytes)
+        val text = decodeTxt(bytes, charset)
+        val normalized = normalizeTxt(text)
+        val chapters = splitTxtChapters(normalized)
+        val finalChapters =
+            if (chapters.isEmpty()) {
+                listOf(
+                    TxtChapter(
+                        chapterRef = "txt:0",
+                        title = "正文",
+                        orderIndex = 0,
+                        paragraphs = extractTxtParagraphs(normalized),
+                    )
+                )
+            } else {
+                chapters.mapIndexed { index, chapter ->
+                    chapter.copy(
+                        chapterRef = "txt:$index",
+                        orderIndex = index,
+                    )
+                }
+            }
+
+        return TxtParsedBook(
+            charset = charset,
+            chapters = finalChapters.ifEmpty {
+                listOf(
+                    TxtChapter(
+                        chapterRef = "txt:0",
+                        title = "正文",
+                        orderIndex = 0,
+                        paragraphs = emptyList(),
+                    )
+                )
+            },
+        )
+    }
+
+    private fun sniffTxtCharset(bytes: ByteArray): Charset {
+        if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {
+            return Charsets.UTF_8
+        }
+
+        val utf8Decoder = Charsets.UTF_8
+            .newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+        return try {
+            utf8Decoder.decode(ByteBuffer.wrap(bytes))
+            Charsets.UTF_8
+        } catch (_: CharacterCodingException) {
+            Charset.forName("GB18030")
+        }
+    }
+
+    private fun decodeTxt(bytes: ByteArray, charset: Charset): String {
+        val payload =
+            if (charset == Charsets.UTF_8 &&
+                bytes.size >= 3 &&
+                bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()
+            ) {
+                bytes.copyOfRange(3, bytes.size)
+            } else {
+                bytes
+            }
+        return payload.toString(charset)
+    }
+
+    private fun normalizeTxt(text: String): String =
+        text
+            .removePrefix("\uFEFF")
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .trim()
+
+    private fun splitTxtChapters(text: String): List<TxtChapter> {
+        val lines = text.split('\n')
+        val chapters = mutableListOf<TxtChapter>()
+
+        var currentTitle: String? = null
+        val currentParagraphs = mutableListOf<String>()
+        val paragraphLines = mutableListOf<String>()
+
+        fun flushParagraph() {
+            if (paragraphLines.isEmpty()) return
+            val paragraph = joinTxtLines(paragraphLines)
+            paragraphLines.clear()
+            if (paragraph.isNotBlank()) {
+                currentParagraphs += paragraph
+            }
+        }
+
+        fun flushChapter() {
+            flushParagraph()
+            val title = currentTitle?.takeIf { it.isNotBlank() } ?: return
+            chapters += TxtChapter(
+                chapterRef = "", // filled later
+                title = title,
+                orderIndex = -1, // filled later
+                paragraphs = currentParagraphs.toList(),
+            )
+            currentTitle = null
+            currentParagraphs.clear()
+        }
+
+        var seenHeading = false
+        val prefaceParagraphs = mutableListOf<String>()
+        val prefaceParagraphLines = mutableListOf<String>()
+
+        fun flushPrefaceParagraph() {
+            if (prefaceParagraphLines.isEmpty()) return
+            val paragraph = joinTxtLines(prefaceParagraphLines)
+            prefaceParagraphLines.clear()
+            if (paragraph.isNotBlank()) {
+                prefaceParagraphs += paragraph
+            }
+        }
+
+        lines.forEach { rawLine ->
+            val line = rawLine.trim().trim('\u3000')
+            if (line.isBlank()) {
+                // Blank lines are treated as visual separators; we keep paragraphs line-based for stability.
+                return@forEach
+            }
+
+            val title = extractChapterTitle(line)
+            if (title != null) {
+                if (!seenHeading) {
+                    flushPrefaceParagraph()
+                    if (prefaceParagraphs.isNotEmpty()) {
+                        chapters += TxtChapter(
+                            chapterRef = "",
+                            title = "前言",
+                            orderIndex = -1,
+                            paragraphs = prefaceParagraphs.toList(),
+                        )
+                        prefaceParagraphs.clear()
+                    }
+                    seenHeading = true
+                }
+
+                // heading line itself is not a paragraph
+                if (currentTitle != null) {
+                    flushChapter()
+                } else {
+                    // start new chapter after preface: nothing to flush, just clear any pending paragraph lines
+                    paragraphLines.clear()
+                    currentParagraphs.clear()
+                }
+                currentTitle = title
+                return@forEach
+            }
+
+            if (!seenHeading) {
+                prefaceParagraphLines += line
+                flushPrefaceParagraph()
+            } else {
+                if (currentTitle == null) {
+                    // Content without an explicit heading: treat as "正文" to keep navigation workable.
+                    currentTitle = "正文"
+                }
+                paragraphLines += line
+                flushParagraph()
+            }
+        }
+
+        if (!seenHeading) {
+            flushPrefaceParagraph()
+            return emptyList()
+        }
+
+        flushChapter()
+        return chapters
+    }
+
+    private fun extractTxtParagraphs(text: String): List<String> {
+        val lines = text.split('\n')
+        val paragraphs = mutableListOf<String>()
+        val paragraphLines = mutableListOf<String>()
+        fun flush() {
+            if (paragraphLines.isEmpty()) return
+            val paragraph = joinTxtLines(paragraphLines)
+            paragraphLines.clear()
+            if (paragraph.isNotBlank()) paragraphs += paragraph
+        }
+        lines.forEach { raw ->
+            val line = raw.trim().trim('\u3000')
+            if (line.isBlank()) {
+                // Keep paragraphs line-based; blank lines are separators only.
+            } else {
+                paragraphLines += line
+                flush()
+            }
+        }
+        flush()
+        return paragraphs
+    }
+
+    private fun joinTxtLines(lines: List<String>): String {
+        val cleaned = lines
+            .asSequence()
+            .map { it.trim().trim('\u3000') }
+            .filter { it.isNotBlank() }
+            .toList()
+        if (cleaned.isEmpty()) return ""
+
+        val sb = StringBuilder()
+        cleaned.forEachIndexed { idx, part ->
+            if (idx == 0) {
+                sb.append(part)
+                return@forEachIndexed
+            }
+
+            val prev = sb.lastOrNull()
+            val needsSpace =
+                (prev != null && prev.isLetterOrDigit()) &&
+                    (part.firstOrNull()?.isLetterOrDigit() == true)
+            if (needsSpace) sb.append(' ')
+            sb.append(part)
+        }
+
+        return sb.toString()
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    private fun extractChapterTitle(line: String): String? {
+        val candidate = line
+            .trim()
+            .trim('\u3000')
+            .trim('【', '】', '[', ']', '(', ')', '（', '）')
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        if (candidate.length !in 2..60) return null
+        if (candidate.contains("http", ignoreCase = true) || candidate.contains("www.", ignoreCase = true)) return null
+        if (candidate.endsWith("。") || candidate.endsWith("！") || candidate.endsWith("？")) return null
+
+        val match = TXT_CHAPTER_TITLE.matchEntire(candidate) ?: return null
+        val main = match.groupValues[1].ifBlank { match.groupValues[3] }
+        if (main.isBlank()) return null
+
+        val suffix = (match.groupValues[2].ifBlank { match.groupValues[4] }).trim()
+        val title = if (suffix.isBlank()) main.trim() else "${main.trim()} ${suffix}"
+        return title.replace(Regex("\\s+"), " ").trim()
     }
 }

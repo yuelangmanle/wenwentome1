@@ -168,6 +168,36 @@ class LocalBookContentRepositoryTest {
         assertFalse(chapters.any { it.chapterRef.contains("titlepage") })
     }
 
+    @Test
+    fun loadChapters_txtUtf8AndGbk_extractsMeaningfulChapterCatalog() = runTest {
+        listOf("sample-utf8.txt", "sample-gbk.txt").forEach { fixture ->
+            val repository = createTxtRepository(txtFixture = fixture)
+
+            val chapters = repository.loadChapters(bookId = "txt-book")
+
+            assertEquals("fixture=$fixture", 2, chapters.size)
+            assertEquals("fixture=$fixture", "第一章 起始", chapters[0].title)
+            assertEquals("fixture=$fixture", "第二章 继续", chapters[1].title)
+            assertTrue("fixture=$fixture", chapters[0].locatorHint?.startsWith("chapter:") == true)
+            assertTrue("fixture=$fixture", chapters[1].locatorHint?.startsWith("chapter:") == true)
+        }
+    }
+
+    @Test
+    fun load_txtUtf8AndGbk_structuredLocator_opensCorrectChapterAndParagraph() = runTest {
+        listOf("sample-utf8.txt", "sample-gbk.txt").forEach { fixture ->
+            val repository = createTxtRepository(txtFixture = fixture)
+            val chapters = repository.loadChapters(bookId = "txt-book")
+            val secondChapter = chapters[1]
+            val locator = "chapter:${secondChapter.chapterRef}#paragraph:1"
+
+            val content = repository.load(bookId = "txt-book", locator = locator)
+
+            assertEquals("fixture=$fixture", "第二章 继续", content.chapterTitle)
+            assertEquals("fixture=$fixture", "第二章-第二段。", content.paragraphs.first())
+        }
+    }
+
     private fun createRepository(
         epubFixture: String? = null,
         generatedEpubBytes: ByteArray? = null,
@@ -189,6 +219,34 @@ class LocalBookContentRepositoryTest {
                 size = bytes.size.toLong(),
                 hash = "fixture-hash",
                 syncPath = "books/epub-book/source.epub",
+            )
+        )
+        return LocalBookContentRepository(
+            bookAssetDao = dao,
+            fileStore = fileStore,
+        )
+    }
+
+    private fun createTxtRepository(
+        txtFixture: String,
+    ): LocalBookContentRepository {
+        val filesDir = createTempDir(prefix = "localbooks-content-test-")
+        val fileStore = LocalBookFileStore(filesDir = filesDir)
+        val bytes = fixtureBytes(txtFixture)
+        val storageUri = fileStore.persistOriginal(
+            bookId = "txt-book",
+            extension = "txt",
+            bytes = bytes,
+        )
+        val dao = FakeBookAssetDao(
+            BookAssetEntity(
+                bookId = "txt-book",
+                assetRole = AssetRole.PRIMARY_TEXT,
+                storageUri = storageUri,
+                mime = "text/plain",
+                size = bytes.size.toLong(),
+                hash = "fixture-hash",
+                syncPath = "books/txt-book/source.txt",
             )
         )
         return LocalBookContentRepository(
