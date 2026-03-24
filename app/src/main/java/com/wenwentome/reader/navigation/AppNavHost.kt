@@ -112,7 +112,7 @@ fun AppNavHost(
                 remoteBindingDao = remoteBindingDao,
                 bookAssetDao = appContainer.database.bookAssetDao(),
             ),
-            importLocalBook = { uri -> appContainer.importLocalBook(uri) },
+            importLocalBook = { uris -> appContainer.importLocalBook(uris) },
             refreshCatalogAction = { bookId ->
                 appContainer.refreshRemoteBook(bookId)
                 Unit
@@ -121,9 +121,9 @@ fun AppNavHost(
     }
     val libraryState by libraryViewModel.uiState.collectAsState(initial = LibraryUiState())
     val importScope = rememberCoroutineScope()
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        libraryViewModel.import(uri)
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        libraryViewModel.import(uris)
     }
     var coverImportTargetBookId by remember { mutableStateOf<String?>(null) }
     val coverPickerLauncher =

@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 class LibraryViewModel(
     private val observeBookshelf: ObserveBookshelfUseCase,
-    private val importLocalBook: suspend (Uri) -> Unit,
+    private val importLocalBook: suspend (List<Uri>) -> Unit,
     private val refreshCatalogAction: suspend (String) -> Unit = {},
     private val filter: LibraryFilter = LibraryFilter.DEFAULT,
     private val sort: LibrarySort = LibrarySort.LAST_READ_DESC,
@@ -56,9 +56,10 @@ class LibraryViewModel(
         }
     }
 
-    fun import(uri: Uri) {
+    fun import(uris: List<Uri>) {
         viewModelScope.launch {
-            importLocalBook(uri)
+            if (uris.isEmpty()) return@launch
+            importLocalBook(uris)
         }
     }
 }

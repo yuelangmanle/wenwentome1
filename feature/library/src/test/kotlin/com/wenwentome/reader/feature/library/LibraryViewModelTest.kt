@@ -1,5 +1,6 @@
 package com.wenwentome.reader.feature.library
 
+import android.net.Uri
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.OriginType
@@ -171,6 +172,25 @@ class LibraryViewModelTest {
 
         assertEquals(1, refreshCount)
         assertFalse(viewModel.uiState.value.visibleBooks.first { it.book.id == "web-1" }.hasUpdates)
+    }
+
+    @Test
+    fun import_forwardsAllSelectedUrisToBatchImporter() = runTest {
+        val importedBatches = mutableListOf<List<Uri>>()
+        val viewModel = LibraryViewModel(
+            observeBookshelf = fakeObserveBookshelfUseCase(flowOf(emptyList())),
+            importLocalBook = { uris -> importedBatches += uris },
+            refreshCatalogAction = {},
+        )
+        val selected = listOf(
+            Uri.parse("content://books/one.epub"),
+            Uri.parse("content://books/two.txt"),
+        )
+
+        viewModel.import(selected)
+        advanceUntilIdle()
+
+        assertEquals(listOf(selected), importedBatches)
     }
 
     @Test
