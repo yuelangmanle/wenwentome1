@@ -9,11 +9,21 @@ class ImportLocalBookUseCase(
     private val repository: LocalBookImportRepository,
 ) {
     suspend operator fun invoke(uri: Uri) {
-        val displayName = queryDisplayName(contentResolver, uri)
-        contentResolver.openInputStream(uri).use { stream ->
-            requireNotNull(stream) { "Cannot open input stream for $uri" }
-            repository.import(fileName = displayName, inputStream = stream)
+        invoke(listOf(uri))
+    }
+
+    suspend operator fun invoke(uris: List<Uri>): ImportedLocalBookBatch {
+        val requests = uris.map { uri ->
+            LocalBookImportRequest(
+                fileName = queryDisplayName(contentResolver, uri),
+                openInputStream = {
+                    requireNotNull(contentResolver.openInputStream(uri)) {
+                        "Cannot open input stream for $uri"
+                    }
+                },
+            )
         }
+        return repository.importBatch(requests)
     }
 
     private fun queryDisplayName(contentResolver: ContentResolver, uri: Uri): String =
@@ -28,4 +38,3 @@ class ImportLocalBookUseCase(
             if (cursor.moveToFirst()) cursor.getString(nameColumn) else (uri.lastPathSegment ?: "imported-book")
         } ?: (uri.lastPathSegment ?: "imported-book")
 }
-

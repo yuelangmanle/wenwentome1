@@ -95,6 +95,27 @@ class LocalBookImportRepositoryTest {
     }
 
     @Test
+    fun importBatch_txtAndEpub_createIndependentBookAssetAndReadingStateRecords() = runTest {
+        val context = createRepositoryContext()
+
+        val result = context.repository.importBatch(
+            listOf(
+                LocalBookImportRequest(fileName = "sample.txt") { fixture("sample.txt") },
+                LocalBookImportRequest(fileName = "sample.epub") { fixture("sample.epub") },
+            )
+        )
+
+        assertEquals(2, result.books.size)
+        assertEquals(setOf(BookFormat.TXT, BookFormat.EPUB), result.books.map { it.book.primaryFormat }.toSet())
+        assertEquals(2, context.bookRecordDao.getAll().size)
+        assertEquals(2, context.readingStateDao.getAll().size)
+
+        val primaryAssets = context.bookAssetDao.getAll().filter { it.assetRole == AssetRole.PRIMARY_TEXT }
+        assertEquals(2, primaryAssets.size)
+        assertEquals(result.books.map { it.book.id }.toSet(), primaryAssets.map { it.bookId }.toSet())
+    }
+
+    @Test
     fun loadTxt_returnsParagraphsStartingFromLocator() = runTest {
         val context = createRepositoryContext()
         val imported = context.repository.import(fileName = "sample.txt", inputStream = fixture("sample.txt"))

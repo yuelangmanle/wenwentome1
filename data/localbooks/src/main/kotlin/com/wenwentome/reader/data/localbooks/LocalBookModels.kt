@@ -5,6 +5,7 @@ import com.wenwentome.reader.core.model.BookAsset
 import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.BookRecord
 import com.wenwentome.reader.core.model.ReadingState
+import java.io.InputStream
 
 data class ParsedLocalBook(
     val title: String,
@@ -24,6 +25,15 @@ data class ImportedLocalBook(
     val book: BookRecord,
     val assets: List<BookAsset>,
     val readingState: ReadingState,
+)
+
+data class LocalBookImportRequest(
+    val fileName: String,
+    val openInputStream: () -> InputStream,
+)
+
+data class ImportedLocalBookBatch(
+    val books: List<ImportedLocalBook>,
 )
 
 data class ReaderContent(

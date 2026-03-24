@@ -19,7 +19,19 @@ class LocalBookImportRepository(
     private val readingStateDao: ReadingStateDao,
     private val bookAssetDao: BookAssetDao,
 ) {
-    suspend fun import(fileName: String, inputStream: InputStream): ImportedLocalBook {
+    suspend fun importBatch(requests: List<LocalBookImportRequest>): ImportedLocalBookBatch =
+        ImportedLocalBookBatch(
+            books = requests.map { request ->
+                importSingle(fileName = request.fileName, inputStream = request.openInputStream())
+            },
+        )
+
+    suspend fun import(fileName: String, inputStream: InputStream): ImportedLocalBook =
+        importBatch(
+            requests = listOf(LocalBookImportRequest(fileName = fileName) { inputStream }),
+        ).books.single()
+
+    private suspend fun importSingle(fileName: String, inputStream: InputStream): ImportedLocalBook {
         val parsed = inputStream.use { stream ->
             when {
                 fileName.endsWith(".txt", ignoreCase = true) -> txtParser.parse(fileName, stream.readBytes())
