@@ -21,11 +21,11 @@
 - 正式版本请前往 GitHub Releases 页面下载 `release APK`
 - Release 页面：`https://github.com/yuelangmanle/wenwentome1/releases`
 - 发布页：`https://yuelangmanle.github.io/wenwentome1/`
-- 正式发版 tag 采用 `v<major>.<minor>`，例如 `v1.5`
+- 正式发版 tag 采用 `v<major>.<minor>`，例如 `v1.6`
 
 ## 版本信息
 
-- 当前正式版本：`1.5`
+- 当前正式版本：`1.6`
 - 作者：`月亮满了`
 - 项目地址：`https://github.com/yuelangmanle/wenwentome1`
 

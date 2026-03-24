@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WenwenToMe 1.5 发布页</title>
-  <meta name="description" content="WenwenToMe 1.5 发布页：查看 TXT / EPUB 阅读修复、下载入口、GitHub 项目与云端发布说明。" />
+  <title>WenwenToMe 1.6 发布页</title>
+  <meta name="description" content="WenwenToMe 1.6 发布页：查看 TXT / EPUB 可用性抢修、阅读页收口与正式安装包下载入口。" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -14,7 +14,7 @@
         <p class="eyebrow">月亮满了 · WenwenToMe</p>
         <h1>一个把本地书和网文放进同一座书架的 Android 阅读器</h1>
         <p class="hero-text">
-          1.5 版本聚焦本地书阅读链路修复，补齐 TXT 编码识别、章节切分、旧进度兼容、EPUB 可读目录回退与非法导入拦截，并继续走 GitHub 云端打包发布。
+          1.6 版本聚焦可用性抢修：补齐 TXT 首开缓存与正文兜底、放宽 EPUB 可读导入、把阅读页改回正文优先，并继续走 GitHub 云端签名发布。
         </p>
         <div class="hero-actions">
           <a class="button primary" href="https://github.com/yuelangmanle/wenwentome1/releases/latest">下载最新 APK</a>
@@ -23,7 +23,7 @@
       </div>
       <section class="hero-panel">
         <p class="panel-label">当前正式版本</p>
-        <p class="panel-version">1.5</p>
+        <p class="panel-version">1.6</p>
         <dl class="panel-meta">
           <div>
             <dt>作者</dt>
@@ -43,11 +43,11 @@
 
     <main class="content-grid">
       <section class="card">
-        <p class="section-kicker">1.5 亮点</p>
+        <p class="section-kicker">1.6 亮点</p>
         <ul class="feature-list">
-          <li>TXT 新增 UTF-8 / GB18030 编码识别与章节切分修复，中文 TXT 兼容性更稳。</li>
-          <li>TXT 阅读同时兼容旧版全书段落进度和新版章节目录跳转，继续阅读不再错位。</li>
-          <li>EPUB 可读目录回退、详情元数据边界处理与非法导入拦截已经补齐。</li>
+          <li>TXT 首次打开改为复用解析缓存，并补齐 UTF-16 识别和无章节正文兜底。</li>
+          <li>EPUB 导入现在兼容“结构脏但可读”的文件，坏文件也会给出更明确的错误提示。</li>
+          <li>阅读页、发现页、“我的”页和 API 中心一起做了可用性收口，日常使用路径更顺手。</li>
         </ul>
       </section>
 
@@ -55,7 +55,7 @@
         <p class="section-kicker">下载与验证</p>
         <ol class="step-list">
           <li>正式包从 GitHub Releases 下载，最新版本固定指向 `release APK`。</li>
-          <li>这次 1.5 直接从 `main` 走云端签名发布，避免继续依赖本地 Android 打包环境。</li>
+          <li>这次 1.6 直接从 `main` 走云端签名发布，避免继续依赖本地 Android 打包环境。</li>
           <li>本地即使没有 Java，也可以直接使用 GitHub Actions 云端跑校验与正式发版；release 仍以 `main` 上 tag 为准。</li>
         </ol>
       </section>

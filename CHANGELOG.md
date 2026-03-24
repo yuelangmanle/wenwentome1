@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6] - 2026-03-25
+
+### Fixed
+- TXT 首次打开改为复用解析缓存，并补齐 UTF-16 BOM / 空字节启发式识别，导入中文 TXT 后不再长时间卡住或掉到空正文
+- 无章节纯正文 TXT 现在会稳定回退到“正文”章节，避免进入阅读页后显示“暂无正文内容”
+- EPUB 导入放宽到“结构脏但可读”也允许入库，同时对真坏文件统一给出“EPUB 文件无效或已损坏”的明确提示
+
+### Changed
+- 阅读页改成正文优先布局，目录 / 设置 / AI / 模式入口全部改成按需展开，不再长期挤占正文区域
+- 发现页搜索改为“输入”和“提交”分离，新增搜索按钮并支持键盘 Search；书源管理补上删除入口
+- “我的”页默认折叠云同步大表单，`API 中心` 首页改成普通用户可读的状态总览
+- 当前版本已通过 GitHub Actions 云端 `testDebugUnitTest + assembleDebug` 验证，并准备从 `main` 走正式签名发布
+
 ## [1.5] - 2026-03-24
 
 ### Fixed
