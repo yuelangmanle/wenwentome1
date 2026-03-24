@@ -69,6 +69,20 @@ fun LibraryScreen(
                     modifier = Modifier.testTag("screen"),
                     style = MaterialTheme.typography.headlineSmall,
                 )
+                if (state.isImporting) {
+                    Text(
+                        text = "正在导入书籍…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                state.importErrorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 state.continueReading?.let { item ->
                     ContinueReadingCard(
                         item = item,

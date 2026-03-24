@@ -19,12 +19,25 @@ class LocalBookImportRepository(
     private val readingStateDao: ReadingStateDao,
     private val bookAssetDao: BookAssetDao,
 ) {
-    suspend fun importBatch(requests: List<LocalBookImportRequest>): ImportedLocalBookBatch =
-        ImportedLocalBookBatch(
-            books = requests.map { request ->
-                importSingle(fileName = request.fileName, inputStream = request.openInputStream())
-            },
-        )
+    suspend fun importBatch(requests: List<LocalBookImportRequest>): ImportedLocalBookBatch {
+        val importedBooks = mutableListOf<ImportedLocalBook>()
+        try {
+            requests.forEach { request ->
+                importedBooks += importSingle(
+                    fileName = request.fileName,
+                    inputStream = request.openInputStream(),
+                )
+            }
+        } catch (error: Throwable) {
+            importedBooks
+                .asReversed()
+                .forEach { importedBook ->
+                    cleanupImportedBook(importedBook.book.id)
+                }
+            throw error
+        }
+        return ImportedLocalBookBatch(books = importedBooks)
+    }
 
     suspend fun import(fileName: String, inputStream: InputStream): ImportedLocalBook =
         importBatch(
@@ -74,13 +87,17 @@ class LocalBookImportRepository(
                 readingState = readingState,
             )
         } catch (error: Throwable) {
-            // 当前仓库层没有跨 DAO 的事务封装时，至少清理同一本书的半成品记录与落盘文件。
-            runCatching { readingStateDao.deleteByBookId(book.id) }
-            runCatching { bookAssetDao.deleteByBookId(book.id) }
-            runCatching { bookRecordDao.deleteById(book.id) }
-            runCatching { fileStore.deleteBook(book.id) }
+            cleanupImportedBook(book.id)
             throw error
         }
+    }
+
+    private suspend fun cleanupImportedBook(bookId: String) {
+        // 当前仓库层没有跨 DAO 的事务封装时，至少清理同一本书的半成品记录与落盘文件。
+        runCatching { readingStateDao.deleteByBookId(bookId) }
+        runCatching { bookAssetDao.deleteByBookId(bookId) }
+        runCatching { bookRecordDao.deleteById(bookId) }
+        runCatching { fileStore.deleteBook(bookId) }
     }
 
     private fun sha256Hex(bytes: ByteArray): String =

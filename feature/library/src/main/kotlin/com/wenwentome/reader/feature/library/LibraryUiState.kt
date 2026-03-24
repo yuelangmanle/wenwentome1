@@ -17,4 +17,6 @@ data class LibraryUiState(
     val sort: LibrarySort = LibrarySort.LAST_READ_DESC,
     val continueReading: LibraryBookItem? = null,
     val visibleBooks: List<LibraryBookItem> = emptyList(),
+    val isImporting: Boolean = false,
+    val importErrorMessage: String? = null,
 )

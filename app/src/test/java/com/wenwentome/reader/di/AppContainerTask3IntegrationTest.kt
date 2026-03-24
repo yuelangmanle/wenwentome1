@@ -2,11 +2,14 @@ package com.wenwentome.reader.di
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.wenwentome.reader.core.database.ReaderDatabase
 import com.wenwentome.reader.core.database.entity.ApiCapabilityBindingEntity
 import com.wenwentome.reader.core.database.entity.ApiProviderEntity
+import com.wenwentome.reader.core.model.AssetRole
+import com.wenwentome.reader.core.model.BookFormat
 import com.wenwentome.reader.core.model.ProviderKind
 import com.wenwentome.reader.core.model.ProviderSecretSyncMode
 import com.wenwentome.reader.data.apihub.local.SharedPreferencesApiSecretLocalStore
@@ -27,11 +30,49 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.Base64
+import java.util.zip.CRC32
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class AppContainerTask3IntegrationTest {
+    @Test
+    fun importLocalBook_batchImportPersistsTxtAndEpubThroughRealContainerWiring() = runTest {
+        clearSecretStores()
+        val database = testDatabase("local-import")
+        val tempDir = createTempDir(prefix = "app-container-import-")
+        try {
+            val container =
+                AppContainer(
+                    application = application(),
+                    databaseOverride = database,
+                )
+            val txtUri = writeTempBookFile(tempDir, "sample.txt", "第一章 起风了\n这里是正文。".encodeToByteArray())
+            val epubUri = writeTempBookFile(tempDir, "sample.epub", createMinimalEpubBytes())
+
+            val result = container.importLocalBook(listOf(txtUri, epubUri))
+
+            assertEquals(2, result.books.size)
+            assertEquals(2, database.bookRecordDao().getAll().size)
+            assertEquals(2, database.readingStateDao().getAll().size)
+            assertEquals(
+                setOf(BookFormat.TXT, BookFormat.EPUB),
+                database.bookRecordDao().getAll().map { it.primaryFormat }.toSet(),
+            )
+            assertEquals(
+                2,
+                database.bookAssetDao().getAll().count { it.assetRole == AssetRole.PRIMARY_TEXT },
+            )
+        } finally {
+            tempDir.deleteRecursively()
+            database.close()
+        }
+    }
+
     @Test
     fun gitHubSyncRepository_pushSnapshot_exportsEncryptedProviderSecretsThroughRealContainerWiring() = runTest {
         clearSecretStores()
@@ -356,6 +397,129 @@ class AppContainerTask3IntegrationTest {
             .setTransactionExecutor { runnable -> runnable.run() }
             .allowMainThreadQueries()
             .build()
+
+    private fun writeTempBookFile(tempDir: File, name: String, bytes: ByteArray): Uri {
+        val file = File(tempDir, name)
+        file.writeBytes(bytes)
+        return Uri.fromFile(file)
+    }
+
+    private fun createMinimalEpubBytes(): ByteArray =
+        ByteArrayOutputStream().use { output ->
+            ZipOutputStream(output).use { zip ->
+                putStoredEntry(
+                    zip = zip,
+                    name = "mimetype",
+                    bytes = "application/epub+zip".encodeToByteArray(),
+                )
+                putEntry(
+                    zip = zip,
+                    name = "META-INF/container.xml",
+                    bytes =
+                        """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+                          <rootfiles>
+                            <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+                          </rootfiles>
+                        </container>
+                        """.trimIndent().encodeToByteArray(),
+                )
+                putEntry(
+                    zip = zip,
+                    name = "OEBPS/content.opf",
+                    bytes =
+                        """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <package version="2.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId">
+                          <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                            <dc:title>集成测试 EPUB</dc:title>
+                            <dc:creator>闻文 Tome</dc:creator>
+                            <dc:language>zh-CN</dc:language>
+                            <dc:identifier id="BookId">urn:uuid:test-epub</dc:identifier>
+                          </metadata>
+                          <manifest>
+                            <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+                            <item id="chapter-1" href="chapter-1.xhtml" media-type="application/xhtml+xml"/>
+                          </manifest>
+                          <spine toc="ncx">
+                            <itemref idref="chapter-1"/>
+                          </spine>
+                        </package>
+                        """.trimIndent().encodeToByteArray(),
+                )
+                putEntry(
+                    zip = zip,
+                    name = "OEBPS/toc.ncx",
+                    bytes =
+                        """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+                          <head>
+                            <meta name="dtb:uid" content="urn:uuid:test-epub"/>
+                          </head>
+                          <docTitle>
+                            <text>集成测试 EPUB</text>
+                          </docTitle>
+                          <navMap>
+                            <navPoint id="navPoint-1" playOrder="1">
+                              <navLabel>
+                                <text>第一章</text>
+                              </navLabel>
+                              <content src="chapter-1.xhtml"/>
+                            </navPoint>
+                          </navMap>
+                        </ncx>
+                        """.trimIndent().encodeToByteArray(),
+                )
+                putEntry(
+                    zip = zip,
+                    name = "OEBPS/chapter-1.xhtml",
+                    bytes =
+                        """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <html xmlns="http://www.w3.org/1999/xhtml">
+                          <head>
+                            <title>第一章</title>
+                          </head>
+                          <body>
+                            <h1>第一章</h1>
+                            <p>这里是 EPUB 正文。</p>
+                          </body>
+                        </html>
+                        """.trimIndent().encodeToByteArray(),
+                )
+            }
+            output.toByteArray()
+        }
+
+    private fun putStoredEntry(
+        zip: ZipOutputStream,
+        name: String,
+        bytes: ByteArray,
+    ) {
+        val crc = CRC32().apply { update(bytes) }
+        val entry =
+            ZipEntry(name).apply {
+                method = ZipEntry.STORED
+                size = bytes.size.toLong()
+                compressedSize = bytes.size.toLong()
+                this.crc = crc.value
+            }
+        zip.putNextEntry(entry)
+        zip.write(bytes)
+        zip.closeEntry()
+    }
+
+    private fun putEntry(
+        zip: ZipOutputStream,
+        name: String,
+        bytes: ByteArray,
+    ) {
+        zip.putNextEntry(ZipEntry(name))
+        zip.write(bytes)
+        zip.closeEntry()
+    }
 
     private class FakeGitHubDispatcher : Dispatcher() {
         private val files = linkedMapOf<String, ByteArray>()

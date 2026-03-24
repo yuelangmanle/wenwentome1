@@ -183,14 +183,32 @@ class LibraryViewModelTest {
             refreshCatalogAction = {},
         )
         val selected = listOf(
-            Uri.parse("content://books/one.epub"),
-            Uri.parse("content://books/two.txt"),
+            Uri.EMPTY,
+            Uri.EMPTY,
         )
 
         viewModel.import(selected)
         advanceUntilIdle()
 
         assertEquals(listOf(selected), importedBatches)
+    }
+
+    @Test
+    fun import_whenBatchImportFails_exposesImportErrorState() = runTest {
+        val viewModel = LibraryViewModel(
+            observeBookshelf = fakeObserveBookshelfUseCase(flowOf(emptyList())),
+            importLocalBook = { throw IllegalStateException("Unsupported file format: broken.pdf") },
+            refreshCatalogAction = {},
+        )
+
+        viewModel.import(listOf(Uri.EMPTY))
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isImporting)
+        assertEquals(
+            "导入失败：Unsupported file format: broken.pdf",
+            viewModel.uiState.value.importErrorMessage,
+        )
     }
 
     @Test

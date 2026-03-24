@@ -33,6 +33,7 @@ kotlin {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:database"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 
     implementation(libs.epublib.core) {
         exclude(group = "xmlpull", module = "xmlpull")

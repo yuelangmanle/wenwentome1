@@ -116,6 +116,30 @@ class LocalBookImportRepositoryTest {
     }
 
     @Test
+    fun importBatch_whenLaterRequestFails_rollsBackEarlierImportedBooks() = runTest {
+        val context = createRepositoryContext()
+
+        try {
+            context.repository.importBatch(
+                listOf(
+                    LocalBookImportRequest(fileName = "sample.txt") { fixture("sample.txt") },
+                    LocalBookImportRequest(fileName = "broken.pdf") {
+                        ByteArrayInputStream("not-a-book".encodeToByteArray())
+                    },
+                )
+            )
+            fail("Expected batch import to fail for unsupported file format")
+        } catch (_: IllegalStateException) {
+            // expected
+        }
+
+        assertTrue(context.filesDir.walkTopDown().filter(File::isFile).toList().isEmpty())
+        assertTrue(context.bookRecordDao.getAll().isEmpty())
+        assertTrue(context.bookAssetDao.getAll().isEmpty())
+        assertTrue(context.readingStateDao.getAll().isEmpty())
+    }
+
+    @Test
     fun loadTxt_returnsParagraphsStartingFromLocator() = runTest {
         val context = createRepositoryContext()
         val imported = context.repository.import(fileName = "sample.txt", inputStream = fixture("sample.txt"))

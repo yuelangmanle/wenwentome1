@@ -19,9 +19,17 @@ class LibraryViewModel(
 ) : ViewModel() {
     private val filterState = MutableStateFlow(filter)
     private val sortState = MutableStateFlow(sort)
+    private val importingState = MutableStateFlow(false)
+    private val importErrorState = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<LibraryUiState> =
-        combine(observeBookshelf(), filterState, sortState) { items, filter, sort ->
+        combine(
+            observeBookshelf(),
+            filterState,
+            sortState,
+            importingState,
+            importErrorState,
+        ) { items, filter, sort, isImporting, importErrorMessage ->
             val filtered = filter.apply(items)
             val sorted = sort.apply(filtered)
             val continueReading = items
@@ -35,6 +43,8 @@ class LibraryViewModel(
                 sort = sort,
                 continueReading = continueReading,
                 visibleBooks = sorted,
+                isImporting = isImporting,
+                importErrorMessage = importErrorMessage,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -57,9 +67,26 @@ class LibraryViewModel(
     }
 
     fun import(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         viewModelScope.launch {
-            if (uris.isEmpty()) return@launch
-            importLocalBook(uris)
+            importingState.value = true
+            importErrorState.value = null
+            try {
+                importLocalBook(uris)
+            } catch (error: Throwable) {
+                importErrorState.value = error.toImportErrorMessage()
+            } finally {
+                importingState.value = false
+            }
+        }
+    }
+
+    private fun Throwable.toImportErrorMessage(): String {
+        val detail = message?.trim().orEmpty()
+        return if (detail.isBlank()) {
+            "导入失败，请检查文件格式或读取权限后重试"
+        } else {
+            "导入失败：$detail"
         }
     }
 }

@@ -1,5 +1,11 @@
 .analysis/
+.artifacts/
 .tools/
+.tooling/
 .superpowers/
 .worktrees/
 .local-secrets/
+.gradle/
+.kotlin/
+local.properties
+**/build/
