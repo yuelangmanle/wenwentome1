@@ -194,6 +194,25 @@ class BookDetailViewModelTest {
     }
 
     @Test
+    fun detailUiState_whenBookTitleBlank_fallsBackToNonEmptyMetadata() = runTest {
+        val viewModel = BookDetailViewModel(
+            bookId = "book-1",
+            observeBook = flowOf(sampleLocalBook().copy(title = "  ", author = "   ")),
+            observeReadingState = flowOf(ReadingState(bookId = "book-1")),
+            observeChapters = flowOf(sampleChapters()),
+            observeLatestChapterRef = flowOf(null),
+            observeAutomaticCover = flowOf(null),
+            observeManualCover = flowOf(null),
+            updateReadingState = {},
+        )
+
+        val state = viewModel.uiState.first { it.book != null }
+
+        assertEquals("未命名", state.book?.title)
+        assertEquals(null, state.book?.author)
+    }
+
+    @Test
     fun enhanceMetadata_updatesSummaryAndSuggestedCover() = runTest {
         val facade = FakeBookMetadataEnhancementFacade(
             result = BookMetadataEnhancementResult(

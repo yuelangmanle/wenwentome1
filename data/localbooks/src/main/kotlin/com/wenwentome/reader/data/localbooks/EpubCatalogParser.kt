@@ -114,31 +114,61 @@ class EpubCatalogParser {
     }
 
     private fun resolveReadableEntriesFromSpine(book: Book): List<ReadableEntry> {
-        val entriesByHref = LinkedHashMap<String, ReadableEntry>()
         val spineReferences = book.spine?.spineReferences
             .orEmpty()
             .filterIsInstance<SpineReference>()
 
-        spineReferences.forEach { spineReference ->
-            val resource = spineReference.resource ?: return@forEach
-            if (!spineReference.isLinear) {
-                return@forEach
-            }
-            if (!isReadableResource(resource, book)) {
-                return@forEach
-            }
-            val href = canonicalizeHref(book, resource.href)
-            if (href.isNotBlank()) {
-                entriesByHref.putIfAbsent(
-                    href,
-                    ReadableEntry(
-                        resource = resource,
-                        title = null,
+        fun collect(
+            references: List<SpineReference>,
+            strictReadableFilter: Boolean,
+        ): List<ReadableEntry> {
+            val entriesByHref = LinkedHashMap<String, ReadableEntry>()
+            val coverImageHref = book.coverImage?.href?.let { canonicalizeHref(book, it) }
+
+            references.forEach { spineReference ->
+                val resource = spineReference.resource
+                    ?: spineReference.resourceId
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(book.resources::getById)
+                    ?: return@forEach
+                if (strictReadableFilter) {
+                    if (!isReadableResource(resource, book)) {
+                        return@forEach
+                    }
+                } else {
+                    // Last-resort fallback: when spine linear flags / front-matter heuristics are unreliable,
+                    // still try to surface something readable instead of returning an empty catalog.
+                    if (!isHtmlLike(resource)) {
+                        return@forEach
+                    }
+                    val resourceHref = canonicalizeHref(book, resource.href)
+                    if (resourceHref == coverImageHref) {
+                        return@forEach
+                    }
+                }
+
+                val href = canonicalizeHref(book, resource.href)
+                if (href.isNotBlank()) {
+                    entriesByHref.putIfAbsent(
+                        href,
+                        ReadableEntry(
+                            resource = resource,
+                            title = null,
+                        )
                     )
-                )
+                }
             }
+            return entriesByHref.values.toList()
         }
-        return entriesByHref.values.toList()
+
+        val linearReferences = spineReferences.filter { it.isLinear }
+        collect(references = linearReferences, strictReadableFilter = true).takeIf { it.isNotEmpty() }?.let { return it }
+
+        // Some EPUBs incorrectly mark all spine items as non-linear; fall back to "all spine items" next.
+        collect(references = spineReferences, strictReadableFilter = true).takeIf { it.isNotEmpty() }?.let { return it }
+
+        // If we still couldn't find anything, relax the readability heuristics as a last resort.
+        return collect(references = spineReferences, strictReadableFilter = false)
     }
 
     private fun resolveChapterTitle(entry: ReadableEntry, index: Int): String {
@@ -164,8 +194,7 @@ class EpubCatalogParser {
 
         val resourceHref = canonicalizeHref(book, resource.href)
         val coverImageHref = book.coverImage?.href?.let { canonicalizeHref(book, it) }
-        val coverPageHref = book.coverPage?.href?.let { canonicalizeHref(book, it) }
-        if (resourceHref == coverImageHref || resourceHref == coverPageHref) {
+        if (resourceHref == coverImageHref) {
             return false
         }
 

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
+import nl.siegmann.epublib.epub.EpubReader
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -43,6 +44,37 @@ class LocalBookImportRepositoryTest {
         val persistedAsset = context.bookAssetDao.getAll().first { it.assetRole == AssetRole.PRIMARY_TEXT }
         val persistedBytes = context.fileStore.open(persistedAsset.storageUri).use { it.readBytes() }
         assertArrayEquals(fixtureBytes("sample.epub"), persistedBytes)
+    }
+
+    @Test
+    fun importEpub_withBrokenNavAndNonLinearSpine_stillLoadsReadableContentAndMetadata() = runTest {
+        val context = createRepositoryContext()
+
+        val imported = context.repository.import(
+            fileName = "broken-nav.epub",
+            inputStream = fixture("broken-nav.epub"),
+        )
+
+        val contentRepository = LocalBookContentRepository(
+            bookAssetDao = context.bookAssetDao,
+            fileStore = context.fileStore,
+        )
+
+        val parsedBook = EpubReader().readEpub(fixture("broken-nav.epub"))
+        assertTrue(
+            "Expected non-empty spineReferences in fixture broken-nav.epub",
+            (parsedBook.spine?.spineReferences?.isNotEmpty() == true),
+        )
+
+        val content = contentRepository.load(bookId = imported.book.id, locator = null)
+
+        assertTrue(content.paragraphs.joinToString("\n").contains("这是正文段落一"))
+        assertTrue("Expected non-blank title fallback", imported.book.title.isNotBlank())
+        assertEquals("broken-nav", imported.book.title)
+        assertEquals("OPF 作者", imported.book.author)
+
+        val chapters = contentRepository.loadChapters(bookId = imported.book.id)
+        assertTrue("Expected readable chapters even when nav/toc broken", chapters.isNotEmpty())
     }
 
     @Test

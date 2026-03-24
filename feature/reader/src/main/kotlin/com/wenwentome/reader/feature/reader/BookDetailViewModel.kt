@@ -70,13 +70,14 @@ class BookDetailViewModel(
         ) { book, readingState, chapters, latestChapterRef, detailEnhancementState ->
             val (coverState, metadataState) = detailEnhancementState
             val (automaticCover, manualCover) = coverState
+            val normalizedBook = book?.let(::normalizeBookRecord)
             val progressPercent = readingState?.progressPercent ?: 0f
             val currentChapterTitle = chapters
                 .firstOrNull { it.chapterRef == readingState?.chapterRef }
                 ?.title
             BookDetailUiState(
-                book = book,
-                effectiveCover = manualCover ?: automaticCover ?: book?.cover,
+                book = normalizedBook,
+                effectiveCover = manualCover ?: automaticCover ?: normalizedBook?.cover,
                 readActionLabel = resolveReadActionLabel(readingState),
                 progressPercent = progressPercent,
                 progressLabel = formatProgressLabel(progressPercent),
@@ -84,7 +85,8 @@ class BookDetailViewModel(
                 currentChapterTitle = currentChapterTitle,
                 lastReadLabel = currentChapterTitle?.let { "上次读到 $it" },
                 showTocAction = chapters.isNotEmpty(),
-                showRefreshCatalogAction = book?.originType == OriginType.WEB || book?.originType == OriginType.MIXED,
+                showRefreshCatalogAction =
+                    normalizedBook?.originType == OriginType.WEB || normalizedBook?.originType == OriginType.MIXED,
                 showJumpToLatestAction = !latestChapterRef.isNullOrBlank(),
                 canRestoreAutomaticCover = !manualCover.isNullOrBlank(),
                 isEnhancingMetadata = metadataState.isLoading,
@@ -253,3 +255,16 @@ private fun resolveReadActionLabel(readingState: ReadingState?): String =
     } else {
         "开始阅读"
     }
+
+private fun normalizeBookRecord(book: BookRecord): BookRecord {
+    val normalizedTitle = book.title.trim().ifBlank { "未命名" }
+    val normalizedAuthor = book.author?.trim()?.takeIf { it.isNotBlank() }
+    return if (normalizedTitle == book.title && normalizedAuthor == book.author) {
+        book
+    } else {
+        book.copy(
+            title = normalizedTitle,
+            author = normalizedAuthor,
+        )
+    }
+}
