@@ -73,7 +73,7 @@ class AppNavigationSmokeTest {
         composeTestRule.onNodeWithTag("nav-settings").performClick()
         composeTestRule.onNodeWithText("API 中心").performScrollTo().performClick()
         composeTestRule.onNodeWithTag("api-hub-overview-screen").assertIsDisplayed()
-        composeTestRule.onNodeWithText("今日调用").assertIsDisplayed()
+        composeTestRule.onNodeWithText("调用情况").assertIsDisplayed()
         composeTestRule.onNodeWithTag("nav-settings").assertIsSelected()
     }
 
