@@ -1,7 +1,6 @@
 package com.wenwentome.reader
 
 import android.app.Application
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
@@ -52,7 +51,7 @@ class AppSmokeFlowTest {
         composeTestRule.onNodeWithTag("screen").assertTextEquals("书库")
         composeTestRule.onNodeWithText("发现").performClick()
         composeTestRule.onNodeWithText("我的").performClick()
-        composeTestRule.onNodeWithTag("settings-cloud-sync-entry").assertExists()
+        composeTestRule.onNodeWithTag("settings-cloud-sync-entry").assertExistsCompat()
     }
 
     @Test
@@ -363,4 +362,8 @@ private fun ComposeContentTestRule.waitUntilTextExists(text: String, timeoutMill
     waitUntil(timeoutMillis = timeoutMillis) {
         onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
     }
+}
+
+private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
+    fetchSemanticsNode()
 }

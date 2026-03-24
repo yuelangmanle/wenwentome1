@@ -1,8 +1,6 @@
 package com.wenwentome.reader.feature.reader
 
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -76,9 +74,9 @@ class ReaderScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("reader-mode-picker").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("reader-settings-sheet").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("reader-overlay-panel").assertDoesNotExist()
+        composeTestRule.assertTagDoesNotExist("reader-mode-picker")
+        composeTestRule.assertTagDoesNotExist("reader-settings-sheet")
+        composeTestRule.assertTagDoesNotExist("reader-overlay-panel")
     }
 
     @Test
@@ -379,10 +377,10 @@ class ReaderScreenTest {
         }
 
         composeTestRule.onNodeWithText("AI").performClick()
-        composeTestRule.onNodeWithText("章节总结").assertExists()
-        composeTestRule.onNodeWithText("段落解释").assertExists()
-        composeTestRule.onNodeWithText("AI 翻译").assertExists()
-        composeTestRule.onNodeWithText("TTS 朗读").assertExists()
+        composeTestRule.assertTextExists("章节总结")
+        composeTestRule.assertTextExists("段落解释")
+        composeTestRule.assertTextExists("AI 翻译")
+        composeTestRule.assertTextExists("TTS 朗读")
     }
 
     private fun sampleState(
@@ -436,6 +434,10 @@ class ReaderScreenTest {
 
 private fun ComposeContentTestRule.assertTagExists(tag: String) {
     assertTrue(onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty())
+}
+
+private fun ComposeContentTestRule.assertTagDoesNotExist(tag: String) {
+    assertTrue(onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty())
 }
 
 private fun ComposeContentTestRule.assertTextExists(text: String) {

@@ -1,6 +1,5 @@
 package com.wenwentome.reader.feature.apihub
 
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -39,11 +38,11 @@ class ApiHubOverviewScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("配置 AI").assertExists()
-        composeTestRule.onNodeWithText("已配置 3 个可用接口").assertExists()
-        composeTestRule.onNodeWithText("已绑定 6 项能力").assertExists()
-        composeTestRule.onNodeWithText("今天已调用 12 次").assertExists()
-        composeTestRule.onNodeWithText("无").assertExists()
+        composeTestRule.onNodeWithText("配置 AI").assertExistsCompat()
+        composeTestRule.onNodeWithText("已配置 3 个可用接口").assertExistsCompat()
+        composeTestRule.onNodeWithText("已绑定 6 项能力").assertExistsCompat()
+        composeTestRule.onNodeWithText("今天已调用 12 次").assertExistsCompat()
+        composeTestRule.onNodeWithText("无").assertExistsCompat()
     }
 
     @Test
@@ -77,4 +76,8 @@ class ApiHubOverviewScreenTest {
         assertTrue(openedPrices)
         assertTrue(openedUsageLogs)
     }
+}
+
+private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertExistsCompat() {
+    fetchSemanticsNode()
 }

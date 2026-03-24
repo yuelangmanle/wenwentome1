@@ -1,11 +1,12 @@
 package com.wenwentome.reader.feature.settings
 
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,8 +33,8 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("settings-cloud-sync-entry").assertExists()
-        composeTestRule.onNodeWithText("立即备份").assertDoesNotExist()
+        composeTestRule.assertTagExists("settings-cloud-sync-entry")
+        composeTestRule.assertTextDoesNotExist("立即备份")
     }
 
     @Test
@@ -54,8 +55,8 @@ class SettingsScreenTest {
 
         composeTestRule.onNodeWithText("打开配置").performClick()
 
-        composeTestRule.onNodeWithText("立即备份").assertExists()
-        composeTestRule.onNodeWithText("GitHub 用户名").assertExists()
+        composeTestRule.assertTextExists("立即备份")
+        composeTestRule.assertTextExists("GitHub 用户名")
     }
 }
 
@@ -66,3 +67,15 @@ private fun sampleProjectInfo() =
         versionName = "1.5.0",
         projectUrl = "https://github.com/example/wenwentome",
     )
+
+private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.assertTagExists(tag: String) {
+    assertTrue(onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty())
+}
+
+private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.assertTextExists(text: String) {
+    assertTrue(onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty())
+}
+
+private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.assertTextDoesNotExist(text: String) {
+    assertTrue(onAllNodesWithText(text).fetchSemanticsNodes().isEmpty())
+}
