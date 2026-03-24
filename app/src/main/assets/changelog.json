@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.5",
+    "releaseDate": "2026-03-24",
+    "title": "本地书修复与 EPUB 导入收口",
+    "highlights": [
+      "TXT 新增 UTF-8 / GB18030 编码识别与章节切分修复",
+      "TXT 阅读同时兼容旧版全书进度 locator 和新版章节目录跳转",
+      "EPUB 可读目录回退与非法导入拦截补齐"
+    ],
+    "details": [
+      "LocalBookContentRepository 现在会按章节解析 TXT，并在恢复旧进度时正确映射回整本书的全局段落位置",
+      "章节目录支持给 TXT 生成结构化 locator，阅读时又能继续沿用旧版数字 locator，兼容历史阅读状态",
+      "EPUB 在 TOC / nav 异常、目录缺失或不可读时，会优先回退到更稳妥的可读 spine 章节",
+      "详情页元数据链路补齐 broken-nav 等边界情况，导入阶段也会拒绝无效 EPUB 文件"
+    ]
+  },
+  {
     "version": "1.4",
     "releaseDate": "2026-03-23",
     "title": "书源兼容底座 Phase 1",

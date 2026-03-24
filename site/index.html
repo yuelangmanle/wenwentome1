@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WenwenToMe 1.4 发布页</title>
-  <meta name="description" content="WenwenToMe 1.4 发布页：查看书源兼容底座 phase1、下载入口、GitHub 项目与云端发布说明。" />
+  <title>WenwenToMe 1.5 发布页</title>
+  <meta name="description" content="WenwenToMe 1.5 发布页：查看 TXT / EPUB 阅读修复、下载入口、GitHub 项目与云端发布说明。" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -14,7 +14,7 @@
         <p class="eyebrow">月亮满了 · WenwenToMe</p>
         <h1>一个把本地书和网文放进同一座书架的 Android 阅读器</h1>
         <p class="hero-text">
-          1.4 版本聚焦书源兼容底座 phase1，补齐结构化规则模型、统一执行器、10 个目标源离线验收清单，并继续沿用 GitHub 云端打包与发布链路。
+          1.5 版本聚焦本地书阅读链路修复，补齐 TXT 编码识别、章节切分、旧进度兼容、EPUB 可读目录回退与非法导入拦截，并继续走 GitHub 云端打包发布。
         </p>
         <div class="hero-actions">
           <a class="button primary" href="https://github.com/yuelangmanle/wenwentome1/releases/latest">下载最新 APK</a>
@@ -23,7 +23,7 @@
       </div>
       <section class="hero-panel">
         <p class="panel-label">当前正式版本</p>
-        <p class="panel-version">1.4</p>
+        <p class="panel-version">1.5</p>
         <dl class="panel-meta">
           <div>
             <dt>作者</dt>
@@ -43,11 +43,11 @@
 
     <main class="content-grid">
       <section class="card">
-        <p class="section-kicker">1.4 亮点</p>
+        <p class="section-kicker">1.5 亮点</p>
         <ul class="feature-list">
-          <li>书源 bridge 升级为结构化规则模型，统一支持 HTML/CSS、XPath、JSONPath 三条主链。</li>
-          <li>新增 `##` 文本清洗、轻量 `@js:` 后处理与 unsupported 规则显式诊断，减少静默空结果。</li>
-          <li>首批 10 个目标源 fixture、shared archetype 与 GitHub 云端验证闭环已补齐。</li>
+          <li>TXT 新增 UTF-8 / GB18030 编码识别与章节切分修复，中文 TXT 兼容性更稳。</li>
+          <li>TXT 阅读同时兼容旧版全书段落进度和新版章节目录跳转，继续阅读不再错位。</li>
+          <li>EPUB 可读目录回退、详情元数据边界处理与非法导入拦截已经补齐。</li>
         </ul>
       </section>
 
@@ -55,8 +55,8 @@
         <p class="section-kicker">下载与验证</p>
         <ol class="step-list">
           <li>正式包从 GitHub Releases 下载，最新版本固定指向 `release APK`。</li>
-          <li>这次 1.4 先在 `publish/main` 跑通 `android-ci`，再快进同步到 `main`。</li>
-          <li>本地没有 Java 时，直接使用 GitHub Actions 云端跑 `testDebugUnitTest + assembleDebug`；正式发版仍以 `main` 上 tag 为准。</li>
+          <li>这次 1.5 直接从 `main` 走云端签名发布，避免继续依赖本地 Android 打包环境。</li>
+          <li>本地即使没有 Java，也可以直接使用 GitHub Actions 云端跑校验与正式发版；release 仍以 `main` 上 tag 为准。</li>
         </ol>
       </section>
 

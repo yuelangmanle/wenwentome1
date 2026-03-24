@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5] - 2026-03-24
+
+### Fixed
+- TXT 导入新增 UTF-8 / GB18030 编码嗅探与章节切分修复，中文 TXT 不再因为编码或标题识别失败导致正文错乱
+- TXT 阅读恢复兼容旧版全书段落 locator，同时支持按章节结构化跳转，章节目录与继续阅读不再互相打架
+- EPUB 阅读补齐目录损坏/导航异常时的可读章节回退逻辑，详情页元数据识别也同步增强
+- 非法 EPUB 导入现在会在入库阶段直接拒绝，避免坏文件进入书架后在阅读链路里崩掉
+
+### Changed
+- 本次正式发版重新切回 `origin/main` 云端签名发布，release workflow 使用独立 release keystore secrets
+
 ## [1.4] - 2026-03-23
 
 ### Added
