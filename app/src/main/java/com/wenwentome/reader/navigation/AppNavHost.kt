@@ -185,6 +185,7 @@ fun AppNavHost(
         SourceManagementViewModel(
             observeSources = sourceDefinitionDao.observeAll().map { list -> list.map { it.toModel() } },
             toggleSourceEnabled = { sourceId -> sourceDefinitionDao.toggleEnabled(sourceId) },
+            deleteSource = { sourceId -> sourceDefinitionDao.deleteById(sourceId) },
         )
     }
     val sourceManagementState by sourceManagementViewModel.uiState.collectAsState(initial = SourceManagementUiState())
@@ -259,7 +260,8 @@ fun AppNavHost(
             }
             DiscoverScreen(
                 state = discoverState,
-                onSearch = discoverViewModel::search,
+                onQueryChange = discoverViewModel::updateDraftQuery,
+                onSubmitSearch = discoverViewModel::submitSearch,
                 onPreview = discoverViewModel::selectResult,
                 onAddToShelf = discoverViewModel::addToShelf,
                 onRefreshSelected = discoverViewModel::refreshSelected,
@@ -274,6 +276,7 @@ fun AppNavHost(
                     sourceImportLauncher.launch(arrayOf("application/json", "text/plain"))
                 },
                 onToggleSource = sourceManagementViewModel::toggleEnabled,
+                onDeleteSource = sourceManagementViewModel::delete,
             )
         }
         composable(TopLevelDestination.SETTINGS.route) {

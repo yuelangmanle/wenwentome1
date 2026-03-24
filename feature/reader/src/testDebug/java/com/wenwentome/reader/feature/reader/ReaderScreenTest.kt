@@ -1,6 +1,8 @@
 package com.wenwentome.reader.feature.reader
 
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -53,6 +55,30 @@ class ReaderScreenTest {
         composeTestRule.onNodeWithText("设置").performClick()
         composeTestRule.assertTagExists("reader-settings-sheet")
         composeTestRule.assertTextExists("字体大小")
+    }
+
+    @Test
+    fun readerScreen_defaultDoesNotShowOverlayPanels() {
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("reader-mode-picker").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("reader-settings-sheet").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("reader-overlay-panel").assertDoesNotExist()
     }
 
     @Test

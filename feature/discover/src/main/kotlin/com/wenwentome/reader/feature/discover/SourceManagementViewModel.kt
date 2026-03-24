@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 class SourceManagementViewModel(
     observeSources: Flow<List<SourceDefinition>>,
     private val toggleSourceEnabled: suspend (String) -> Unit,
+    private val deleteSource: suspend (String) -> Unit,
 ) : ViewModel() {
     val uiState: StateFlow<SourceManagementUiState> =
         observeSources
@@ -26,6 +27,12 @@ class SourceManagementViewModel(
     fun toggleEnabled(sourceId: String) {
         viewModelScope.launch {
             toggleSourceEnabled(sourceId)
+        }
+    }
+
+    fun delete(sourceId: String) {
+        viewModelScope.launch {
+            deleteSource(sourceId)
         }
     }
 }

@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 
 @Composable
 fun ApiHubOverviewScreen(
@@ -38,23 +37,31 @@ fun ApiHubOverviewScreen(
             text = "API 中心",
             style = MaterialTheme.typography.headlineSmall,
         )
-        OverviewMetricCard(label = "已启用 Provider", value = state.enabledProviderCount.toString())
-        OverviewMetricCard(label = "能力绑定", value = state.boundCapabilityCount.toString())
-        OverviewMetricCard(label = "今日调用", value = state.todayCallCount.toString())
-        OverviewMetricCard(
-            label = "预算使用",
-            value = "${(state.budgetUsageRatio * 100).roundToInt()}%",
+        Text(
+            text = "配置 AI 接口、模型绑定和预算策略。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        OverviewMetricCard(
+            label = "配置 AI",
+            value = state.providerStatusLabel,
+        )
+        OverviewMetricCard(label = "能力状态", value = state.bindingStatusLabel)
+        OverviewMetricCard(label = "调用情况", value = state.usageStatusLabel)
         state.latestError?.let { message ->
             OverviewMetricCard(label = "最近错误", value = message)
         }
+        Text(
+            text = "高级入口",
+            style = MaterialTheme.typography.titleMedium,
+        )
         Button(
             onClick = onOpenProviders,
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("api-hub-open-providers"),
         ) {
-            Text("Provider 管理")
+            Text("管理接口")
         }
         Button(
             onClick = onOpenBindings,
@@ -62,7 +69,7 @@ fun ApiHubOverviewScreen(
                 .fillMaxWidth()
                 .testTag("api-hub-open-bindings"),
         ) {
-            Text("模型绑定")
+            Text("管理能力绑定")
         }
         Button(
             onClick = onOpenBudgets,
@@ -78,7 +85,7 @@ fun ApiHubOverviewScreen(
                 .fillMaxWidth()
                 .testTag("api-hub-open-prices"),
         ) {
-            Text("价格目录")
+            Text("查看价格目录")
         }
         Button(
             onClick = onOpenUsageLogs,

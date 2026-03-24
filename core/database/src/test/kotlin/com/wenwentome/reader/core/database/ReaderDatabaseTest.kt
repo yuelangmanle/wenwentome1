@@ -364,6 +364,10 @@ class ReaderDatabaseTest {
         val toggled = database.sourceDefinitionDao().getAll().first { it.sourceId == "s2" }
         assertEquals(false, toggled.enabled)
         assertEquals("https://example.com/a", toggled.sourceUrl)
+
+        database.sourceDefinitionDao().deleteById("s1")
+        val remaining = database.sourceDefinitionDao().getAll()
+        assertEquals(listOf("s2"), remaining.map { it.sourceId })
     }
 
     private fun testDatabase(): ReaderDatabase =

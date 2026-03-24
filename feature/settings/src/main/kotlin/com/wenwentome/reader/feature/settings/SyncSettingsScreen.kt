@@ -30,31 +30,31 @@ fun SyncSettingsScreen(
         OutlinedTextField(
             value = state.owner,
             onValueChange = { onStateChange(state.updateOwner(it)) },
-            label = { Text("Owner") },
+            label = { Text("GitHub 用户名") },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.repo,
             onValueChange = { onStateChange(state.updateRepo(it)) },
-            label = { Text("Repo") },
+            label = { Text("仓库名") },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.branch,
             onValueChange = { onStateChange(state.updateBranch(it)) },
-            label = { Text("Branch") },
+            label = { Text("分支") },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.bootstrapToken,
             onValueChange = { onStateChange(state.updateBootstrapToken(it)) },
-            label = { Text("Bootstrap Token") },
+            label = { Text("GitHub Token") },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.syncPassword,
             onValueChange = { onStateChange(state.updateSyncPassword(it)) },
-            label = { Text("Sync Password") },
+            label = { Text("同步密码") },
             modifier = Modifier.fillMaxWidth(),
         )
         Button(onClick = { onSaveConfig(state) }) {

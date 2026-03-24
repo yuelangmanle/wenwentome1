@@ -4,20 +4,21 @@ import com.wenwentome.reader.core.model.AssetRole
 import com.wenwentome.reader.core.model.BookFormat
 import nl.siegmann.epublib.domain.Book
 import nl.siegmann.epublib.domain.Resource
-import nl.siegmann.epublib.domain.SpineReference
 import nl.siegmann.epublib.epub.EpubReader
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.zip.ZipInputStream
 
 class EpubBookParser {
+    private val epubCatalogParser = EpubCatalogParser()
+
     fun parse(name: String, inputStream: InputStream): ParsedLocalBook {
         val bytes = inputStream.readBytes()
         val epubBook = runCatching { EpubReader().readEpub(ByteArrayInputStream(bytes)) }
             .getOrElse { error ->
-                throw IllegalStateException("Invalid EPUB file: $name", error)
+                throw IllegalStateException("EPUB 文件无效或已损坏", error)
             }
-        validateReadableEpub(name = name, book = epubBook)
+        validateReadableEpub(book = epubBook)
         val opfMetadata = extractOpfMetadata(bytes)
 
         val coverAsset = epubBook?.coverImage?.let { coverResource ->
@@ -67,24 +68,18 @@ class EpubBookParser {
         )
     }
 
-    private fun validateReadableEpub(name: String, book: Book) {
-        if (book.opfResource == null) {
-            throw IllegalStateException("Invalid EPUB file: $name")
+    private fun validateReadableEpub(book: Book) {
+        val hasReadableCatalog = runCatching { epubCatalogParser.catalog(book).isNotEmpty() }.getOrDefault(false)
+        if (hasReadableCatalog) {
+            return
         }
 
-        val hasReadableSpineResource = book.spine?.spineReferences
-            .orEmpty()
-            .filterIsInstance<SpineReference>()
-            .any { spineReference ->
-                val resource = spineReference.resource
-                    ?: spineReference.resourceId
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let(book.resources::getById)
-                resource?.let(::isHtmlLike) == true
-            }
-        if (!hasReadableSpineResource) {
-            throw IllegalStateException("Invalid EPUB file: $name")
+        val hasHtmlLikeResources = book.resources.getAll().any(::isHtmlLike)
+        if (!hasHtmlLikeResources) {
+            throw IllegalStateException("EPUB 文件无效或已损坏")
         }
+
+        throw IllegalStateException("EPUB 文件结构不完整，暂时无法读取")
     }
 
     private fun isHtmlLike(resource: Resource): Boolean {

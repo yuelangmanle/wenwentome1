@@ -14,6 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+import java.io.File
+import java.net.URI
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -198,6 +200,72 @@ class LocalBookContentRepositoryTest {
         }
     }
 
+    @Test
+    fun load_txtUtf16WithBom_readsReadableChineseParagraphs() = runTest {
+        val bytes =
+            byteArrayOf(0xFF.toByte(), 0xFE.toByte()) +
+                """
+                第一章 起始
+                第一章-第一段。
+
+                第二章 继续
+                第二章-第一段。
+                """.trimIndent().toByteArray(Charsets.UTF_16LE)
+        val repository = createTxtRepository(txtBytes = bytes)
+
+        val chapters = repository.loadChapters(bookId = "txt-book")
+        val content = repository.load(bookId = "txt-book", locator = null)
+
+        assertEquals(2, chapters.size)
+        assertEquals("第一章 起始", chapters.first().title)
+        assertEquals("第一章 起始", content.chapterTitle)
+        assertTrue(content.paragraphs.first().contains("第一章-第一段"))
+    }
+
+    @Test
+    fun load_txtWithoutHeadings_fallsBackToBodyChapter() = runTest {
+        val repository = createTxtRepository(
+            txtBytes =
+                """
+                这是第一段。
+
+                　　这是第二段。
+
+                这是第三段。
+                """.trimIndent().toByteArray(Charsets.UTF_8)
+        )
+
+        val chapters = repository.loadChapters(bookId = "txt-book")
+        val content = repository.load(bookId = "txt-book", locator = null)
+
+        assertEquals(1, chapters.size)
+        assertEquals("正文", chapters.first().title)
+        assertEquals("正文", content.chapterTitle)
+        assertEquals(listOf("这是第一段。", "这是第二段。", "这是第三段。"), content.paragraphs)
+    }
+
+    @Test
+    fun loadChapters_thenLoad_txtReusesParsedBookWithinSameRepository() = runTest {
+        val context = createTxtRepositoryContext(
+            txtBytes =
+                """
+                第一章 起始
+                第一章-第一段。
+
+                第二章 继续
+                第二章-第一段。
+                """.trimIndent().toByteArray(Charsets.UTF_8)
+        )
+
+        val chapters = context.repository.loadChapters(bookId = "txt-book")
+        File(URI(context.storageUri)).delete()
+        val content = context.repository.load(bookId = "txt-book", locator = null)
+
+        assertEquals(2, chapters.size)
+        assertEquals("第一章 起始", content.chapterTitle)
+        assertTrue(content.paragraphs.first().contains("第一章-第一段"))
+    }
+
     private fun createRepository(
         epubFixture: String? = null,
         generatedEpubBytes: ByteArray? = null,
@@ -228,11 +296,22 @@ class LocalBookContentRepositoryTest {
     }
 
     private fun createTxtRepository(
-        txtFixture: String,
+        txtFixture: String? = null,
+        txtBytes: ByteArray? = null,
     ): LocalBookContentRepository {
+        return createTxtRepositoryContext(
+            txtFixture = txtFixture,
+            txtBytes = txtBytes,
+        ).repository
+    }
+
+    private fun createTxtRepositoryContext(
+        txtFixture: String? = null,
+        txtBytes: ByteArray? = null,
+    ): TxtRepositoryContext {
         val filesDir = createTempDir(prefix = "localbooks-content-test-")
         val fileStore = LocalBookFileStore(filesDir = filesDir)
-        val bytes = fixtureBytes(txtFixture)
+        val bytes = txtBytes ?: fixtureBytes(requireNotNull(txtFixture))
         val storageUri = fileStore.persistOriginal(
             bookId = "txt-book",
             extension = "txt",
@@ -249,9 +328,12 @@ class LocalBookContentRepositoryTest {
                 syncPath = "books/txt-book/source.txt",
             )
         )
-        return LocalBookContentRepository(
-            bookAssetDao = dao,
-            fileStore = fileStore,
+        return TxtRepositoryContext(
+            repository = LocalBookContentRepository(
+                bookAssetDao = dao,
+                fileStore = fileStore,
+            ),
+            storageUri = storageUri,
         )
     }
 
@@ -368,5 +450,10 @@ class LocalBookContentRepositoryTest {
             upsertAll(entities)
         }
     }
+
+    private data class TxtRepositoryContext(
+        val repository: LocalBookContentRepository,
+        val storageUri: String,
+    )
 
 }

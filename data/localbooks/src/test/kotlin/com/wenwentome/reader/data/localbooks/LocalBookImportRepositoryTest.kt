@@ -24,7 +24,11 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 import java.net.URI
+import java.util.LinkedHashMap
+import java.util.zip.CRC32
+import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 import kotlin.io.path.createTempDirectory
 
 class LocalBookImportRepositoryTest {
@@ -87,14 +91,36 @@ class LocalBookImportRepositoryTest {
                 inputStream = ByteArrayInputStream("not-a-valid-epub".encodeToByteArray()),
             )
             fail("Expected import to fail for invalid epub")
-        } catch (_: IllegalStateException) {
-            // expected
+        } catch (error: IllegalStateException) {
+            assertEquals("EPUB 文件无效或已损坏", error.message)
         }
 
         assertTrue(context.filesDir.walkTopDown().filter(File::isFile).toList().isEmpty())
         assertTrue(context.bookRecordDao.getAll().isEmpty())
         assertTrue(context.bookAssetDao.getAll().isEmpty())
         assertTrue(context.readingStateDao.getAll().isEmpty())
+    }
+
+    @Test
+    fun importEpub_whenSpineResourcesAreBrokenButTocIsReadable_stillImports() = runTest {
+        val context = createRepositoryContext()
+
+        val imported = context.repository.import(
+            fileName = "broken-spine-but-readable.epub",
+            inputStream = ByteArrayInputStream(createBrokenSpineButReadableEpubBytes()),
+        )
+
+        val contentRepository = LocalBookContentRepository(
+            bookAssetDao = context.bookAssetDao,
+            fileStore = context.fileStore,
+        )
+        val chapters = contentRepository.loadChapters(bookId = imported.book.id)
+        val content = contentRepository.load(bookId = imported.book.id, locator = null)
+
+        assertTrue(chapters.isNotEmpty())
+        assertEquals("第一章", chapters.first().title)
+        assertEquals("第一章", content.chapterTitle)
+        assertTrue(content.paragraphs.any { it.contains("第一章-第一段") })
     }
 
     @Test
@@ -225,6 +251,56 @@ class LocalBookImportRepositoryTest {
         }
         error("Missing zip entry $entryPath in fixture $name")
     }
+
+    private fun createBrokenSpineButReadableEpubBytes(): ByteArray {
+        val entries = unzipEntries(fixtureBytes("sample-cover-first.epub")).toMutableMap()
+        entries["OEBPS/content.opf"] =
+            entries.getValue("OEBPS/content.opf")
+                .decodeToString()
+                .replace("""<itemref idref="chapter2"/>""", """<itemref idref="missing-chapter2"/>""")
+                .replace("""<itemref idref="chapter1"/>""", """<itemref idref="missing-chapter1"/>""")
+                .toByteArray(Charsets.UTF_8)
+
+        return zipEntries(entries)
+    }
+
+    private fun unzipEntries(bytes: ByteArray): LinkedHashMap<String, ByteArray> {
+        val entries = LinkedHashMap<String, ByteArray>()
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                entries[entry.name] = zip.readBytes()
+                zip.closeEntry()
+            }
+        }
+        return entries
+    }
+
+    private fun zipEntries(entries: Map<String, ByteArray>): ByteArray =
+        java.io.ByteArrayOutputStream().use { output ->
+            ZipOutputStream(output).use { zip ->
+                val mimeBytes = requireNotNull(entries["mimetype"]) { "EPUB missing mimetype entry" }
+                val crc = CRC32().apply { update(mimeBytes) }.value
+                zip.putNextEntry(
+                    ZipEntry("mimetype").apply {
+                        method = ZipEntry.STORED
+                        size = mimeBytes.size.toLong()
+                        compressedSize = mimeBytes.size.toLong()
+                        this.crc = crc
+                    }
+                )
+                zip.write(mimeBytes)
+                zip.closeEntry()
+
+                entries.forEach { (path, bytes) ->
+                    if (path == "mimetype") return@forEach
+                    zip.putNextEntry(ZipEntry(path))
+                    zip.write(bytes)
+                    zip.closeEntry()
+                }
+            }
+            output.toByteArray()
+        }
 
     private fun createRepositoryContext(
         bookRecordDao: FakeBookRecordDao = FakeBookRecordDao(),

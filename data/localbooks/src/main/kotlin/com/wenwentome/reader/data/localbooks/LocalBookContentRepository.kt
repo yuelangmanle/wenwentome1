@@ -10,12 +10,15 @@ import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
+import java.util.concurrent.ConcurrentHashMap
 
 class LocalBookContentRepository(
     private val bookAssetDao: BookAssetDao,
     private val fileStore: LocalBookFileStore,
     private val epubCatalogParser: EpubCatalogParser = EpubCatalogParser(),
 ) {
+    private val txtParsedBookCache = ConcurrentHashMap<String, TxtParsedBook>()
+
     // Locator 语义:
     // - TXT 兼容旧格式: 段落 index 字符串，比如 "0", "18"（按整本书的全局段落序号）
     // - TXT 新格式: "chapter:<chapterRef>#paragraph:<paragraphIndex>"
@@ -25,12 +28,14 @@ class LocalBookContentRepository(
         val asset = requireNotNull(bookAssetDao.findPrimaryAsset(bookId)) {
             "Primary asset missing for $bookId"
         }
-        return fileStore.open(asset.storageUri).use { inputStream ->
-            when (asset.mime) {
-                "text/plain" -> renderTxt(inputStream, locator)
-                "application/epub+zip" -> renderEpub(inputStream, locator)
-                else -> error("Unsupported asset mime: ${asset.mime}")
-            }
+        return when (asset.mime) {
+            "text/plain" -> renderTxt(loadParsedTxtBook(asset.storageUri), locator)
+            "application/epub+zip" ->
+                fileStore.open(asset.storageUri).use { inputStream ->
+                    renderEpub(inputStream, locator)
+                }
+
+            else -> error("Unsupported asset mime: ${asset.mime}")
         }
     }
 
@@ -38,29 +43,30 @@ class LocalBookContentRepository(
         val asset = requireNotNull(bookAssetDao.findPrimaryAsset(bookId)) {
             "Primary asset missing for $bookId"
         }
-        return fileStore.open(asset.storageUri).use { inputStream ->
-            when (asset.mime) {
-                "text/plain" -> {
-                    val parsed = parseTxtBook(inputStream.readBytes())
-                    parsed.chapters.map { chapter ->
-                        ReaderChapter(
-                            chapterRef = chapter.chapterRef,
-                            title = chapter.title,
-                            orderIndex = chapter.orderIndex,
-                            sourceType = com.wenwentome.reader.core.model.BookFormat.TXT,
-                            locatorHint = "chapter:${chapter.chapterRef}#paragraph:0",
-                        )
-                    }
+        return when (asset.mime) {
+            "text/plain" -> {
+                val parsed = loadParsedTxtBook(asset.storageUri)
+                parsed.chapters.map { chapter ->
+                    ReaderChapter(
+                        chapterRef = chapter.chapterRef,
+                        title = chapter.title,
+                        orderIndex = chapter.orderIndex,
+                        sourceType = com.wenwentome.reader.core.model.BookFormat.TXT,
+                        locatorHint = "chapter:${chapter.chapterRef}#paragraph:0",
+                    )
+                }
+            }
+
+            "application/epub+zip" ->
+                fileStore.open(asset.storageUri).use { inputStream ->
+                    EpubReader().readEpub(inputStream).let(epubCatalogParser::catalog)
                 }
 
-                "application/epub+zip" -> EpubReader().readEpub(inputStream).let(epubCatalogParser::catalog)
-                else -> emptyList()
-            }
+            else -> emptyList()
         }
     }
 
-    private fun renderTxt(inputStream: InputStream, locator: String?): ReaderContent {
-        val parsed = parseTxtBook(inputStream.readBytes())
+    private fun renderTxt(parsed: TxtParsedBook, locator: String?): ReaderContent {
         val totalParagraphCount = parsed.chapters.sumOf { it.paragraphs.size }
 
         // Structured locator: chapter:<chapterRef>#paragraph:<paragraphIndex>
@@ -90,6 +96,16 @@ class LocalBookContentRepository(
             windowStartParagraphIndex = resolvedGlobalStartIndex,
             totalParagraphCount = totalParagraphCount,
         )
+    }
+
+    private fun loadParsedTxtBook(storageUri: String): TxtParsedBook {
+        txtParsedBookCache[storageUri]?.let { return it }
+
+        val parsed = fileStore.open(storageUri).use { inputStream ->
+            parseTxtBook(inputStream.readBytes())
+        }
+        txtParsedBookCache[storageUri] = parsed
+        return parsed
     }
 
     private fun renderEpub(inputStream: InputStream, locator: String?): ReaderContent {
@@ -455,7 +471,7 @@ class LocalBookContentRepository(
                         chapterRef = "txt:0",
                         title = "正文",
                         orderIndex = 0,
-                        paragraphs = extractTxtParagraphs(normalized),
+                        paragraphs = extractTxtParagraphs(normalized).ifEmpty { fallbackTxtParagraphs(normalized) },
                     )
                 )
             } else {
@@ -483,8 +499,20 @@ class LocalBookContentRepository(
     }
 
     private fun sniffTxtCharset(bytes: ByteArray): Charset {
+        if (bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte()) {
+            return Charsets.UTF_16BE
+        }
+        if (bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()) {
+            return Charsets.UTF_16LE
+        }
         if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {
             return Charsets.UTF_8
+        }
+        if (looksLikeUtf16(bytes, zeroOnOddBytes = true)) {
+            return Charsets.UTF_16LE
+        }
+        if (looksLikeUtf16(bytes, zeroOnOddBytes = false)) {
+            return Charsets.UTF_16BE
         }
 
         val utf8Decoder = Charsets.UTF_8
@@ -497,6 +525,39 @@ class LocalBookContentRepository(
         } catch (_: CharacterCodingException) {
             Charset.forName("GB18030")
         }
+    }
+
+    private fun looksLikeUtf16(bytes: ByteArray, zeroOnOddBytes: Boolean): Boolean {
+        if (bytes.size < 4) {
+            return false
+        }
+
+        var zeroCount = 0
+        var sampleCount = 0
+        var oppositeZeroCount = 0
+        val startIndex = if (zeroOnOddBytes) 1 else 0
+        val oppositeStartIndex = if (zeroOnOddBytes) 0 else 1
+        val upperBound = bytes.size.coerceAtMost(200)
+
+        for (index in startIndex until upperBound step 2) {
+            sampleCount++
+            if (bytes[index] == 0.toByte()) {
+                zeroCount++
+            }
+        }
+        for (index in oppositeStartIndex until upperBound step 2) {
+            if (bytes[index] == 0.toByte()) {
+                oppositeZeroCount++
+            }
+        }
+
+        if (sampleCount == 0) {
+            return false
+        }
+
+        val zeroRatio = zeroCount.toFloat() / sampleCount.toFloat()
+        val oppositeZeroRatio = oppositeZeroCount.toFloat() / sampleCount.toFloat()
+        return zeroRatio >= 0.6f && oppositeZeroRatio <= 0.2f
     }
 
     private fun decodeTxt(bytes: ByteArray, charset: Charset): String {
@@ -640,6 +701,17 @@ class LocalBookContentRepository(
         }
         flush()
         return paragraphs
+    }
+
+    private fun fallbackTxtParagraphs(text: String): List<String> {
+        val normalized = text
+            .split('\n')
+            .map { it.trim().trim('\u3000') }
+            .filter { it.isNotBlank() }
+        if (normalized.isEmpty()) {
+            return listOf("正文解析失败，请检查文件编码")
+        }
+        return listOf(normalized.joinToString("\n"))
     }
 
     private fun joinTxtLines(lines: List<String>): String {

@@ -1,6 +1,6 @@
 package com.wenwentome.reader.feature.apihub
 
-import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -23,10 +23,12 @@ class ApiHubOverviewScreenTest {
         composeTestRule.setContent {
             ApiHubOverviewScreen(
                 state = ApiHubUiState(
+                    providerStatusLabel = "已配置 3 个可用接口",
+                    bindingStatusLabel = "已绑定 6 项能力",
+                    usageStatusLabel = "今天已调用 12 次",
                     enabledProviderCount = 3,
                     boundCapabilityCount = 6,
                     todayCallCount = 12,
-                    budgetUsageRatio = 0.35f,
                     latestError = "无",
                 ),
                 onOpenProviders = {},
@@ -37,9 +39,11 @@ class ApiHubOverviewScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("12").assertTextEquals("12")
-        composeTestRule.onNodeWithText("35%").assertTextEquals("35%")
-        composeTestRule.onNodeWithText("无").assertTextEquals("无")
+        composeTestRule.onNodeWithText("配置 AI").assertExists()
+        composeTestRule.onNodeWithText("已配置 3 个可用接口").assertExists()
+        composeTestRule.onNodeWithText("已绑定 6 项能力").assertExists()
+        composeTestRule.onNodeWithText("今天已调用 12 次").assertExists()
+        composeTestRule.onNodeWithText("无").assertExists()
     }
 
     @Test

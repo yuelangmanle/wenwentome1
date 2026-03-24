@@ -28,9 +28,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +47,13 @@ import com.wenwentome.reader.core.model.buildReaderChapterLocator
 import com.wenwentome.reader.core.model.buildReaderParagraphLocator
 import com.wenwentome.reader.core.model.resolveReaderParagraphIndex
 import kotlinx.coroutines.launch
+
+private enum class ReaderOverlayPanel {
+    MODE,
+    TOC,
+    SETTINGS,
+    ASSISTANT,
+}
 
 @Composable
 fun ReaderScreen(
@@ -108,10 +115,7 @@ fun ReaderScreen(
         initialFirstVisibleItemIndex = initialParagraphIndex.coerceIn(0, state.paragraphs.lastIndex.coerceAtLeast(0)),
     )
     val pagerScope = rememberCoroutineScope()
-    var showModePicker by remember { mutableIntStateOf(0) }
-    var showSettings by remember { mutableIntStateOf(0) }
-    var showToc by remember { mutableIntStateOf(0) }
-    var showAssistant by remember { mutableIntStateOf(0) }
+    var activePanel by remember { mutableStateOf<ReaderOverlayPanel?>(null) }
 
     LaunchedEffect(state.locator, state.readerMode, readerPages.size) {
         val targetPage = pageIndexFromLocator(
@@ -156,8 +160,8 @@ fun ReaderScreen(
             .testTag("reader-screen"),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 text = state.chapterTitle ?: state.book?.title.orEmpty(),
@@ -175,70 +179,6 @@ fun ReaderScreen(
                 color = palette.text,
                 modifier = Modifier.testTag("reader-progress-summary"),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                TextButton(onClick = { showModePicker = 1 - showModePicker }) {
-                    Text("模式")
-                }
-                TextButton(onClick = { showToc = 1 - showToc }) {
-                    Text("目录")
-                }
-                TextButton(onClick = { showSettings = 1 - showSettings }) {
-                    Text("设置")
-                }
-                TextButton(onClick = { showAssistant = 1 - showAssistant }) {
-                    Text("AI")
-                }
-            }
-            if (showModePicker == 1) {
-                ReaderModePicker(
-                    selectedMode = state.readerMode,
-                    onModeSelected = { mode ->
-                        onReaderModeChange(mode)
-                        showModePicker = 0
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            if (showSettings == 1) {
-                ReaderSettingsSheet(
-                    presentation = state.presentation,
-                    progressLabel = displayProgressLabel,
-                    onThemeChange = onThemeChange,
-                    onFontSizeChange = onFontSizeChange,
-                    onLineHeightChange = onLineHeightChange,
-                    onBrightnessChange = onBrightnessChange,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            if (showToc == 1) {
-                ReaderTocSheet(
-                    chapters = state.chapters,
-                    currentChapterRef = state.tocHighlightedChapterRef ?: state.chapterRef,
-                    latestChapterRef = state.latestChapterRef,
-                    initialScrollChapterRef = state.chapterRef ?: state.latestChapterRef,
-                    progressLabel = displayProgressLabel,
-                    onChapterClick = { chapter ->
-                        onChapterSelected(chapter.chapterRef)
-                        showToc = 0
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 280.dp),
-                )
-            }
-            if (showAssistant == 1) {
-                ReaderAssistantSheet(
-                    state = state.assistant,
-                    onSummarizeChapter = onSummarizeChapter,
-                    onExplainParagraph = onExplainParagraph,
-                    onTranslateParagraph = onTranslateParagraph,
-                    onSpeakChapter = onSpeakChapter,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
         }
 
         Box(
@@ -282,6 +222,105 @@ fun ReaderScreen(
                         listState = verticalListState,
                         modifier = Modifier.fillMaxSize(),
                     )
+            }
+        }
+
+        if (activePanel != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .testTag("reader-overlay-panel"),
+                colors = CardDefaults.cardColors(containerColor = palette.background.copy(alpha = 0.98f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    when (activePanel) {
+                        ReaderOverlayPanel.MODE ->
+                            ReaderModePicker(
+                                selectedMode = state.readerMode,
+                                onModeSelected = { mode ->
+                                    onReaderModeChange(mode)
+                                    activePanel = null
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                        ReaderOverlayPanel.SETTINGS ->
+                            ReaderSettingsSheet(
+                                presentation = state.presentation,
+                                progressLabel = displayProgressLabel,
+                                onThemeChange = onThemeChange,
+                                onFontSizeChange = onFontSizeChange,
+                                onLineHeightChange = onLineHeightChange,
+                                onBrightnessChange = onBrightnessChange,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                        ReaderOverlayPanel.TOC ->
+                            ReaderTocSheet(
+                                chapters = state.chapters,
+                                currentChapterRef = state.tocHighlightedChapterRef ?: state.chapterRef,
+                                latestChapterRef = state.latestChapterRef,
+                                initialScrollChapterRef = state.chapterRef ?: state.latestChapterRef,
+                                progressLabel = displayProgressLabel,
+                                onChapterClick = { chapter ->
+                                    onChapterSelected(chapter.chapterRef)
+                                    activePanel = null
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 280.dp),
+                            )
+
+                        ReaderOverlayPanel.ASSISTANT ->
+                            ReaderAssistantSheet(
+                                state = state.assistant,
+                                onSummarizeChapter = onSummarizeChapter,
+                                onExplainParagraph = onExplainParagraph,
+                                onTranslateParagraph = onTranslateParagraph,
+                                onSpeakChapter = onSpeakChapter,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                        null -> Unit
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TextButton(onClick = {
+                activePanel =
+                    if (activePanel == ReaderOverlayPanel.MODE) null else ReaderOverlayPanel.MODE
+            }) {
+                Text("模式")
+            }
+            TextButton(onClick = {
+                activePanel =
+                    if (activePanel == ReaderOverlayPanel.TOC) null else ReaderOverlayPanel.TOC
+            }) {
+                Text("目录")
+            }
+            TextButton(onClick = {
+                activePanel =
+                    if (activePanel == ReaderOverlayPanel.SETTINGS) null else ReaderOverlayPanel.SETTINGS
+            }) {
+                Text("设置")
+            }
+            TextButton(onClick = {
+                activePanel =
+                    if (activePanel == ReaderOverlayPanel.ASSISTANT) null else ReaderOverlayPanel.ASSISTANT
+            }) {
+                Text("AI")
             }
         }
 
@@ -332,15 +371,15 @@ private fun ReaderSimulatedPager(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = 4.dp)
             .testTag("reader-simulated-pager"),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 18.dp),
-            pageSpacing = 14.dp,
+            contentPadding = PaddingValues(horizontal = 0.dp),
+            pageSpacing = 8.dp,
         ) { pageIndex ->
             ReaderPageSurface(
                 paragraphs = pages[pageIndex].paragraphs,
@@ -382,10 +421,10 @@ private fun ReaderHorizontalPager(
         state = pagerState,
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 10.dp)
+            .padding(horizontal = 4.dp)
             .testTag("reader-horizontal-pager"),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        pageSpacing = 12.dp,
+        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
+        pageSpacing = 8.dp,
     ) { pageIndex ->
         ReaderPageSurface(
             paragraphs = pages[pageIndex].paragraphs,
@@ -453,17 +492,17 @@ private fun ReaderPageSurface(
 ) {
     Card(
         modifier = modifier
-            .padding(vertical = 6.dp)
-            .clip(RoundedCornerShape(28.dp)),
+            .padding(vertical = 2.dp)
+            .clip(RoundedCornerShape(20.dp)),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-        shape = RoundedCornerShape(28.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(20.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(containerColor)
-                .padding(horizontal = 22.dp, vertical = 26.dp),
+                .padding(horizontal = 18.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (paragraphs.isEmpty()) {

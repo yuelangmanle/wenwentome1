@@ -80,6 +80,34 @@ class ApiHubViewModelTest {
         assertEquals(listOf("openai-main"), repository.getProviders().map { it.providerId })
         assertEquals("openai-main", viewModel.uiState.value.selectedProviderId)
     }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun refreshState_exposesHumanReadableSummaryLabels() = runTest {
+        val repository =
+            FakeApiHubStore(
+                providers =
+                    linkedMapOf(
+                        "provider-a" to ApiProviderProfile(providerId = "provider-a", displayName = "Provider A", enabled = true),
+                    ),
+                bindings =
+                    linkedMapOf(
+                        "reader.summary" to
+                            ApiCapabilityBinding(
+                                capabilityId = "reader.summary",
+                                primaryProviderId = "provider-a",
+                                primaryModelId = "model-a",
+                                enabled = true,
+                            ),
+                    ),
+            )
+        val viewModel = ApiHubViewModel(repository = repository)
+        advanceUntilIdle()
+
+        assertEquals("已配置 1 个可用接口", viewModel.uiState.value.providerStatusLabel)
+        assertEquals("已绑定 1 项能力", viewModel.uiState.value.bindingStatusLabel)
+        assertEquals("今天还没有调用记录", viewModel.uiState.value.usageStatusLabel)
+    }
 }
 
 class MainDispatcherRule(

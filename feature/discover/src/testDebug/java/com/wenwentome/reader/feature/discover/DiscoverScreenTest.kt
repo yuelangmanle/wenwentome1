@@ -25,6 +25,7 @@ class DiscoverScreenTest {
         composeTestRule.setContent {
             DiscoverScreen(
                 state = DiscoverUiState(
+                    draftQuery = "雪中",
                     query = "雪中",
                     results = listOf(selected),
                     selectedResultId = selected.id,
@@ -36,7 +37,8 @@ class DiscoverScreenTest {
                         lastChapter = "最新章",
                     ),
                 ),
-                onSearch = {},
+                onQueryChange = {},
+                onSubmitSearch = {},
                 onPreview = {},
                 onAddToShelf = { added = it },
                 onRefreshSelected = {},
@@ -57,6 +59,7 @@ class DiscoverScreenTest {
         composeTestRule.setContent {
             DiscoverScreen(
                 state = DiscoverUiState(
+                    draftQuery = "雪中",
                     query = "雪中",
                     results = listOf(selected),
                     selectedResultId = selected.id,
@@ -66,7 +69,8 @@ class DiscoverScreenTest {
                         author = selected.author,
                     ),
                 ),
-                onSearch = {},
+                onQueryChange = {},
+                onSubmitSearch = {},
                 onPreview = {},
                 onAddToShelf = {},
                 onRefreshSelected = {},
@@ -76,6 +80,28 @@ class DiscoverScreenTest {
         }
 
         composeTestRule.onNodeWithTag("source-health-badge-preview").fetchSemanticsNode()
+    }
+
+    @Test
+    fun discoverScreen_searchButtonInvokesSubmitCallback() {
+        var submitCount = 0
+
+        composeTestRule.setContent {
+            DiscoverScreen(
+                state = DiscoverUiState(draftQuery = "雪中"),
+                onQueryChange = {},
+                onSubmitSearch = { submitCount++ },
+                onPreview = {},
+                onAddToShelf = {},
+                onRefreshSelected = {},
+                onReadLatest = {},
+                onManageSources = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("discover-search-submit").performClick()
+
+        assertEquals(1, submitCount)
     }
 }
 

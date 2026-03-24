@@ -61,11 +61,23 @@ class DiscoverViewModel(
     private var searchToken: Long = 0
     private var previewToken: Long = 0
 
+    fun updateDraftQuery(query: String) {
+        mutableUiState.update {
+            it.copy(draftQuery = query)
+        }
+    }
+
+    fun submitSearch() {
+        search(mutableUiState.value.draftQuery)
+    }
+
     fun search(query: String) {
+        val normalizedQuery = query.trim()
         mutableUiState.update {
             it.copy(
-                query = query,
-                results = if (query.isBlank()) emptyList() else it.results,
+                draftQuery = query,
+                query = normalizedQuery,
+                results = if (normalizedQuery.isBlank()) emptyList() else it.results,
                 selectedResultId = null,
                 selectedResult = null,
                 selectedPreview = null,
@@ -76,22 +88,22 @@ class DiscoverViewModel(
         }
         searchJob?.cancel()
         previewJob?.cancel()
-        if (query.isBlank()) {
+        if (normalizedQuery.isBlank()) {
             return
         }
         val currentToken = ++searchToken
         searchJob = viewModelScope.launch {
             val results = withContext(ioDispatcher) {
-                sourceBridgeRepository.search(query, emptyList())
+                sourceBridgeRepository.search(normalizedQuery, emptyList())
             }
             val state = mutableUiState.value
-            if (currentToken != searchToken || state.query != query) return@launch
+            if (currentToken != searchToken || state.query != normalizedQuery) return@launch
             val boostedSourceIds = boostedSourceIdsProvider()
             val enhanced =
                 healthTracker.enhanceResults(
                     results = results,
                     boostedSourceIds = boostedSourceIds,
-                    preferredTitle = query,
+                    preferredTitle = normalizedQuery,
                 )
             val hint =
                 if (enhanced.isNotEmpty()) {

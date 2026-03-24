@@ -19,15 +19,20 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 
 @Composable
 fun DiscoverScreen(
     state: DiscoverUiState,
-    onSearch: (String) -> Unit,
+    onQueryChange: (String) -> Unit,
+    onSubmitSearch: () -> Unit,
     onPreview: (String) -> Unit,
     onAddToShelf: (RemoteSearchResult) -> Unit,
     onRefreshSelected: () -> Unit,
@@ -49,14 +54,29 @@ fun DiscoverScreen(
         OutlinedButton(onClick = onManageSources) {
             Text("书源管理")
         }
-        OutlinedTextField(
-            value = state.query,
-            onValueChange = onSearch,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("discover-search-input"),
-            label = { Text("搜索网文") },
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = state.draftQuery,
+                onValueChange = onQueryChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("discover-search-input"),
+                label = { Text("搜索网文") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSubmitSearch() }),
+            )
+            Button(
+                onClick = onSubmitSearch,
+                modifier = Modifier.testTag("discover-search-submit"),
+            ) {
+                Text("搜索")
+            }
+        }
         state.enhancementHint?.let { hint ->
             Text(
                 text = hint,

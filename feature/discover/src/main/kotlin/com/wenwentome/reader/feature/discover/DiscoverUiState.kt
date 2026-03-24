@@ -5,6 +5,7 @@ import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import com.wenwentome.reader.core.model.SourceDefinition
 
 data class DiscoverUiState(
+    val draftQuery: String = "",
     val query: String = "",
     val results: List<DiscoverSearchResult> = emptyList(),
     val selectedResultId: String? = null,

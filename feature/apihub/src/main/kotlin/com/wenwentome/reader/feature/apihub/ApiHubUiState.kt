@@ -3,6 +3,9 @@ package com.wenwentome.reader.feature.apihub
 import com.wenwentome.reader.data.apihub.sync.PendingSyncConflict
 
 data class ApiHubUiState(
+    val providerStatusLabel: String = "还没有可用接口",
+    val bindingStatusLabel: String = "还没有能力绑定",
+    val usageStatusLabel: String = "今天还没有调用记录",
     val enabledProviderCount: Int = 0,
     val boundCapabilityCount: Int = 0,
     val todayCallCount: Int = 0,

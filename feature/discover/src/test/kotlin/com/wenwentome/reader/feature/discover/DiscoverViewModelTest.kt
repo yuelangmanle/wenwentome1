@@ -197,6 +197,33 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun updateDraftQuery_doesNotTriggerSearchUntilSubmit() = runTest {
+        var searchCalls = 0
+        val viewModel = DiscoverViewModel(
+            sourceBridgeRepository = FakeBridgeRepository(
+                searchResults = listOf(sampleSearchResult()),
+                onSearch = { searchCalls++ },
+            ),
+            addRemoteBookToShelf = FakeAddRemoteBookToShelfUseCase(),
+            ioDispatcher = Dispatchers.Main,
+        )
+
+        viewModel.updateDraftQuery("雪中悍刀行")
+        advanceUntilIdle()
+
+        assertEquals("雪中悍刀行", viewModel.uiState.value.draftQuery)
+        assertEquals("", viewModel.uiState.value.query)
+        assertEquals(0, searchCalls)
+
+        viewModel.submitSearch()
+        advanceUntilIdle()
+
+        assertEquals("雪中悍刀行", viewModel.uiState.value.query)
+        assertEquals(1, searchCalls)
+        assertEquals(1, viewModel.uiState.value.results.size)
+    }
+
+    @Test
     fun selectResult_usesConfiguredIoDispatcherForPreviewLookup() = runTest {
         val ioDispatcher = StandardTestDispatcher(testScheduler)
         var observedDispatcher: CoroutineDispatcher? = null

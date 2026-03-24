@@ -27,6 +27,9 @@ interface SourceDefinitionDao {
     @Query("UPDATE source_definitions SET enabled = NOT enabled WHERE sourceId = :sourceId")
     suspend fun toggleEnabled(sourceId: String)
 
+    @Query("DELETE FROM source_definitions WHERE sourceId = :sourceId")
+    suspend fun deleteById(sourceId: String)
+
     @Query("DELETE FROM source_definitions")
     suspend fun clearAll()
 

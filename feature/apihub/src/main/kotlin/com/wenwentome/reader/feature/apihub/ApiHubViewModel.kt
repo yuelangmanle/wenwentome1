@@ -211,6 +211,24 @@ class ApiHubViewModel(
             }
         mutableUiState.value =
             mutableUiState.value.copy(
+                providerStatusLabel =
+                    if (providers.any { provider -> provider.enabled }) {
+                        "已配置 ${providers.count { provider -> provider.enabled }} 个可用接口"
+                    } else {
+                        "还没有可用接口"
+                    },
+                bindingStatusLabel =
+                    if (bindings.any { binding -> binding.enabled }) {
+                        "已绑定 ${bindings.count { binding -> binding.enabled }} 项能力"
+                    } else {
+                        "还没有能力绑定"
+                    },
+                usageStatusLabel =
+                    if (todayLogs.isEmpty()) {
+                        "今天还没有调用记录"
+                    } else {
+                        "今天已调用 ${todayLogs.size} 次"
+                    },
                 enabledProviderCount = providers.count { provider -> provider.enabled },
                 boundCapabilityCount = bindings.count { binding -> binding.enabled },
                 todayCallCount = todayLogs.size,
@@ -237,6 +255,12 @@ class ApiHubViewModel(
 
 private fun ApiHubOverviewSnapshot.toUiState(): ApiHubUiState =
     ApiHubUiState(
+        providerStatusLabel =
+            if (enabledProviderCount > 0) "已配置 $enabledProviderCount 个可用接口" else "还没有可用接口",
+        bindingStatusLabel =
+            if (boundCapabilityCount > 0) "已绑定 $boundCapabilityCount 项能力" else "还没有能力绑定",
+        usageStatusLabel =
+            if (todayCallCount > 0) "今天已调用 $todayCallCount 次" else "今天还没有调用记录",
         enabledProviderCount = enabledProviderCount,
         boundCapabilityCount = boundCapabilityCount,
         todayCallCount = todayCallCount,
