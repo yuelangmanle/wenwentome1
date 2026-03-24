@@ -78,6 +78,26 @@ class LocalBookImportRepositoryTest {
     }
 
     @Test
+    fun import_whenEpubIsInvalid_failsAndDoesNotPersistAnyData() = runTest {
+        val context = createRepositoryContext()
+
+        try {
+            context.repository.import(
+                fileName = "invalid.epub",
+                inputStream = ByteArrayInputStream("not-a-valid-epub".encodeToByteArray()),
+            )
+            fail("Expected import to fail for invalid epub")
+        } catch (_: IllegalStateException) {
+            // expected
+        }
+
+        assertTrue(context.filesDir.walkTopDown().filter(File::isFile).toList().isEmpty())
+        assertTrue(context.bookRecordDao.getAll().isEmpty())
+        assertTrue(context.bookAssetDao.getAll().isEmpty())
+        assertTrue(context.readingStateDao.getAll().isEmpty())
+    }
+
+    @Test
     fun import_whenDaoWriteFails_cleansPersistedFiles() = runTest {
         val context = createRepositoryContext(
             readingStateDao = FakeReadingStateDao(failOnUpsert = true),

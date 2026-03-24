@@ -2,7 +2,9 @@ package com.wenwentome.reader.data.localbooks
 
 import com.wenwentome.reader.core.model.AssetRole
 import com.wenwentome.reader.core.model.BookFormat
+import nl.siegmann.epublib.domain.Book
 import nl.siegmann.epublib.domain.Resource
+import nl.siegmann.epublib.domain.SpineReference
 import nl.siegmann.epublib.epub.EpubReader
 import java.io.ByteArrayInputStream
 import java.io.InputStream
@@ -11,7 +13,11 @@ import java.util.zip.ZipInputStream
 class EpubBookParser {
     fun parse(name: String, inputStream: InputStream): ParsedLocalBook {
         val bytes = inputStream.readBytes()
-        val epubBook = runCatching { EpubReader().readEpub(ByteArrayInputStream(bytes)) }.getOrNull()
+        val epubBook = runCatching { EpubReader().readEpub(ByteArrayInputStream(bytes)) }
+            .getOrElse { error ->
+                throw IllegalStateException("Invalid EPUB file: $name", error)
+            }
+        validateReadableEpub(name = name, book = epubBook)
         val opfMetadata = extractOpfMetadata(bytes)
 
         val coverAsset = epubBook?.coverImage?.let { coverResource ->
@@ -59,6 +65,35 @@ class EpubBookParser {
             format = BookFormat.EPUB,
             assets = assets,
         )
+    }
+
+    private fun validateReadableEpub(name: String, book: Book) {
+        if (book.opfResource == null) {
+            throw IllegalStateException("Invalid EPUB file: $name")
+        }
+
+        val hasReadableSpineResource = book.spine?.spineReferences
+            .orEmpty()
+            .filterIsInstance<SpineReference>()
+            .any { spineReference ->
+                val resource = spineReference.resource
+                    ?: spineReference.resourceId
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(book.resources::getById)
+                resource?.let(::isHtmlLike) == true
+            }
+        if (!hasReadableSpineResource) {
+            throw IllegalStateException("Invalid EPUB file: $name")
+        }
+    }
+
+    private fun isHtmlLike(resource: Resource): Boolean {
+        val mediaType = resource.mediaType?.name?.lowercase().orEmpty()
+        if (mediaType == "application/xhtml+xml" || mediaType == "text/html") {
+            return true
+        }
+        val href = resource.href?.substringBefore('#')?.lowercase().orEmpty()
+        return href.endsWith(".xhtml") || href.endsWith(".html") || href.endsWith(".htm")
     }
 
     private fun resolveTitle(
