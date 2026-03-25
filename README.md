@@ -2,34 +2,45 @@
 
 本地书籍阅读器和网文阅读器二合一的 Android 应用。
 
-## 当前能力
+> 当前仓库已决定切换到 `GPL-3.0` 路线，并启动 `2.0` 底座迁移。`1.x` 产品线冻结在 `v1.6`，后续阅读与书源能力将基于 Legado 上游继续演进。
 
-- 支持 TXT / EPUB 本地导入、入库与阅读
-- 支持发现页搜索网文、导入书源并加入统一书库
-- 支持统一书架、轻拟物书本卡片、筛选排序与新版书籍详情页
-- 支持 TXT / EPUB / WEB 阅读链路回归，阅读模式切换保留进度
-- 支持阅读器目录 / 进度 / 左右翻页 / 上下滚动体验收口
-- 支持阅读器 AI 面板（章节总结 / 段落解释 / 翻译 / TTS 入口）并由 API Hub 能力绑定驱动
-- 支持详情页 AI 元数据增强、推荐封面与封面管理
-- 支持网文书源健康分、搜索排序增强与自动切源提示
-- 支持 API Hub 总览、Provider 管理、模型绑定、预算回退、价格目录与调用记录
-- 支持 GitHub 私有仓库同步、备份与恢复
-- 支持在 App 内查看完整更新日志
+## 当前状态
+
+- `1.x` 旧线：
+  - 最新稳定版为 `v1.6`
+  - 保留旧版 APK 下载与 Git 历史
+  - 不再继续扩展自研 TXT / EPUB / 书源 / 阅读器内核
+- `2.x` 新线：
+  - 迁移到 Legado 作为阅读与书源底座
+  - 保留 WenwenToMe 的 GitHub 仓库、包名、发版链路与品牌
+  - 后续把 WenwenToMe 的 AI Hub 与 GitHub 同步能力接回新底座
+
+## 迁移决策
+
+- 继续使用当前 GitHub 仓库：`https://github.com/yuelangmanle/wenwentome1`
+- 仓库 License 改为 `GPL-3.0`
+- 上游底座采用 `Legado`
+- 当前主迁移目标版本为 `2.0.0`
+- 旧线冻结说明见：`docs/migration/legacy-line-freeze.md`
 
 ## 下载
 
 - 正式版本请前往 GitHub Releases 页面下载 `release APK`
 - Release 页面：`https://github.com/yuelangmanle/wenwentome1/releases`
 - 发布页：`https://yuelangmanle.github.io/wenwentome1/`
-- 正式发版 tag 采用 `v<major>.<minor>`，例如 `v1.6`
+- 旧线正式版：`v1.6`
+- 新底座正式版将从 `v2.0.0` 开始
 
 ## 版本信息
 
-- 当前正式版本：`1.6`
+- 当前稳定旧版：`1.6`
+- 当前迁移目标：`2.0.0`
 - 作者：`月亮满了`
 - 项目地址：`https://github.com/yuelangmanle/wenwentome1`
+- 上游来源：`https://github.com/gedoor/legado`
+- License：`GPL-3.0`
 
-## 使用说明
+## 旧版使用说明
 
 ### 本地书
 
@@ -49,6 +60,12 @@
 2. 配置 GitHub 仓库信息和 Token
 3. 使用“立即备份”或“恢复到本机”
 
+## License 与来源
+
+- 本仓库后续发布内容遵循 `GPL-3.0`
+- 新底座迁移基于 `Legado` 上游项目开展
+- 第三方来源与说明见 `NOTICE-THIRD-PARTY.md`
+
 ## 开发与发版
 
 - 发版流程见 [docs/release-process.md](docs/release-process.md)
@@ -57,3 +74,4 @@
 - 开发进度见 [docs/development-progress.md](docs/development-progress.md)
 - API Hub 路线图见 [docs/api-hub-roadmap.md](docs/api-hub-roadmap.md)
 - GitHub Pages 发布页源文件位于 `site/`
+- 旧线冻结说明见 [docs/migration/legacy-line-freeze.md](docs/migration/legacy-line-freeze.md)

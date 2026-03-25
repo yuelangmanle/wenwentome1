@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WenwenToMe 1.6 发布页</title>
-  <meta name="description" content="WenwenToMe 1.6 发布页：查看 TXT / EPUB 可用性抢修、阅读页收口与正式安装包下载入口。" />
+  <title>WenwenToMe 迁移公告</title>
+  <meta name="description" content="WenwenToMe 正在从 1.x 旧线迁移到基于 Legado 的 2.0 底座，仓库与发布链路保持不变。" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -12,26 +12,30 @@
     <header class="hero">
       <div class="hero-copy">
         <p class="eyebrow">月亮满了 · WenwenToMe</p>
-        <h1>一个把本地书和网文放进同一座书架的 Android 阅读器</h1>
+        <h1>WenwenToMe 正在迁移到新的阅读底座</h1>
         <p class="hero-text">
-          1.6 版本聚焦可用性抢修：补齐 TXT 首开缓存与正文兜底、放宽 EPUB 可读导入、把阅读页改回正文优先，并继续走 GitHub 云端签名发布。
+          当前仓库已经确认切换到 GPL-3.0 路线，并启动基于 Legado 的 2.0 底座迁移。GitHub 仓库、正式包签名链路和 WenwenToMe 品牌继续保留，1.x 旧线冻结在 v1.6。
         </p>
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/yuelangmanle/wenwentome1/releases/latest">下载最新 APK</a>
+          <a class="button primary" href="https://github.com/yuelangmanle/wenwentome1/releases">查看 Releases</a>
           <a class="button secondary" href="https://github.com/yuelangmanle/wenwentome1">查看 GitHub 项目</a>
         </div>
       </div>
       <section class="hero-panel">
-        <p class="panel-label">当前正式版本</p>
-        <p class="panel-version">1.6</p>
+        <p class="panel-label">迁移目标版本</p>
+        <p class="panel-version">2.0</p>
         <dl class="panel-meta">
           <div>
             <dt>作者</dt>
             <dd>月亮满了</dd>
           </div>
           <div>
-            <dt>发布方式</dt>
-            <dd>GitHub Actions 云端构建</dd>
+            <dt>底座路线</dt>
+            <dd>Legado 基线迁移</dd>
+          </div>
+          <div>
+            <dt>License</dt>
+            <dd>GPL-3.0</dd>
           </div>
           <div>
             <dt>项目地址</dt>
@@ -43,36 +47,37 @@
 
     <main class="content-grid">
       <section class="card">
-        <p class="section-kicker">1.6 亮点</p>
+        <p class="section-kicker">当前决定</p>
         <ul class="feature-list">
-          <li>TXT 首次打开改为复用解析缓存，并补齐 UTF-16 识别和无章节正文兜底。</li>
-          <li>EPUB 导入现在兼容“结构脏但可读”的文件，坏文件也会给出更明确的错误提示。</li>
-          <li>阅读页、发现页、“我的”页和 API 中心一起做了可用性收口，日常使用路径更顺手。</li>
+          <li>继续使用原 GitHub 仓库，不新开仓库、不丢历史版本。</li>
+          <li>旧版 1.x 冻结在 v1.6，保留下载入口作为回退版本。</li>
+          <li>新的 2.x 将直接采用 Legado 作为阅读与书源底座，不再继续修旧自研内核。</li>
         </ul>
       </section>
 
       <section class="card accent">
-        <p class="section-kicker">下载与验证</p>
+        <p class="section-kicker">迁移目标</p>
         <ol class="step-list">
-          <li>正式包从 GitHub Releases 下载，最新版本固定指向 `release APK`。</li>
-          <li>这次 1.6 直接从 `main` 走云端签名发布，避免继续依赖本地 Android 打包环境。</li>
-          <li>本地即使没有 Java，也可以直接使用 GitHub Actions 云端跑校验与正式发版；release 仍以 `main` 上 tag 为准。</li>
+          <li>恢复稳定的 TXT / EPUB 导入、打开速度与阅读体验。</li>
+          <li>直接使用成熟书源与网文搜索能力，补齐书源删除、搜索、阅读主链路。</li>
+          <li>在新底座上重新接回 WenwenToMe 的 AI Hub 与 GitHub 同步能力。</li>
         </ol>
       </section>
 
       <section class="card">
-        <p class="section-kicker">项目链接</p>
+        <p class="section-kicker">项目与来源</p>
         <div class="link-stack">
           <a href="https://github.com/yuelangmanle/wenwentome1/releases">GitHub Releases</a>
           <a href="https://github.com/yuelangmanle/wenwentome1/actions">GitHub Actions</a>
           <a href="https://github.com/yuelangmanle/wenwentome1">源码仓库</a>
+          <a href="https://github.com/gedoor/legado">Legado 上游项目</a>
         </div>
       </section>
 
       <section class="card">
-        <p class="section-kicker">接下来的迭代规则</p>
+        <p class="section-kicker">迁移说明</p>
         <p class="body-text">
-          正式版本从 1.0 起按 0.1 递增，`1.9` 后进位到 `2.0`。每次发布都必须同步 `versionName`、`CHANGELOG.md`、App 内 changelog、README 与 GitHub Release。
+          新底座首个正式版本将从 `2.0.0` 开始。迁移期间仓库会补齐 GPL-3.0、第三方来源说明和云端正式发版链路，旧版本 `v1.6` 继续保留以便回退。
         </p>
       </section>
     </main>
