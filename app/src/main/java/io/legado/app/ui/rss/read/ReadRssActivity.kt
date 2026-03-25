@@ -502,7 +502,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
                     return false
                 }
 
-                "legado", "yuedu" -> {
+                "wenwentome", "legado", "yuedu" -> {
                     startActivity<OnLineImportActivity> {
                         data = url
                     }

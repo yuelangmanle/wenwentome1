@@ -1,16 +1,16 @@
 <resources>
     <!--App-->
-    <string name="app_name">閱讀</string>
-    <string name="app_name_a">閱讀·A</string>
-    <string name="receiving_shared_label">閱讀·搜尋</string>
-    <string name="tip_perm_request_storage">閱讀需要存取記憶卡權限，請前往「設定」—「應用程式權限」—打開所需權限</string>
+    <string name="app_name">WenwenToMe</string>
+    <string name="app_name_a">WenwenToMe·A</string>
+    <string name="receiving_shared_label">WenwenToMe·搜尋</string>
+    <string name="tip_perm_request_storage">WenwenToMe 需要存取記憶卡權限，請前往「設定」-「應用程式權限」打開所需權限</string>
 
     <!--Other-->
     <string name="menu_backup">備份</string>
     <string name="menu_restore">復原</string>
     <string name="menu_import_old">匯入閱讀資料</string>
     <string name="webdav_cache_backup">離線快取書籍備份</string>
-    <string name="webdav_cache_backup_s">匯出本機同時備份到legado資料夾下exports目錄</string>
+    <string name="webdav_cache_backup_s">匯出本機同時備份到 wenwentome 資料夾下 exports 目錄</string>
     <string name="backup_path">備份路徑</string>
     <string name="select_backup_path">請選擇備份路徑</string>
     <string name="menu_import_old_version">匯入舊版資料</string>
@@ -92,10 +92,10 @@
     <string name="offline_cache_s">快取選擇的章節到本機</string>
     <string name="change_origin">換源</string>
     <string name="about_description">
-        \u3000\u3000這是一款使用Kotlin全新開發的開源的閱讀軟體，歡迎您的加入。
+        \u3000\u3000WenwenToMe 是一個基於 Legado 底座演進的開源閱讀應用，專注本機 TXT/EPUB、網文探索與後續 AI 擴充能力。
     </string>
     <string name="app_share_description">
-        閱讀3.0下載網址：\nhttps://github.com/gedoor/legado/releases
+        WenwenToMe 下載網址：\nhttps://github.com/yuelangmanle/wenwentome1/releases
     </string>
     <string name="version_name">Version %s</string>
     <string name="pt_background_verification">後臺校驗書源</string>
@@ -695,11 +695,11 @@
     <string name="contact">聯繫我們</string>
     <string name="license">開源許可</string>
     <string name="other">其它</string>
-    <string name="official_account">legado-top</string>
-    <string name="follow_official_account">關注公眾號</string>
+    <string name="official_account">WenwenToMe</string>
+    <string name="follow_official_account">專案首頁</string>
     <string name="wechat">微信</string>
     <string name="thanks">您的支援是我更新的動力</string>
-    <string name="about_official_account">公眾號[开源阅读]</string>
+    <string name="about_official_account">專案[WenwenToMe]</string>
     <string name="source_auto_changing">正在自動換源</string>
     <string name="click_to_apply">點擊加入</string>
     <string name="middle">中</string>
@@ -739,7 +739,7 @@
     <string name="starting_download">正在啟動下載</string>
     <string name="already_in_download">該書已在下載列表</string>
     <string name="click_to_open">點擊打開</string>
-    <string name="follow_public_account_summary">關注[legado-top]點擊廣告支持我</string>
+    <string name="follow_public_account_summary">前往 GitHub 查看發佈、原始碼與遷移說明</string>
     <string name="weChat_appreciation_code">微信讚賞碼</string>
     <string name="alipay">支付寶</string>
     <string name="alipay_red_envelope_search_code">支付寶紅包搜尋碼</string>
@@ -747,7 +747,7 @@
     <string name="alipay_red_envelope_qr_code">支付寶紅包二維碼</string>
     <string name="alipay_payment_qr_code">支付寶收款二維碼</string>
     <string name="qq_collection_qr_code">QQ收款二維碼</string>
-    <string name="contributors_summary">gedoor、Invinciblelee、Xwite等，詳情請在github中查看</string>
+    <string name="contributors_summary">WenwenToMe 與 Legado 貢獻者，詳情請在 GitHub 中查看</string>
     <string name="clear_cache_summary">清除已下載書籍和字體快取</string>
     <string name="default_cover">預設封面</string>
     <string name="restore_ignore">復原忽略列表</string>
@@ -770,7 +770,7 @@
     <string name="language">語言</string>
     <string name="import_rss_source">匯入訂閱源</string>
     <string name="donate_summary">您的支援是我更新的動力</string>
-    <string name="about_summary">公眾號[开源阅读软件]</string>
+    <string name="about_summary">GitHub：yuelangmanle/wenwentome1</string>
     <string name="read_record">閱讀記錄</string>
     <string name="del_read_record">刪除閲讀記錄</string>
     <string name="read_record_summary">閱讀時間記錄</string>
@@ -969,7 +969,9 @@
     <string name="welcome_style">啟動介面樣式</string>
     <string name="welcome_style_summary">啟動介面圖片和是否顯示文字等</string>
     <string name="show_welcome_text">顯示文字</string>
-    <string name="welcome_text">閱讀|享受美好時光</string>
+    <string name="welcome_text">WenwenToMe|把正文留給閱讀</string>
+    <string name="welcome_slogan">把正文留給閱讀</string>
+    <string name="welcome_support_text">基於 Legado 底座重構，面向 WenwenToMe 演進</string>
     <string name="custom_welcome">自訂歡迎頁</string>
     <string name="custom_welcome_summary">是否使用自訂歡迎頁</string>
     <string name="show_icon">顯示圖示</string>

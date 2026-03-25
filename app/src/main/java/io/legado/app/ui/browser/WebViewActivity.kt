@@ -315,7 +315,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
                     return false
                 }
 
-                "legado", "yuedu" -> {
+                "wenwentome", "legado", "yuedu" -> {
                     startActivity<OnLineImportActivity> {
                         data = url
                     }

@@ -346,6 +346,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
+                <data android:scheme="wenwentome" />
                 <data android:scheme="legado" />
                 <data android:scheme="yuedu" />
             </intent-filter>
@@ -468,7 +469,7 @@
             android:exported="true"
             android:foregroundServiceType="dataSync"
             android:icon="@drawable/ic_web_service_noti"
-            android:label="legado Web Service"
+            android:label="WenwenToMe Web Service"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             tools:targetApi="24">
             <intent-filter>
