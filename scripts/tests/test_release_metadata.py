@@ -4,7 +4,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from release_metadata import extract_notes, read_version_name, resolve_release_tag, validate_release_pack  # noqa: E402
+from release_metadata import (  # noqa: E402
+    extract_app_notes,
+    extract_notes,
+    read_version_name,
+    resolve_release_tag,
+    validate_release_pack,
+)
 
 
 class ReleaseMetadataTest(unittest.TestCase):
@@ -30,6 +36,32 @@ class ReleaseMetadataTest(unittest.TestCase):
             """
         )
         self.assertEqual("1.0", version_name)
+
+    def test_read_gradle_version_name_supports_groovy_variable(self):
+        version_name = read_version_name(
+            """
+            def version = "2.0.0"
+            defaultConfig {
+                versionCode 20000 + gitCommits
+                versionName version
+            }
+            """
+        )
+        self.assertEqual("2.0.0", version_name)
+
+    def test_extract_app_notes_supports_markdown_heading(self):
+        notes = extract_app_notes(
+            app_notes_text="""# WenwenToMe 更新日志
+
+## 2.0.0
+
+* 云端正式发版
+
+## 迁移说明
+* 其他""",
+            version="2.0.0",
+        )
+        self.assertIn("云端正式发版", notes)
 
     def test_resolve_release_tag_uses_git_tag_context_on_push(self):
         tag_name, version = resolve_release_tag(
@@ -64,23 +96,11 @@ class ReleaseMetadataTest(unittest.TestCase):
 
             ## [1.0] - 2026-03-19
             - 首发""",
-            changelog_json_text="""
-            [
-              {
-                "version": "1.1",
-                "releaseDate": "2026-03-21",
-                "title": "阅读体验升级",
-                "highlights": ["详情页四段结构"],
-                "details": ["新增目录当前章标识"]
-              },
-              {
-                "version": "1.0",
-                "releaseDate": "2026-03-19",
-                "title": "首发版本",
-                "highlights": ["支持 TXT / EPUB"],
-                "details": ["统一书库上线"]
-              }
-            ]
+            app_notes_text="""
+            # WenwenToMe 更新日志
+
+            ## 1.1
+            - 阅读体验升级
             """,
             readme_text="""
             ## 版本信息
@@ -95,8 +115,8 @@ class ReleaseMetadataTest(unittest.TestCase):
             """,
         )
 
-    def test_validate_release_pack_rejects_mismatched_app_changelog_version(self):
-        with self.assertRaisesRegex(ValueError, "first changelog entry"):
+    def test_validate_release_pack_rejects_missing_app_notes_version(self):
+        with self.assertRaisesRegex(ValueError, "app release notes"):
             validate_release_pack(
                 gradle_text="""
                 defaultConfig {
@@ -106,16 +126,10 @@ class ReleaseMetadataTest(unittest.TestCase):
                 """,
                 changelog_text="""## [1.1] - 2026-03-21
                 - 视觉改版""",
-                changelog_json_text="""
-                [
-                  {
-                    "version": "1.0",
-                    "releaseDate": "2026-03-19",
-                    "title": "首发版本",
-                    "highlights": ["支持 TXT / EPUB"],
-                    "details": ["统一书库上线"]
-                  }
-                ]
+                app_notes_text="""
+                # WenwenToMe 更新日志
+                ## 1.0
+                - 首发
                 """,
                 readme_text="""
                 ## 版本信息
@@ -124,7 +138,7 @@ class ReleaseMetadataTest(unittest.TestCase):
             )
 
     def test_validate_release_pack_rejects_mismatched_site_release_page_version(self):
-        with self.assertRaisesRegex(ValueError, "site release page"):
+        with self.assertRaisesRegex(ValueError, "site page does not mention versionName"):
             validate_release_pack(
                 gradle_text="""
                 defaultConfig {
@@ -134,16 +148,10 @@ class ReleaseMetadataTest(unittest.TestCase):
                 """,
                 changelog_text="""## [1.1] - 2026-03-21
                 - 视觉改版""",
-                changelog_json_text="""
-                [
-                  {
-                    "version": "1.1",
-                    "releaseDate": "2026-03-21",
-                    "title": "阅读体验升级",
-                    "highlights": ["详情页四段结构"],
-                    "details": ["新增目录当前章标识"]
-                  }
-                ]
+                app_notes_text="""
+                # WenwenToMe 更新日志
+                ## 1.1
+                - 阅读体验升级
                 """,
                 readme_text="""
                 ## 版本信息
@@ -159,7 +167,7 @@ class ReleaseMetadataTest(unittest.TestCase):
             )
 
     def test_validate_release_pack_rejects_mismatched_site_release_page_body_version(self):
-        with self.assertRaisesRegex(ValueError, "hero copy"):
+        with self.assertRaisesRegex(ValueError, "site page does not mention versionName"):
             validate_release_pack(
                 gradle_text="""
                 defaultConfig {
@@ -169,27 +177,18 @@ class ReleaseMetadataTest(unittest.TestCase):
                 """,
                 changelog_text="""## [1.1] - 2026-03-21
                 - 视觉改版""",
-                changelog_json_text="""
-                [
-                  {
-                    "version": "1.1",
-                    "releaseDate": "2026-03-21",
-                    "title": "阅读体验升级",
-                    "highlights": ["详情页四段结构"],
-                    "details": ["新增目录当前章标识"]
-                  }
-                ]
+                app_notes_text="""
+                # WenwenToMe 更新日志
+                ## 1.1
+                - 阅读体验升级
                 """,
                 readme_text="""
                 ## 版本信息
                 - 当前正式版本：`1.1`
                 """,
                 site_text="""
-                <title>WenwenToMe 1.1 发布页</title>
-                <meta name="description" content="WenwenToMe 1.1 发布页：查看版本亮点" />
-                <p>1.0 版本聚焦阅读稳定性</p>
-                <p class="panel-version">1.1</p>
-                <p class="section-kicker">1.1 亮点</p>
+                <title>WenwenToMe 迁移公告</title>
+                <p>版本还没写进去</p>
                 """,
             )
 

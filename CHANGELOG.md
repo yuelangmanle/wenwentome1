@@ -5,13 +5,22 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
-- 仓库已确认切换到 `GPL-3.0` 路线，并启动基于 Legado 的 `2.0.0` 底座迁移
-- `1.x` 产品线冻结在 `v1.6`，后续不再继续增强旧自研 TXT / EPUB / 书源 / 阅读器内核
+- 后续继续在 `2.x` 新底座上接回 WenwenToMe 的 AI Hub、GitHub 同步与定制能力
 
 ### Planned
-- 用 Legado 替换当前运行时底座，恢复成熟的 TXT / EPUB / 网文搜索 / 书源管理能力
-- 在新底座上接回 WenwenToMe 的 AI Hub 与 GitHub 同步能力
-- 恢复云端正式签名发布，并以 `v2.0.0` 作为新产品线首个版本
+- 在 Legado 新底座上继续收敛阅读体验、网文搜索和产品化配置
+- 补齐 WenwenToMe 的 AI Hub 与 GitHub 同步回接
+
+## [2.0.0] - 2026-03-25
+
+### Added
+- WenwenToMe 新底座正式切换到基于 Legado 的阅读与书源运行时
+- 恢复正式版 `release APK` 云端签名发布链路，继续沿用 WenwenToMe 仓库与品牌
+
+### Changed
+- 正式安装包身份切回 `com.wenwentome.reader`
+- `1.x` 旧产品线冻结在 `v1.6`，后续阅读与书源能力转入 `2.x` 新底座迭代
+- 项目整体路线切换为 `GPL-3.0`，并保留当前 GitHub 仓库、发布入口和历史版本
 
 ## [1.6] - 2026-03-25
 

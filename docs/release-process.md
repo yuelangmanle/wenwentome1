@@ -13,15 +13,15 @@
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-当前 `1.3` 发版继续使用 PKCS12 签名文件（`.p12`）。建议将本地留档放在 `.local-secrets/android-release/`，不要提交到仓库。
+建议使用统一 keystore 文件（`.jks` 或 `.p12` 均可）。建议将本地留档放在 `.local-secrets/android-release/`，不要提交到仓库。
 
 ## 发版前检查
 
-1. 更新 `app/build.gradle.kts` 中的 `versionCode` 与 `versionName`
+1. 更新 `app/build.gradle` 中的版本声明
 2. 更新 `CHANGELOG.md`
-3. 更新 `app/src/main/assets/changelog.json`
+3. 更新 `app/src/main/assets/updateLog.md`
 4. 更新 `README.md` 与 `site/index.html` 中的当前正式版本
-5. 运行 `python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md --site-path site/index.html`
+5. 运行 `python3 scripts/release_metadata.py validate-pack app/build.gradle CHANGELOG.md app/src/main/assets/updateLog.md README.md --site-path site/index.html`
 6. 确认 README 和文档无需同步修订
 7. 确认代码已合并到 `main`
 
@@ -55,11 +55,10 @@
 ## 规则
 
 - tag 必须与 `versionName` 一致
-- 例如 `versionName = 1.3` 时，tag 必须是 `v1.3`
+- 例如 `versionName = 2.0.0` 时，tag 必须是 `v2.0.0`
 - tag 对应提交必须来自 `main`
 - 手动触发当前版本 release 时也必须显式填写 `tag_name`
-- `versionCode` 必须符合迭代规则，例如 `1.2 -> 120`
-- `CHANGELOG.md`、`app/src/main/assets/changelog.json`、`README.md` 和 `site/index.html` 中的正式版本号必须与 `versionName` 一致
+- `CHANGELOG.md`、`app/src/main/assets/updateLog.md`、`README.md` 和 `site/index.html` 中的版本信息必须与当前发布目标一致
 
 ## 无本地 Java 时的云端验证
 
@@ -81,6 +80,6 @@
 
 - 缺 Secret：workflow 会直接失败并提示缺失项
 - tag 与版本不一致：`scripts/release_metadata.py check-tag` 失败
-- 文档、App 内 changelog 或发布页版本不一致：`scripts/release_metadata.py validate-pack` 失败
+- 文档、App 内更新日志或发布页版本不一致：`scripts/release_metadata.py validate-pack` 失败
 - changelog 缺对应版本：`scripts/release_metadata.py notes` 失败
-- 签名失败：检查 PKCS12 签名文件、alias 和密码
+- 签名失败：检查 keystore 文件、alias 和密码

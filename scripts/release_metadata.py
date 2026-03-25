@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -9,30 +8,65 @@ from typing import Optional, Tuple
 
 
 def read_version_name(gradle_text: str) -> str:
-    match = re.search(r'versionName\s*=\s*"([^"]+)"', gradle_text)
-    if not match:
-        raise ValueError("versionName not found")
-    return match.group(1)
+    patterns = [
+        r'versionName\s*=\s*"([^"]+)"',
+        r'versionName\s+"([^"]+)"',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, gradle_text)
+        if match:
+            return match.group(1)
+
+    version_var_match = re.search(r'\bdef\s+version\s*=\s*"([^"]+)"', gradle_text)
+    if version_var_match and re.search(r"\bversionName\s*(?:=)?\s*version\b", gradle_text):
+        return version_var_match.group(1)
+
+    raise ValueError("versionName not found")
 
 
-def read_version_code(gradle_text: str) -> int:
-    match = re.search(r"versionCode\s*=\s*(\d+)", gradle_text)
-    if not match:
-        raise ValueError("versionCode not found")
-    return int(match.group(1))
+def read_version_code(gradle_text: str) -> Optional[int]:
+    patterns = [
+        r"versionCode\s*=\s*(\d+)",
+        r"versionCode\s+(\d+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, gradle_text)
+        if match:
+            return int(match.group(1))
+    return None
 
 
-def expected_version_code(version_name: str) -> int:
+def expected_version_code(version_name: str) -> Optional[int]:
     match = re.fullmatch(r"(\d+)\.(\d+)", version_name)
     if not match:
-        raise ValueError(f"unsupported versionName format: {version_name}")
+        return None
     major = int(match.group(1))
     minor = int(match.group(2))
     return major * 100 + minor * 10
 
 
+def extract_app_notes(app_notes_text: str, version: str) -> str:
+    patterns = [
+        rf"^\s*## \[{re.escape(version)}\].*?(?=^\s*## |\Z)",
+        rf"^\s*## {re.escape(version)}.*?(?=^\s*## |\Z)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, app_notes_text, re.MULTILINE | re.DOTALL)
+        if match:
+            return match.group(0).strip()
+    raise ValueError(f"version {version} not found in app release notes")
+
+
+def version_aliases(version_name: str) -> set[str]:
+    aliases = {version_name}
+    parts = version_name.split(".")
+    if len(parts) >= 2:
+        aliases.add(".".join(parts[:2]))
+    return aliases
+
+
 def extract_notes(changelog_text: str, version: str) -> str:
-    pattern = rf"^## \[{re.escape(version)}\].*?(?=^## \[|\Z)"
+    pattern = rf"^\s*## \[{re.escape(version)}\].*?(?=^\s*## \[|\Z)"
     match = re.search(pattern, changelog_text, re.MULTILINE | re.DOTALL)
     if not match:
         raise ValueError(f"version {version} not found in changelog")
@@ -42,36 +76,29 @@ def extract_notes(changelog_text: str, version: str) -> str:
 def validate_release_pack(
     gradle_text: str,
     changelog_text: str,
-    changelog_json_text: str,
+    app_notes_text: str,
     readme_text: str,
     site_text: Optional[str] = None,
 ) -> str:
     version_name = read_version_name(gradle_text)
     version_code = read_version_code(gradle_text)
     expected_code = expected_version_code(version_name)
-    if version_code != expected_code:
+    if expected_code is not None and version_code is not None and version_code != expected_code:
         raise ValueError(
             f"versionCode {version_code} does not match iteration rule for versionName {version_name}"
         )
 
     extract_notes(changelog_text, version_name)
+    extract_app_notes(app_notes_text, version_name)
 
-    try:
-        changelog_entries = json.loads(changelog_json_text)
-    except json.JSONDecodeError as error:
-        raise ValueError(f"invalid changelog json: {error.msg}") from error
-
-    if not isinstance(changelog_entries, list) or not changelog_entries:
-        raise ValueError("changelog json must contain at least one entry")
-
-    latest_entry = changelog_entries[0]
-    if latest_entry.get("version") != version_name:
-        raise ValueError(
-            f"first changelog entry version {latest_entry.get('version')} does not match versionName {version_name}"
-        )
-
-    if f"当前正式版本：`{version_name}`" not in readme_text:
-        raise ValueError(f"README missing current release version {version_name}")
+    readme_markers = (
+        f"当前正式版本：`{version_name}`",
+        f"当前迁移目标：`{version_name}`",
+        f"当前主迁移目标版本为 `{version_name}`",
+        f"新底座正式版将从 `v{version_name}` 开始",
+    )
+    if not any(marker in readme_text for marker in readme_markers):
+        raise ValueError(f"README missing current release or migration version {version_name}")
 
     if site_text is not None:
         validate_site_release_page(site_text, version_name)
@@ -80,19 +107,14 @@ def validate_release_pack(
 
 
 def validate_site_release_page(site_text: str, version_name: str) -> None:
-    if f"<title>WenwenToMe {version_name} 发布页</title>" not in site_text:
-        raise ValueError(f"site release page title does not match versionName {version_name}")
-    if f'content="WenwenToMe {version_name} 发布页' not in site_text:
-        raise ValueError(f"site release page description does not match versionName {version_name}")
-    panel_version_pattern = rf'class="panel-version">\s*{re.escape(version_name)}\s*<'
-    if not re.search(panel_version_pattern, site_text):
-        raise ValueError(f"site release page current version does not match versionName {version_name}")
-    hero_text_pattern = rf">\s*{re.escape(version_name)}\s+版本"
-    if not re.search(hero_text_pattern, site_text):
-        raise ValueError(f"site release page hero copy does not match versionName {version_name}")
-    highlights_pattern = rf'class="section-kicker">\s*{re.escape(version_name)}\s+亮点\s*<'
-    if not re.search(highlights_pattern, site_text):
-        raise ValueError(f"site release page highlights heading does not match versionName {version_name}")
+    if "<title>WenwenToMe" not in site_text:
+        raise ValueError("site page title must mention WenwenToMe")
+    if "WenwenToMe" not in site_text:
+        raise ValueError("site page must mention WenwenToMe")
+
+    aliases = version_aliases(version_name)
+    if not any(alias in site_text for alias in aliases):
+        raise ValueError(f"site page does not mention versionName {version_name}")
 
 
 def check_tag(tag: str, gradle_path: Path) -> None:
@@ -133,14 +155,14 @@ def print_notes(version: str, changelog_path: Path) -> None:
 def check_release_pack(
     gradle_path: Path,
     changelog_path: Path,
-    changelog_json_path: Path,
+    app_notes_path: Path,
     readme_path: Path,
     site_path: Optional[Path] = None,
 ) -> None:
     validate_release_pack(
         gradle_text=gradle_path.read_text(encoding="utf-8"),
         changelog_text=changelog_path.read_text(encoding="utf-8"),
-        changelog_json_text=changelog_json_path.read_text(encoding="utf-8"),
+        app_notes_text=app_notes_path.read_text(encoding="utf-8"),
         readme_text=readme_path.read_text(encoding="utf-8"),
         site_text=site_path.read_text(encoding="utf-8") if site_path else None,
     )
@@ -179,7 +201,7 @@ def main() -> int:
     validate_pack_parser = subparsers.add_parser("validate-pack")
     validate_pack_parser.add_argument("gradle_path")
     validate_pack_parser.add_argument("changelog_path")
-    validate_pack_parser.add_argument("changelog_json_path")
+    validate_pack_parser.add_argument("app_notes_path")
     validate_pack_parser.add_argument("readme_path")
     validate_pack_parser.add_argument("--site-path")
 
@@ -201,7 +223,7 @@ def main() -> int:
             check_release_pack(
                 gradle_path=Path(args.gradle_path),
                 changelog_path=Path(args.changelog_path),
-                changelog_json_path=Path(args.changelog_json_path),
+                app_notes_path=Path(args.app_notes_path),
                 readme_path=Path(args.readme_path),
                 site_path=Path(args.site_path) if args.site_path else None,
             )

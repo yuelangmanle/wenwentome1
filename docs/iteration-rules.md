@@ -2,46 +2,38 @@
 
 ## 版本号规则
 
-- 首个正式版：`1.0`
-- 后续每次正式版：`+0.1`
-- `1.9` 后下一版进位为 `2.0`
+- 当前新底座首个正式版：`2.0.0`
+- 后续正式版按语义化版本递增，例如 `2.0.1`、`2.1.0`
 
 示例：
 
-- `1.0 -> 1.1`
-- `1.1 -> 1.2`
-- `1.2 -> 1.3`
-- `1.8 -> 1.9`
-- `1.9 -> 2.0`
+- `2.0.0 -> 2.0.1`
+- `2.0.1 -> 2.1.0`
+- `2.1.0 -> 2.1.1`
 
 ## versionCode 规则
 
 - `versionCode` 必须持续递增
-- 推荐按十位步进：
-  - `1.0 -> 100`
-  - `1.1 -> 110`
-  - `1.2 -> 120`
-  - `1.3 -> 130`
-  - `2.0 -> 200`
+- 当前基线使用 `20000 + git commit 总数` 方案，保证 `2.x` 新产品线始终高于旧 `1.x`
 
 ## 更新日志规则
 
 每次正式发版必须同步更新以下 6 处：
 
-1. `app/build.gradle.kts`
+1. `app/build.gradle`
 2. `CHANGELOG.md`
-3. `app/src/main/assets/changelog.json`
+3. `app/src/main/assets/updateLog.md`
 4. GitHub Release notes
-5. `README.md` 中的当前正式版本
-6. `site/index.html` 中的当前正式版本
+5. `README.md` 中的当前发布目标
+6. `site/index.html` 中的当前发布目标
 
 ## 发布规则
 
 - 正式版只通过 `main` 分支 tag 发布
-- tag 格式固定为 `v<major>.<minor>`
+- tag 格式固定为 `v<versionName>`
 - tag 与 `versionName` 必须一致
 - 发版前必须运行：
-  - `python3 scripts/release_metadata.py validate-pack app/build.gradle.kts CHANGELOG.md app/src/main/assets/changelog.json README.md --site-path site/index.html`
+  - `python3 scripts/release_metadata.py validate-pack app/build.gradle CHANGELOG.md app/src/main/assets/updateLog.md README.md --site-path site/index.html`
 
 ## 文档规则
 

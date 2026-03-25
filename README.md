@@ -29,12 +29,12 @@
 - Release 页面：`https://github.com/yuelangmanle/wenwentome1/releases`
 - 发布页：`https://yuelangmanle.github.io/wenwentome1/`
 - 旧线正式版：`v1.6`
-- 新底座正式版将从 `v2.0.0` 开始
+- 新底座当前正式版：`v2.0.0`
 
 ## 版本信息
 
 - 当前稳定旧版：`1.6`
-- 当前迁移目标：`2.0.0`
+- 当前新底座版本：`2.0.0`
 - 作者：`月亮满了`
 - 项目地址：`https://github.com/yuelangmanle/wenwentome1`
 - 上游来源：`https://github.com/gedoor/legado`
