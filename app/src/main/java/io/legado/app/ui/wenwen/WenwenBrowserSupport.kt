@@ -10,12 +10,12 @@ import io.legado.app.help.http.CookieManager.cookieJarHeader
 import io.legado.app.help.http.newCallStrResponse
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.utils.GSON
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.wenwentome.reader.core.model.BrowserFindPreferences
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import org.json.JSONArray
-import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import splitties.init.appCtx
@@ -96,30 +96,35 @@ internal object WenwenBrowserReadabilityPayloadDecoder {
     fun decode(raw: String?): WenwenBrowserReadabilityPayload? {
         if (raw.isNullOrBlank() || raw == "null") return null
         return kotlin.runCatching {
-            val escapedJson = JSONArray("[$raw]").optString(0)
-            val json = JSONObject(escapedJson)
+            val firstPass = JsonParser.parseString(raw)
+            val json =
+                when {
+                    firstPass.isJsonObject -> firstPass.asJsonObject
+                    firstPass.isJsonPrimitive && firstPass.asJsonPrimitive.isString ->
+                        JsonParser.parseString(firstPass.asString).takeIf { it.isJsonObject }?.asJsonObject
+                    else -> null
+                } ?: return null
             WenwenBrowserReadabilityPayload(
-                title = json.optString("title").orEmpty(),
-                textContent = json.optString("textContent").orEmpty(),
-                contentHtml = json.optString("content").orEmpty().ifBlank { null },
-                excerpt = json.optString("excerpt").orEmpty().ifBlank { null },
-                byline = json.optString("byline").orEmpty().ifBlank { null },
-                siteName = json.optString("siteName").orEmpty().ifBlank { null },
-                coverUrl = json.optString("coverUrl").orEmpty().ifBlank { null },
-                nextPageUrl = json.optString("nextPageUrl").orEmpty().ifBlank { null },
-                tocEntries =
-                    json.optJSONArray("tocEntries")?.let { array ->
+                title = json.stringValue("title").orEmpty(),
+                textContent = json.stringValue("textContent").orEmpty(),
+                contentHtml = json.stringValue("content")?.ifBlank { null },
+                excerpt = json.stringValue("excerpt")?.ifBlank { null },
+                byline = json.stringValue("byline")?.ifBlank { null },
+                siteName = json.stringValue("siteName")?.ifBlank { null },
+                coverUrl = json.stringValue("coverUrl")?.ifBlank { null },
+                nextPageUrl = json.stringValue("nextPageUrl")?.ifBlank { null },
+                tocEntries = json.getAsJsonArray("tocEntries")?.let { array ->
                         buildList {
-                            for (index in 0 until array.length()) {
-                                val item = array.optJSONObject(index) ?: continue
-                                val title = item.optString("title").orEmpty().trim()
-                                val url = item.optString("url").orEmpty().trim()
-                                if (title.isBlank() || url.isBlank()) continue
+                            array.forEach { element ->
+                                val item = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+                                val title = item.stringValue("title").orEmpty().trim()
+                                val url = item.stringValue("url").orEmpty().trim()
+                                if (title.isBlank() || url.isBlank()) return@forEach
                                 add(
                                     WenwenBrowserTocEntry(
                                         title = title,
                                         url = url,
-                                        orderIndex = item.optInt("orderIndex", size),
+                                        orderIndex = item.intValue("orderIndex") ?: size,
                                     )
                                 )
                             }
@@ -127,6 +132,16 @@ internal object WenwenBrowserReadabilityPayloadDecoder {
                     }.orEmpty(),
             )
         }.getOrNull()
+    }
+
+    private fun JsonObject.stringValue(name: String): String? {
+        val element = get(name) ?: return null
+        return if (element.isJsonNull) null else element.asString
+    }
+
+    private fun JsonObject.intValue(name: String): Int? {
+        val element = get(name) ?: return null
+        return if (element.isJsonNull) null else element.asInt
     }
 }
 

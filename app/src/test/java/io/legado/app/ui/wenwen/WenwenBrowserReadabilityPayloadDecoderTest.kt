@@ -1,6 +1,6 @@
 package io.legado.app.ui.wenwen
 
-import org.json.JSONObject
+import io.legado.app.utils.GSON
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -10,7 +10,7 @@ class WenwenBrowserReadabilityPayloadDecoderTest {
     @Test
     fun decode_returnsPayloadFromEvaluateJavascriptResult() {
         val raw =
-            JSONObject.quote(
+            toEvaluateJavascriptResult(
                 """
                 {
                   "title":"雪中悍刀行",
@@ -48,5 +48,9 @@ class WenwenBrowserReadabilityPayloadDecoderTest {
         assertNull(WenwenBrowserReadabilityPayloadDecoder.decode(null))
         assertNull(WenwenBrowserReadabilityPayloadDecoder.decode("null"))
         assertNull(WenwenBrowserReadabilityPayloadDecoder.decode("\"not json\""))
+    }
+
+    private fun toEvaluateJavascriptResult(payload: String): String {
+        return GSON.toJson(payload)
     }
 }

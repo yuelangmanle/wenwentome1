@@ -210,7 +210,7 @@ object WenwenBrowserCache {
         private var stopped = false
 
         init {
-            postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
+            notifyDownloadChanged()
         }
 
         val waitCount: Int
@@ -260,12 +260,12 @@ object WenwenBrowserCache {
                         start,
                     )
             }
-            postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
+            notifyDownloadChanged()
         }
 
         fun begin(index: Int) {
             downloadingIndex = index
-            postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
+            notifyDownloadChanged()
         }
 
         fun completeSuccess(
@@ -278,13 +278,13 @@ object WenwenBrowserCache {
                 targetEndIndex = null
             }
             downloadingIndex = null
-            postEvent(EventBus.SAVE_CONTENT, Pair(mergedBook, chapter))
-            postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
+            notifyContentSaved(mergedBook, chapter)
+            notifyDownloadChanged()
         }
 
         fun completeError() {
             downloadingIndex = null
-            postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
+            notifyDownloadChanged()
         }
 
         val startIndex: Int
@@ -318,7 +318,7 @@ object WenwenBrowserCache {
             targetStartIndex = 0
             keepDownloadingToEnd = false
             targetEndIndex = null
-            postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
+            notifyDownloadChanged()
         }
 
         fun finish() {
@@ -327,6 +327,21 @@ object WenwenBrowserCache {
             keepDownloadingToEnd = false
             targetEndIndex = null
             stopped = true
+        }
+
+        private fun notifyDownloadChanged() {
+            runCatching {
+                postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
+            }
+        }
+
+        private fun notifyContentSaved(
+            mergedBook: Book,
+            chapter: BookChapter,
+        ) {
+            runCatching {
+                postEvent(EventBus.SAVE_CONTENT, Pair(mergedBook, chapter))
+            }
         }
     }
 }

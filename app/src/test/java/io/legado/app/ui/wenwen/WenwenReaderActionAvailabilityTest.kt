@@ -15,7 +15,7 @@ class WenwenReaderActionAvailabilityTest {
                 bookUrl = "file:///books/demo.txt",
                 origin = BookType.localTag,
                 originName = "demo.txt",
-                type = BookType.text,
+                type = BookType.text or BookType.local,
             )
 
         val availability = WenwenReaderActionAvailability.fromBook(localBook)

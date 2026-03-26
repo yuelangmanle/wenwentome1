@@ -18,11 +18,11 @@ class WenwenBrowserHtmlPageExtractorTest {
               <body>
                 <div class="header">导航</div>
                 <div id="content">
-                  第一段正文。
+                  第一段正文写得更长一些，确保提取器在手动优化模式下也会把这里认定成真实正文，而不是长度过短的噪声内容。
                   <br />
-                  第二段正文。
+                  第二段正文继续补足篇幅，同时保留明显的章节正文语义，验证下一章链接和目录识别不会互相干扰。
                   <br />
-                  第三段正文。
+                  第三段正文补上一点收尾，让整段内容更贴近真实小说网页的排版长度和结构。
                 </div>
                 <div class="page">
                   <a href="/chapter/2">下一章</a>
@@ -65,9 +65,9 @@ class WenwenBrowserHtmlPageExtractorTest {
                 <div class="layout">
                   <div class="sidebar">推荐书单 推荐书单 推荐书单 推荐书单</div>
                   <div class="read-content j_readContent">
-                    夜里有雪。
-                    <p>风更冷。</p>
-                    <p>刀更快。</p>
+                    夜里有雪，街巷被风吹得发白，人物站在檐下看着远处灯火，这一段正文故意写得更长一些。
+                    <p>风更冷，衣角与马鬃一同被掀起，章节内容继续延展，确保规则选择器命中的正文长度足够。</p>
+                    <p>刀更快，故事情绪往前推进，同时保留“下一页”链接供提取器识别。</p>
                   </div>
                 </div>
                 <a class="next" href="/chapter/3">下一页</a>

@@ -39,7 +39,7 @@ class WenwenBookDetailFetchPlanTest {
                 originName = "demo.txt",
                 name = "雪中悍刀行",
                 author = "烽火戏诸侯",
-                type = BookType.text,
+                type = BookType.text or BookType.local,
             )
 
         val plan =

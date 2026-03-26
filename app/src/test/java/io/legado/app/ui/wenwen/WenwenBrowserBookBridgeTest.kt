@@ -131,7 +131,14 @@ class WenwenBrowserBookBridgeTest {
             WenwenBrowserArticleExtractor.extract(
                 url = "https://novel.example.org/chapter/2",
                 title = "第二章",
-                rawContent = "第一段正文\n\n第二段正文\n\n第三段正文",
+                rawContent =
+                    """
+                    第一段正文写得更长一些，确保手动优化模式能识别成真正的正文段落，而且不会因为字数太少被过滤掉。
+
+                    第二段正文继续补充足够多的内容，用来验证目录识别结果在正文通过阈值以后仍然会完整保留下来。
+
+                    第三段正文补上一点收尾信息，顺手模拟网页章节正文在实际站点里的篇幅。
+                    """.trimIndent(),
                 trigger = WenwenBrowserOptimizeTrigger.MANUAL,
                 nextPageUrl = "https://novel.example.org/chapter/3",
                 tocEntries = tocEntries,
