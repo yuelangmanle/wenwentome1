@@ -19,6 +19,7 @@ import android.webkit.WebViewClient
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.core.view.size
+import androidx.lifecycle.lifecycleScope
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.AppConst
@@ -34,6 +35,17 @@ import io.legado.app.lib.theme.accentColor
 import io.legado.app.model.Download
 import io.legado.app.ui.association.OnLineImportActivity
 import io.legado.app.ui.file.HandleFileContract
+import io.legado.app.ui.wenwen.EXTRA_WENWEN_BROWSER_AUTO_OPTIMIZE
+import io.legado.app.ui.wenwen.EXTRA_WENWEN_BROWSER_MODE_ENABLED
+import io.legado.app.ui.wenwen.EXTRA_WENWEN_BROWSER_SEARCH_QUERY
+import io.legado.app.ui.wenwen.EXTRA_WENWEN_BROWSER_SHOW_MANUAL_BUTTON
+import io.legado.app.ui.wenwen.WenwenBrowserArticleExtractor
+import io.legado.app.ui.wenwen.WenwenBrowserOptimizeTrigger
+import io.legado.app.ui.wenwen.WenwenBrowserReadabilityBridge
+import io.legado.app.ui.wenwen.WenwenBrowserReadabilityPayload
+import io.legado.app.ui.wenwen.WenwenBrowserReadabilityPayloadDecoder
+import io.legado.app.ui.wenwen.WenwenBrowserReaderActivity
+import io.legado.app.ui.wenwen.WenwenBrowserTocEntry
 import io.legado.app.utils.ACache
 import io.legado.app.utils.gone
 import io.legado.app.utils.invisible
@@ -47,6 +59,10 @@ import io.legado.app.utils.toggleSystemBar
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import io.legado.app.utils.visible
 import java.net.URLDecoder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import io.legado.app.help.http.CookieManager as AppCookieManager
 
 class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
@@ -57,6 +73,12 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
     private var webPic: String? = null
     private var isCloudflareChallenge = false
     private var isFullScreen = false
+    private var wenwenBrowserModeEnabled = false
+    private var wenwenAutoOptimizeReading = false
+    private var wenwenShowManualOptimizeButton = false
+    private var wenwenBrowserSearchQuery: String? = null
+    private var wenwenOptimizationInProgress = false
+    private var lastOptimizedUrl: String? = null
     private val saveImage = registerForActivityResult(HandleFileContract()) {
         it.uri?.let { uri ->
             ACache.get().put(imagePathKey, uri.toString())
@@ -67,6 +89,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         binding.titleBar.title = intent.getStringExtra("title") ?: getString(R.string.loading)
         binding.titleBar.subtitle = intent.getStringExtra("sourceName")
+        setupWenwenBrowserMode()
         viewModel.initData(intent) {
             val url = viewModel.baseUrl
             val headerMap = viewModel.headerMap
@@ -94,6 +117,29 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
             }
             finish()
         }
+    }
+
+    private fun setupWenwenBrowserMode() {
+        wenwenBrowserModeEnabled = intent.getBooleanExtra(EXTRA_WENWEN_BROWSER_MODE_ENABLED, false)
+        wenwenAutoOptimizeReading = intent.getBooleanExtra(EXTRA_WENWEN_BROWSER_AUTO_OPTIMIZE, false)
+        wenwenShowManualOptimizeButton =
+            intent.getBooleanExtra(EXTRA_WENWEN_BROWSER_SHOW_MANUAL_BUTTON, false)
+        wenwenBrowserSearchQuery = intent.getStringExtra(EXTRA_WENWEN_BROWSER_SEARCH_QUERY)
+        binding.fabOptimizeReading.apply {
+            if (wenwenBrowserModeEnabled && wenwenShowManualOptimizeButton) {
+                visible()
+            } else {
+                gone()
+            }
+            setOnClickListener {
+                optimizeCurrentPage(WenwenBrowserOptimizeTrigger.MANUAL)
+            }
+            setOnLongClickListener {
+                optimizeCurrentPage(WenwenBrowserOptimizeTrigger.MANUAL)
+                true
+            }
+        }
+        updateOptimizeReadingButtonState()
     }
 
     override fun onCompatCreateOptionsMenu(menu: Menu): Boolean {
@@ -240,6 +286,200 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
         binding.webView.destroy()
     }
 
+    private fun updateOptimizeReadingButtonState() {
+        if (!wenwenBrowserModeEnabled || !wenwenShowManualOptimizeButton) {
+            binding.fabOptimizeReading.gone()
+            return
+        }
+        binding.fabOptimizeReading.visible()
+        binding.fabOptimizeReading.isEnabled = !wenwenOptimizationInProgress
+        binding.fabOptimizeReading.text =
+            if (wenwenOptimizationInProgress) {
+                "识别中..."
+            } else {
+                "优化阅读"
+            }
+    }
+
+    private fun optimizeCurrentPage(trigger: WenwenBrowserOptimizeTrigger) {
+        if (!wenwenBrowserModeEnabled || wenwenOptimizationInProgress) return
+        val currentUrl = binding.webView.url ?: viewModel.baseUrl
+        if (currentUrl.isBlank()) {
+            if (trigger == WenwenBrowserOptimizeTrigger.MANUAL) {
+                binding.root.longSnackbar("页面还没加载完成，稍后再试。")
+            }
+            return
+        }
+        if (trigger == WenwenBrowserOptimizeTrigger.AUTO &&
+            WenwenBrowserArticleExtractor.shouldSkipOptimization(currentUrl)
+        ) {
+            return
+        }
+        wenwenOptimizationInProgress = true
+        updateOptimizeReadingButtonState()
+        ensureReadabilityBridge { bridgeReady ->
+            if (!bridgeReady) {
+                extractWithLegacyFallback(currentUrl, trigger)
+                return@ensureReadabilityBridge
+            }
+            binding.webView.evaluateJavascript(WenwenBrowserReadabilityBridge.extractCallScript()) { raw ->
+                val payload = WenwenBrowserReadabilityPayloadDecoder.decode(raw)
+                val article = payload?.toBrowserArticle(currentUrl, trigger)
+                if (article != null) {
+                    completeOptimization(trigger, article)
+                } else {
+                    extractWithLegacyFallback(currentUrl, trigger)
+                }
+            }
+        }
+    }
+
+    private fun ensureReadabilityBridge(onReady: (Boolean) -> Unit) {
+        lifecycleScope.launch {
+            val bootstrapScript =
+                withContext(Dispatchers.IO) {
+                    kotlin.runCatching {
+                        WenwenBrowserReadabilityBridge.bootstrapScript()
+                    }.getOrNull()
+                }
+            if (bootstrapScript == null) {
+                onReady(false)
+                return@launch
+            }
+            binding.webView.evaluateJavascript(bootstrapScript) { raw ->
+                onReady(raw == "true")
+            }
+        }
+    }
+
+    private fun extractWithLegacyFallback(
+        currentUrl: String,
+        trigger: WenwenBrowserOptimizeTrigger,
+    ) {
+        binding.webView.evaluateJavascript(
+            """
+                (function() {
+                  const title = document.title || '';
+                  const content = document.body ? (document.body.innerText || '') : '';
+                  const cover =
+                    document.querySelector('meta[property="og:image"]')?.content ||
+                    document.querySelector('meta[name="og:image"]')?.content ||
+                    document.querySelector('meta[name="twitter:image"]')?.content ||
+                    document.querySelector('img')?.src ||
+                    '';
+                  const nextLink = Array.from(document.querySelectorAll('a[href]')).find((anchor) => {
+                    const text = (anchor.textContent || '').trim();
+                    return /(下一章|下一页|下页|next)/i.test(text);
+                  });
+                  const nextUrl = nextLink ? new URL(nextLink.getAttribute('href'), location.href).href : '';
+                  const tocEntries = Array.from(document.querySelectorAll('a[href]'))
+                    .map((anchor) => {
+                      const text = (anchor.textContent || '').replace(/\\s+/g, ' ').trim();
+                      if (!text || text.length > 40 || !/(第.{1,16}(章|节|回|卷)|chapter\\s*\\d+|序章|楔子|尾声|番外)/i.test(text)) {
+                        return null;
+                      }
+                      return {
+                        title: text,
+                        url: new URL(anchor.getAttribute('href'), location.href).href
+                      };
+                    })
+                    .filter(Boolean)
+                    .filter((item, index, array) => array.findIndex((candidate) => candidate.url === item.url) === index)
+                    .slice(0, 200);
+                  return JSON.stringify([title, content, cover, nextUrl, JSON.stringify(tocEntries)]);
+                })();
+            """.trimIndent()
+        ) { raw ->
+            val payload = decodeExtractPayload(raw)
+            val article =
+                payload?.let {
+                    WenwenBrowserArticleExtractor.extract(
+                        url = currentUrl,
+                        title = it.title,
+                        rawContent = it.content,
+                        trigger = trigger,
+                        coverUrl = it.coverUrl,
+                        searchQuery = wenwenBrowserSearchQuery,
+                        nextPageUrl = it.nextPageUrl,
+                        tocEntries = it.tocEntries,
+                    )
+                }
+            completeOptimization(trigger, article)
+        }
+    }
+
+    private fun completeOptimization(
+        trigger: WenwenBrowserOptimizeTrigger,
+        article: io.legado.app.ui.wenwen.WenwenBrowserArticle?,
+    ) {
+        wenwenOptimizationInProgress = false
+        updateOptimizeReadingButtonState()
+        if (article == null) {
+            if (trigger == WenwenBrowserOptimizeTrigger.MANUAL) {
+                binding.root.longSnackbar("没有识别到适合阅读的正文内容。")
+            }
+            return
+        }
+        if (trigger == WenwenBrowserOptimizeTrigger.AUTO && lastOptimizedUrl == article.url) {
+            return
+        }
+        lastOptimizedUrl = article.url
+        WenwenBrowserReaderActivity.start(this, article)
+    }
+
+    private fun WenwenBrowserReadabilityPayload.toBrowserArticle(
+        currentUrl: String,
+        trigger: WenwenBrowserOptimizeTrigger,
+    ): io.legado.app.ui.wenwen.WenwenBrowserArticle? {
+        return WenwenBrowserArticleExtractor.extract(
+            url = currentUrl,
+            title = title.ifBlank { binding.webView.title ?: siteName.orEmpty() },
+            rawContent = textContent,
+            trigger = trigger,
+            coverUrl = coverUrl,
+            searchQuery = wenwenBrowserSearchQuery,
+            nextPageUrl = nextPageUrl,
+            tocEntries = tocEntries,
+        )
+    }
+
+    private fun decodeExtractPayload(raw: String?): WenwenBrowserExtractPayload? {
+        if (raw.isNullOrBlank() || raw == "null") return null
+        return runCatching {
+            val escapedJson = JSONArray("[$raw]").optString(0)
+            val array = JSONArray(escapedJson)
+            WenwenBrowserExtractPayload(
+                title = array.optString(0).orEmpty(),
+                content = array.optString(1).orEmpty(),
+                coverUrl = array.optString(2).orEmpty().ifBlank { null },
+                nextPageUrl = array.optString(3).orEmpty().ifBlank { null },
+                tocEntries =
+                    array.optString(4).orEmpty().takeIf { it.isNotBlank() }?.let { tocJson ->
+                        runCatching {
+                            val tocArray = JSONArray(tocJson)
+                            buildList {
+                                for (index in 0 until tocArray.length()) {
+                                    val item = tocArray.optJSONObject(index) ?: continue
+                                    val title = item.optString("title").orEmpty().trim()
+                                    val url = item.optString("url").orEmpty().trim()
+                                    if (title.isBlank() || url.isBlank()) continue
+                                    add(WenwenBrowserTocEntry(title = title, url = url, orderIndex = size))
+                                }
+                            }
+                        }.getOrNull()
+                    }.orEmpty(),
+            )
+        }.getOrNull()
+    }
+
+    private data class WenwenBrowserExtractPayload(
+        val title: String,
+        val content: String,
+        val coverUrl: String?,
+        val nextPageUrl: String?,
+        val tocEntries: List<WenwenBrowserTocEntry> = emptyList(),
+    )
+
     inner class CustomWebChromeClient : WebChromeClient() {
 
         override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -251,6 +491,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
             binding.llView.invisible()
+            binding.fabOptimizeReading.gone()
             binding.customWebView.addView(view)
             customWebViewCallback = callback
             keepScreenOn(true)
@@ -260,6 +501,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
         override fun onHideCustomView() {
             binding.customWebView.removeAllViews()
             binding.llView.visible()
+            updateOptimizeReadingButtonState()
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             keepScreenOn(false)
             toggleSystemBar(true)
@@ -297,15 +539,23 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
                 } else {
                     binding.titleBar.title = intent.getStringExtra("title")
                 }
-                view.evaluateJavascript("!!window._cf_chl_opt") {
-                    if (it == "true") {
-                        isCloudflareChallenge = true
-                    } else if (isCloudflareChallenge && viewModel.sourceVerificationEnable) {
-                        viewModel.saveVerificationResult(binding.webView) {
-                            finish()
-                        }
+            } ?: run {
+                binding.titleBar.title = intent.getStringExtra("title")
+            }
+            view?.evaluateJavascript("!!window._cf_chl_opt") {
+                if (it == "true") {
+                    isCloudflareChallenge = true
+                } else if (isCloudflareChallenge && viewModel.sourceVerificationEnable) {
+                    viewModel.saveVerificationResult(binding.webView) {
+                        finish()
                     }
                 }
+            }
+            if (wenwenBrowserModeEnabled &&
+                wenwenAutoOptimizeReading &&
+                !url.isNullOrBlank()
+            ) {
+                optimizeCurrentPage(WenwenBrowserOptimizeTrigger.AUTO)
             }
         }
 

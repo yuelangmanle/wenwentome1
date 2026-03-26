@@ -1,28 +1,30 @@
 package com.wenwentome.reader.feature.library
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -31,6 +33,8 @@ import androidx.compose.ui.unit.dp
 fun LibraryScreen(
     state: LibraryUiState,
     onImportClick: () -> Unit,
+    onOpenCacheManager: () -> Unit,
+    onOpenBatchManage: () -> Unit,
     onContinueReadingClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
     onRefreshCatalog: (String) -> Unit,
@@ -43,97 +47,109 @@ fun LibraryScreen(
     contentPadding: PaddingValues = PaddingValues(16.dp),
 ) {
     var actionTarget by remember { mutableStateOf<LibraryBookItem?>(null) }
+    var overflowExpanded by remember { mutableStateOf(false) }
 
-    Scaffold(
-        modifier = modifier.testTag("library-screen"),
-        floatingActionButton = {
-            FloatingActionButton(onClick = onImportClick) {
-                Text("导入")
-            }
-        },
-    ) { innerPadding ->
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("library-screen"),
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+                .fillMaxWidth()
+                .testTag("library-hero-section")
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("library-hero-section")
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
             ) {
-                Text(
-                    text = "书库",
-                    modifier = Modifier.testTag("screen"),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-                if (state.isImporting) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "正在导入书籍…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        text = "书架",
+                        modifier = Modifier.testTag("screen"),
+                        style = MaterialTheme.typography.headlineSmall,
                     )
-                }
-                state.importErrorMessage?.let { message ->
                     Text(
-                        text = message,
+                        text = "本地书与缓存下载统一管理",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                state.continueReading?.let { item ->
-                    ContinueReadingCard(
-                        item = item,
-                        onClick = { onContinueReadingClick(item.book.id) },
-                        modifier = Modifier.testTag("continue-reading-card"),
-                    )
-                }
-                LibraryShelfControls(
-                    selectedFilter = state.filter,
-                    selectedSort = state.sort,
-                    onFilterChange = onFilterChange,
-                    onSortChange = onSortChange,
+                LibraryOverflowMenu(
+                    expanded = overflowExpanded,
+                    onExpandedChange = { overflowExpanded = it },
+                    onImportClick = onImportClick,
+                    onOpenCacheManager = onOpenCacheManager,
+                    onOpenBatchManage = onOpenBatchManage,
                 )
             }
+            if (state.isImporting) {
+                Text(
+                    text = "正在导入书籍…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            state.importErrorMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            state.continueReading?.let { item ->
+                ContinueReadingCard(
+                    item = item,
+                    onClick = { onContinueReadingClick(item.book.id) },
+                    modifier = Modifier.testTag("continue-reading-card"),
+                )
+            }
+            LibraryShelfControls(
+                selectedFilter = state.filter,
+                selectedSort = state.sort,
+                onFilterChange = onFilterChange,
+                onSortChange = onSortChange,
+            )
+        }
 
-            Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 132.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .testTag("library-grid-section"),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    top = 8.dp,
-                    end = 16.dp,
-                    bottom = contentPadding.calculateBottomPadding(),
-                ),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (state.visibleBooks.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text(
-                            text = "暂无书籍",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                } else {
-                    items(
-                        items = state.visibleBooks,
-                        key = { it.book.id },
-                    ) { item ->
-                        BookCoverCard(
-                            item = item,
-                            onClick = { onBookClick(item.book.id) },
-                            onLongClick = { actionTarget = item },
-                            modifier = Modifier.testTag("book-cover-card-${item.book.id}"),
-                        )
-                    }
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 156.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .testTag("library-grid-section"),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 8.dp,
+                end = 16.dp,
+                bottom = contentPadding.calculateBottomPadding(),
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (state.visibleBooks.isEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(
+                        text = "暂无书籍",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            } else {
+                items(
+                    items = state.visibleBooks,
+                    key = { it.book.id },
+                ) { item ->
+                    BookCoverCard(
+                        item = item,
+                        onClick = { onBookClick(item.book.id) },
+                        onLongClick = { actionTarget = item },
+                        modifier = Modifier.testTag("book-cover-card-${item.book.id}"),
+                    )
                 }
             }
         }
@@ -155,6 +171,56 @@ fun LibraryScreen(
                 { onRestoreAutomaticCover(item.book.id) }
             },
         )
+    }
+}
+
+@Composable
+private fun LibraryOverflowMenu(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onImportClick: () -> Unit,
+    onOpenCacheManager: () -> Unit,
+    onOpenBatchManage: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.End) {
+        Text(
+            text = "...",
+            modifier = Modifier
+                .testTag("library-overflow-menu")
+                .padding(top = 4.dp)
+                .clickable { onExpandedChange(true) },
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) },
+        ) {
+            DropdownMenuItem(
+                text = { Text("导入书籍") },
+                onClick = {
+                    onExpandedChange(false)
+                    onImportClick()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("下载缓存管理") },
+                onClick = {
+                    onExpandedChange(false)
+                    onOpenCacheManager()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("批量管理") },
+                onClick = {
+                    onExpandedChange(false)
+                    onOpenBatchManage()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("排序与筛选") },
+                onClick = { onExpandedChange(false) },
+            )
+        }
     }
 }
 

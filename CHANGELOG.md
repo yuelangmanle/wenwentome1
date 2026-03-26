@@ -11,6 +11,20 @@ All notable changes to this project will be documented in this file.
 - 在 Legado 新底座上继续收敛阅读体验、网文搜索和产品化配置
 - 补齐 WenwenToMe 的 AI Hub 与 GitHub 同步回接
 
+## [2.0.1] - 2026-03-26
+
+### Added
+- 浏览器找书补齐“优化阅读 -> 保存成书 -> 目录跳章 -> 统一缓存管理”主链
+- 浏览器优化阅读书接入统一阅读器后，支持目录识别、整本缓存范围规划与统一缓存统计
+- 阅读页补上打开/关闭书籍的正式转场动画资源，并接入统一打开书籍入口
+- 增补浏览器目录抽取、浏览器缓存状态机与书架新壳调用点的回归测试
+
+### Changed
+- 主入口继续收口到 `书架 / 发现 / 我的`，书架与发现页文案改为正式产品口径
+- 书籍详情页、发现页、AI Hub 入口文案去掉“桥接/占位/临时”表述，改成正式对外文案
+- 浏览器找书开源集成路线明确为 `WebView + Readability.js + DOMPurify`，并保留 `GeckoView` 二阶段升级预案
+- GitHub Actions 云端 `android-ci` 已再次验证通过，继续作为无本地 Java 环境下的主编译通道
+
 ## [2.0.0] - 2026-03-25
 
 ### Added

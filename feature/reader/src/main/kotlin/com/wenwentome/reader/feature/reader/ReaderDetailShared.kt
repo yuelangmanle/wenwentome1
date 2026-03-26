@@ -9,3 +9,7 @@ internal fun formatProgressLabel(progressPercent: Float): String =
 
 internal fun buildLocatorForChapter(format: BookFormat?, chapterRef: String): String? =
     buildReaderChapterLocator(format, chapterRef)
+
+internal fun sharedBookCoverTag(bookId: String): String = "book-cover-shared-$bookId"
+
+internal fun sharedReaderContainerTag(bookId: String): String = "reader-shared-container-$bookId"

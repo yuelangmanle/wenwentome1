@@ -104,6 +104,7 @@ class BookDetailScreenTest {
 
         val bookDetailRoot = composeTestRule.onNodeWithTag("book-detail")
         composeTestRule.onNodeWithTag("detail-hero-section").assertExistsCompat()
+        composeTestRule.onNodeWithTag("book-cover-shared-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("detail-read-button").performScrollTo().assertExistsCompat()
         bookDetailRoot.performScrollToNode(hasTestTag("detail-reading-status-section"))
         composeTestRule.onNodeWithTag("detail-reading-status-section").assertExistsCompat()

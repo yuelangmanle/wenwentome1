@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,7 +50,9 @@ fun ContinueReadingCard(
                 LibraryBookCover(
                     title = item.book.title,
                     coverUri = item.effectiveCover,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("book-cover-shared-${item.book.id}"),
                     shape = RoundedCornerShape(24.dp),
                     realCoverTag = "continue-reading-real-cover",
                     placeholderTag = "continue-reading-placeholder-cover",

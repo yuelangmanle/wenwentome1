@@ -101,6 +101,38 @@ class ReaderViewModel(
         }
     }
 
+    fun setFontSize(fontSizeSp: Float) {
+        updatePresentation { it.copy(fontSizeSp = fontSizeSp.coerceIn(14f, 30f)) }
+    }
+
+    fun setAutoFitFontSize(enabled: Boolean) {
+        updatePresentation { it.copy(autoFitFontSize = enabled) }
+    }
+
+    fun setLineHeightMultiplier(multiplier: Float) {
+        updatePresentation { it.copy(lineHeightMultiplier = multiplier.coerceIn(1.2f, 2.2f)) }
+    }
+
+    fun setLetterSpacing(em: Float) {
+        updatePresentation { it.copy(letterSpacingEm = em.coerceIn(-0.05f, 0.2f)) }
+    }
+
+    fun setParagraphSpacing(em: Float) {
+        updatePresentation { it.copy(paragraphSpacingEm = em.coerceIn(0f, 1f)) }
+    }
+
+    fun setSidePaddingDp(paddingDp: Int) {
+        updatePresentation { it.copy(sidePaddingDp = paddingDp.coerceIn(8, 40)) }
+    }
+
+    fun setBackgroundPalette(key: String) {
+        updatePresentation { it.copy(backgroundPaletteKey = key) }
+    }
+
+    private fun updatePresentation(transform: (ReaderPresentationPrefs) -> ReaderPresentationPrefs) {
+        updatePresentation(transform(uiState.value.presentation))
+    }
+
     fun updateLocator(locator: String, chapterRef: String?, progressPercent: Float) {
         val state = uiState.value
         val resolvedBookId = state.book?.id ?: bookId

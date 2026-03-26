@@ -1,0 +1,3040 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文文tome V2 可点击原型</title>
+  <meta
+    name="description"
+    content="文文tome V2 高保真可点击网页原型，展示书架、发现、我的、阅读、书籍详情、下载缓存管理与浏览器找书交互。"
+  />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg-0: #f7f0e8;
+      --bg-1: #efe1d3;
+      --bg-2: #e2d1c2;
+      --ink-0: #18171b;
+      --ink-1: #585861;
+      --ink-2: #8d8d96;
+      --brand: #1f5c53;
+      --brand-soft: #d8ebe3;
+      --brand-strong: #0f433c;
+      --accent: #d2774f;
+      --accent-soft: #f7e3d8;
+      --paper: #fffaf4;
+      --paper-strong: #fffefc;
+      --line: rgba(41, 43, 54, 0.08);
+      --line-strong: rgba(41, 43, 54, 0.14);
+      --shadow-xl: 0 32px 80px rgba(43, 31, 18, 0.18);
+      --shadow-lg: 0 18px 40px rgba(46, 33, 24, 0.14);
+      --shadow-md: 0 10px 24px rgba(46, 33, 24, 0.1);
+      --radius-xl: 34px;
+      --radius-lg: 26px;
+      --radius-md: 20px;
+      --radius-sm: 16px;
+      --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-soft: cubic-bezier(0.2, 0.65, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+      color: var(--ink-0);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(242, 192, 157, 0.58), transparent 28%),
+        radial-gradient(circle at 100% 18%, rgba(180, 212, 205, 0.72), transparent 26%),
+        linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 48%, #f8f4ef 100%);
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: auto;
+      width: 36vw;
+      height: 36vw;
+      border-radius: 50%;
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.5;
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+
+    body::before {
+      top: -10vw;
+      right: -10vw;
+      background: rgba(31, 92, 83, 0.16);
+    }
+
+    body::after {
+      bottom: -12vw;
+      left: -12vw;
+      background: rgba(210, 119, 79, 0.18);
+      animation-duration: 22s;
+    }
+
+    @keyframes drift {
+      from {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      to {
+        transform: translate3d(3vw, -2vw, 0) scale(1.08);
+      }
+    }
+
+    .prototype-shell {
+      position: relative;
+      z-index: 1;
+      width: min(1380px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(340px, 460px) minmax(260px, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      background: rgba(255, 248, 241, 0.72);
+      backdrop-filter: blur(20px);
+      border-radius: 30px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .panel.hero {
+      padding: 28px;
+      min-height: 100%;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 18px 0 12px;
+      font-family: "Iowan Old Style", "Songti SC", "Noto Serif SC", serif;
+      font-size: clamp(2.2rem, 4vw, 3.4rem);
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--ink-1);
+      line-height: 1.72;
+      font-size: 0.98rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .feature-card,
+    .notes-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255, 253, 249, 0.84);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .feature-card strong,
+    .notes-card strong {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 0.98rem;
+    }
+
+    .feature-list,
+    .notes-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--ink-1);
+      font-size: 0.92rem;
+    }
+
+    .feature-list li,
+    .notes-list li {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(247, 241, 234, 0.88);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+    }
+
+    .stage {
+      display: grid;
+      place-items: center;
+      min-height: calc(100vh - 72px);
+    }
+
+    .phone {
+      position: sticky;
+      top: 22px;
+      width: min(100%, 430px);
+      padding: 14px;
+      border-radius: 42px;
+      background:
+        linear-gradient(180deg, rgba(30, 30, 35, 0.98), rgba(12, 12, 15, 0.98));
+      box-shadow:
+        0 40px 80px rgba(27, 18, 10, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .phone-screen {
+      position: relative;
+      min-height: 860px;
+      overflow: hidden;
+      border-radius: 32px;
+      background:
+        linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(247, 240, 232, 0.96));
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+
+    .phone-screen::before {
+      content: "";
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 28px;
+      border-radius: 18px;
+      background: rgba(20, 20, 22, 0.92);
+      z-index: 30;
+    }
+
+    .app {
+      position: relative;
+      min-height: 860px;
+      padding: 14px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .app.reader-app-mode {
+      padding: 0;
+    }
+
+    .status-bar {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px 14px;
+      margin-top: 18px;
+      color: var(--ink-2);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--brand);
+      box-shadow: 0 0 12px rgba(31, 92, 83, 0.6);
+    }
+
+    .screen-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.22));
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      border-radius: 28px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      overflow: hidden;
+    }
+
+    .screen-card.reader-mode {
+      background: linear-gradient(180deg, #f7efe3 0%, #f3e8db 100%);
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .screen-top {
+      padding: 20px 18px 14px;
+      background:
+        linear-gradient(180deg, rgba(255, 248, 242, 0.94), rgba(255, 248, 242, 0.76));
+      border-bottom: 1px solid rgba(41, 43, 54, 0.05);
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title-block {
+      min-width: 0;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-size: 1.55rem;
+      letter-spacing: -0.03em;
+    }
+
+    .screen-subtitle {
+      margin: 6px 0 0;
+      color: var(--ink-2);
+      font-size: 0.87rem;
+    }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .icon-btn,
+    .chip-btn,
+    .nav-btn,
+    .seg-btn,
+    .menu-btn,
+    .filter-chip,
+    .result-btn,
+    .cta-btn {
+      transition: transform 180ms var(--ease-spring), box-shadow 180ms ease, background 180ms ease, border-color 180ms ease, opacity 180ms ease;
+    }
+
+    .icon-btn:hover,
+    .chip-btn:hover,
+    .nav-btn:hover,
+    .seg-btn:hover,
+    .menu-btn:hover,
+    .filter-chip:hover,
+    .result-btn:hover,
+    .cta-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(41, 43, 54, 0.07);
+      box-shadow: var(--shadow-md);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .icon-btn.ghost {
+      background: rgba(255, 255, 255, 0.24);
+      box-shadow: none;
+      color: rgba(24, 23, 27, 0.8);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .segmented {
+      display: inline-flex;
+      padding: 4px;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+      border-radius: 18px;
+      margin-top: 16px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+    }
+
+    .seg-btn {
+      min-width: 108px;
+      height: 38px;
+      padding: 0 14px;
+      border-radius: 14px;
+      color: var(--ink-2);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .seg-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      box-shadow: 0 12px 24px rgba(31, 92, 83, 0.2);
+    }
+
+    .screen-body {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 16px 18px 108px;
+      scrollbar-width: none;
+    }
+
+    .screen-body::-webkit-scrollbar {
+      display: none;
+    }
+
+    .hero-banner {
+      position: relative;
+      padding: 18px;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at top right, rgba(255, 255, 255, 0.32), transparent 34%),
+        linear-gradient(135deg, rgba(31, 92, 83, 0.98), rgba(18, 65, 59, 0.92));
+      color: #f6fbf9;
+      box-shadow: 0 24px 30px rgba(18, 65, 59, 0.24);
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: "";
+      position: absolute;
+      inset: auto -18px -22px auto;
+      width: 140px;
+      height: 140px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 66%);
+    }
+
+    .banner-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+
+    .banner-title {
+      margin: 14px 0 8px;
+      font-size: 1.38rem;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+    }
+
+    .banner-copy {
+      margin: 0;
+      color: rgba(246, 251, 249, 0.84);
+      font-size: 0.92rem;
+      line-height: 1.6;
+      max-width: 27ch;
+    }
+
+    .banner-meta {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .metric {
+      min-width: 88px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.11);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .metric-label {
+      display: block;
+      color: rgba(246, 251, 249, 0.76);
+      font-size: 0.72rem;
+    }
+
+    .metric-value {
+      display: block;
+      margin-top: 4px;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .section-head span {
+      color: var(--ink-2);
+      font-size: 0.82rem;
+    }
+
+    .book-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .book-card {
+      position: relative;
+      padding: 12px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+      box-shadow: var(--shadow-md);
+      text-align: left;
+    }
+
+    .book-cover {
+      position: relative;
+      aspect-ratio: 0.72;
+      border-radius: 18px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      box-shadow: 0 18px 30px rgba(28, 18, 11, 0.2);
+      isolation: isolate;
+    }
+
+    .book-cover::before,
+    .reader-ghost::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.34), transparent 28%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.04), transparent 34%);
+      z-index: 1;
+    }
+
+    .book-cover::after,
+    .reader-ghost::after {
+      content: attr(data-title);
+      position: absolute;
+      inset: auto 12px 12px 12px;
+      padding: 12px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      font-size: 0.88rem;
+      line-height: 1.35;
+      font-weight: 700;
+      z-index: 2;
+    }
+
+    .cover-c1 {
+      background: linear-gradient(160deg, #215e52 0%, #0d433c 46%, #d17a52 100%);
+    }
+
+    .cover-c2 {
+      background: linear-gradient(160deg, #ba7c45 0%, #8d5527 50%, #37291e 100%);
+    }
+
+    .cover-c3 {
+      background: linear-gradient(160deg, #5b647c 0%, #30354b 52%, #d28e78 100%);
+    }
+
+    .cover-c4 {
+      background: linear-gradient(160deg, #8f3240 0%, #52212c 44%, #f4b17e 100%);
+    }
+
+    .cover-c5 {
+      background: linear-gradient(160deg, #2f5f85 0%, #113554 54%, #9cc8db 100%);
+    }
+
+    .cover-c6 {
+      background: linear-gradient(160deg, #1f5e53 0%, #3e8775 40%, #f4dcc8 100%);
+    }
+
+    .book-title {
+      display: block;
+      font-size: 1rem;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .book-meta {
+      display: block;
+      margin-top: 6px;
+      color: var(--ink-2);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .continue-card,
+    .search-card,
+    .browser-card,
+    .info-card,
+    .cache-card,
+    .detail-card,
+    .reader-menu-card {
+      padding: 16px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+      box-shadow: var(--shadow-md);
+    }
+
+    .mini-cover {
+      height: 112px;
+      border-radius: 18px;
+      box-shadow: 0 14px 24px rgba(31, 92, 83, 0.16);
+    }
+
+    .search-card h3,
+    .browser-card h3,
+    .detail-card h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .search-card p,
+    .browser-card p,
+    .detail-card p,
+    .info-card p,
+    .cache-card p,
+    .reader-menu-card p {
+      margin: 0;
+      color: var(--ink-1);
+      line-height: 1.6;
+      font-size: 0.88rem;
+    }
+
+    .progress {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(31, 92, 83, 0.12);
+      overflow: hidden;
+    }
+
+    .progress-bar span {
+      display: block;
+      width: var(--width, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--brand), var(--accent));
+    }
+
+    .progress-value {
+      font-size: 0.8rem;
+      color: var(--ink-2);
+    }
+
+    .cta-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .cta-btn {
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border: 1px solid transparent;
+    }
+
+    .cta-btn.primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      box-shadow: 0 14px 28px rgba(31, 92, 83, 0.2);
+    }
+
+    .cta-btn.secondary {
+      color: var(--brand-strong);
+      background: rgba(216, 235, 227, 0.8);
+      border-color: rgba(31, 92, 83, 0.08);
+    }
+
+    .cta-btn.tertiary {
+      color: var(--ink-1);
+      background: rgba(255, 248, 242, 0.84);
+      border-color: rgba(41, 43, 54, 0.08);
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 10px;
+      overflow: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .filter-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-chip {
+      flex: 0 0 auto;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+      color: var(--ink-1);
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .filter-chip.active {
+      color: var(--brand-strong);
+      background: rgba(216, 235, 227, 0.88);
+      border-color: rgba(31, 92, 83, 0.12);
+    }
+
+    .search-row,
+    .browser-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 86px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .browser-row {
+      grid-template-columns: 64px minmax(0, 1fr) 72px;
+    }
+
+    .search-input,
+    .browser-input {
+      min-height: 48px;
+      padding: 0 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(41, 43, 54, 0.08);
+      color: var(--ink-1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    }
+
+    .search-placeholder {
+      color: var(--ink-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chip-btn {
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: 16px;
+      background: rgba(216, 235, 227, 0.88);
+      border: 1px solid rgba(31, 92, 83, 0.1);
+      color: var(--brand-strong);
+      font-size: 0.84rem;
+      font-weight: 800;
+      box-shadow: var(--shadow-md);
+    }
+
+    .search-submit {
+      width: 100%;
+      min-width: 0;
+      min-height: 46px;
+      padding: 0 10px;
+      border-radius: 16px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), #b25f3a);
+      box-shadow: 0 14px 24px rgba(210, 119, 79, 0.24);
+      font-weight: 800;
+    }
+
+    .result-list,
+    .cache-list,
+    .source-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .result-item,
+    .cache-item,
+    .source-item {
+      display: grid;
+      grid-template-columns: 62px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+    }
+
+    .result-item .mini-cover,
+    .cache-item .mini-cover,
+    .source-item .mini-cover {
+      height: 84px;
+      border-radius: 16px;
+    }
+
+    .item-title {
+      display: block;
+      font-size: 0.94rem;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .item-meta {
+      display: block;
+      margin-top: 4px;
+      color: var(--ink-2);
+      font-size: 0.78rem;
+      line-height: 1.55;
+    }
+
+    .tag-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(247, 227, 216, 0.88);
+      color: #9d5738;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .tag.brand {
+      background: rgba(216, 235, 227, 0.88);
+      color: var(--brand-strong);
+    }
+
+    .result-btn,
+    .menu-btn {
+      min-height: 38px;
+      padding: 0 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(41, 43, 54, 0.08);
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink-1);
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    .reader-top {
+      position: absolute;
+      inset: 0 0 auto 0;
+      z-index: 6;
+      padding: 18px 18px 0;
+      pointer-events: none;
+    }
+
+    .reader-system-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 6px 12px;
+      color: rgba(45, 36, 29, 0.56);
+      font-size: 0.76rem;
+      letter-spacing: 0.02em;
+    }
+
+    .reader-system-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .reader-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px;
+      border-radius: 22px;
+      background: rgba(255, 251, 246, 0.78);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-md);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      pointer-events: auto;
+      transition: opacity 220ms ease, transform 220ms var(--ease-soft);
+    }
+
+    .screen-card.reader-mode .reader-top {
+      padding: 18px 22px 0;
+      background: linear-gradient(180deg, rgba(247, 239, 227, 0.92), rgba(247, 239, 227, 0.7) 55%, transparent 100%);
+    }
+
+    .screen-card.reader-mode .reader-toolbar {
+      padding: 4px 0 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    .reader-toolbar.hidden {
+      opacity: 0;
+      transform: translateY(-14px);
+      pointer-events: none;
+    }
+
+    .reader-toolbar .title-block {
+      text-align: center;
+      flex: 1;
+    }
+
+    .reader-toolbar .screen-title {
+      font-size: 0.94rem;
+    }
+
+    .reader-toolbar .screen-subtitle {
+      margin-top: 2px;
+      font-size: 0.74rem;
+    }
+
+    .reader-quick-tools {
+      position: absolute;
+      inset: auto 20px 22px 20px;
+      z-index: 6;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      opacity: 1;
+      transition: opacity 220ms ease, transform 220ms var(--ease-soft);
+    }
+
+    .reader-quick-tools.hidden {
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+    }
+
+    .reader-tool-btn {
+      min-height: 54px;
+      padding: 8px 10px;
+      border-radius: 18px;
+      background: rgba(255, 251, 246, 0.88);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .reader-tool-btn strong {
+      font-size: 0.8rem;
+      line-height: 1;
+    }
+
+    .reader-tool-btn span {
+      color: var(--ink-2);
+      font-size: 0.68rem;
+      line-height: 1;
+    }
+
+    .reader-shell {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 0 28px;
+      background: none;
+    }
+
+    .reader-inner {
+      flex: 1;
+      overflow: auto;
+      padding: 128px 0 100px;
+      scrollbar-width: none;
+    }
+
+    .reader-inner::-webkit-scrollbar {
+      display: none;
+    }
+
+    .reader-hint {
+      position: static;
+      display: inline-flex;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--ink-2);
+      box-shadow: none;
+      font-size: 0.78rem;
+      margin-bottom: 18px;
+    }
+
+    .reader-article {
+      font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+      color: #2d241d;
+      line-height: 1.98;
+      font-size: 1.08rem;
+      letter-spacing: 0.02em;
+      word-break: break-word;
+    }
+
+    .reader-article h2 {
+      margin: 0 0 18px;
+      font-size: 1.35rem;
+      line-height: 1.4;
+      letter-spacing: -0.03em;
+    }
+
+    .reader-article p {
+      margin: 0 0 18px;
+      text-indent: 2em;
+    }
+
+    .reader-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      color: rgba(45, 36, 29, 0.56);
+      font-size: 0.78rem;
+    }
+
+    .reader-bottom-meta {
+      position: absolute;
+      left: 28px;
+      right: 28px;
+      bottom: 18px;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      color: rgba(45, 36, 29, 0.56);
+      font-size: 0.76rem;
+      letter-spacing: 0.01em;
+    }
+
+    .reader-bottom-meta span:nth-child(2) {
+      text-align: center;
+    }
+
+    .reader-bottom-meta span:nth-child(3) {
+      text-align: right;
+    }
+
+    .bottom-nav {
+      position: absolute;
+      inset: auto 16px 16px;
+      z-index: 8;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+      border-radius: 26px;
+      background: rgba(255, 251, 246, 0.82);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.76);
+      box-shadow: 0 18px 34px rgba(39, 30, 20, 0.18);
+    }
+
+    .nav-btn {
+      min-height: 56px;
+      border-radius: 18px;
+      color: var(--ink-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .nav-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      box-shadow: 0 16px 26px rgba(31, 92, 83, 0.22);
+    }
+
+    .nav-icon {
+      font-size: 1rem;
+    }
+
+    .overlay-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 12;
+      pointer-events: none;
+    }
+
+    .scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(28, 22, 17, 0.28);
+      opacity: 0;
+      animation: fade-in 160ms ease forwards;
+      pointer-events: auto;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    .overlay-panel {
+      position: absolute;
+      pointer-events: auto;
+      border-radius: 22px;
+      background: rgba(255, 251, 246, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      box-shadow: var(--shadow-xl);
+      backdrop-filter: blur(20px);
+      animation: panel-rise 240ms var(--ease-spring) both;
+    }
+
+    @keyframes panel-rise {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .menu-panel {
+      top: 94px;
+      right: 18px;
+      width: 246px;
+      padding: 10px;
+    }
+
+    .menu-item {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 12px;
+      border-radius: 16px;
+      text-align: left;
+      color: var(--ink-0);
+    }
+
+    .menu-item + .menu-item {
+      margin-top: 4px;
+    }
+
+    .menu-item:hover {
+      background: rgba(247, 241, 234, 0.84);
+    }
+
+    .menu-item strong,
+    .option-item strong {
+      display: block;
+      font-size: 0.9rem;
+      line-height: 1.3;
+    }
+
+    .menu-item span,
+    .option-item span {
+      display: block;
+      margin-top: 4px;
+      color: var(--ink-2);
+      font-size: 0.74rem;
+      line-height: 1.5;
+    }
+
+    .menu-mark {
+      color: var(--brand);
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .sheet-panel {
+      inset: auto 12px 14px 12px;
+      padding: 12px;
+      border-radius: 26px;
+    }
+
+    .drawer-panel {
+      top: 0;
+      bottom: 0;
+      width: min(82%, 316px);
+      padding: 18px 14px 18px 16px;
+      border-radius: 0;
+      backdrop-filter: blur(26px);
+      animation: drawer-in 260ms var(--ease-spring) both;
+    }
+
+    .drawer-panel.left {
+      left: 0;
+      border-top-right-radius: 24px;
+      border-bottom-right-radius: 24px;
+    }
+
+    .drawer-panel.right {
+      right: 0;
+      border-top-left-radius: 24px;
+      border-bottom-left-radius: 24px;
+    }
+
+    @keyframes drawer-in {
+      from {
+        opacity: 0;
+        transform: translateX(-18px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .drawer-panel.right {
+      animation-name: drawer-in-right;
+    }
+
+    @keyframes drawer-in-right {
+      from {
+        opacity: 0;
+        transform: translateX(18px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .drawer-handle {
+      position: absolute;
+      top: 50%;
+      width: 16px;
+      height: 72px;
+      margin-top: -36px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px solid rgba(41, 43, 54, 0.08);
+      box-shadow: var(--shadow-md);
+    }
+
+    .drawer-panel.left .drawer-handle {
+      right: -8px;
+    }
+
+    .drawer-panel.right .drawer-handle {
+      left: -8px;
+    }
+
+    .drawer-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .drawer-item {
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+    }
+
+    .drawer-item.expanded {
+      background: rgba(216, 235, 227, 0.3);
+      border-color: rgba(31, 92, 83, 0.1);
+    }
+
+    .drawer-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .drawer-title {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .drawer-meta {
+      display: block;
+      margin-top: 4px;
+      color: var(--ink-2);
+      font-size: 0.74rem;
+      line-height: 1.45;
+    }
+
+    .drawer-toggle,
+    .drawer-action {
+      min-height: 32px;
+      padding: 0 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(41, 43, 54, 0.08);
+      background: rgba(255, 255, 255, 0.84);
+      color: var(--ink-1);
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .drawer-children {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(41, 43, 54, 0.08);
+      color: var(--ink-2);
+      font-size: 0.74rem;
+      line-height: 1.6;
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      padding: 4px 4px 10px;
+    }
+
+    .sheet-head h4 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .sheet-head p {
+      margin: 4px 0 0;
+      color: var(--ink-2);
+      font-size: 0.78rem;
+    }
+
+    .option-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .reader-settings-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .setting-group {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+    }
+
+    .setting-group h5 {
+      margin: 0 0 10px;
+      font-size: 0.84rem;
+      color: var(--ink-1);
+      letter-spacing: 0.02em;
+    }
+
+    .tiny-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tiny-chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(247, 241, 234, 0.9);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ink-1);
+    }
+
+    .tiny-chip.active {
+      background: rgba(216, 235, 227, 0.94);
+      color: var(--brand-strong);
+      border-color: rgba(31, 92, 83, 0.12);
+    }
+
+    .palette-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .palette-swatch {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 8px 18px rgba(41, 43, 54, 0.12);
+    }
+
+    .option-item {
+      width: 100%;
+      padding: 14px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(41, 43, 54, 0.06);
+      background: rgba(255, 255, 255, 0.78);
+      text-align: left;
+    }
+
+    .option-item.active {
+      background: rgba(216, 235, 227, 0.92);
+      border-color: rgba(31, 92, 83, 0.12);
+    }
+
+    .floating-bubble {
+      position: absolute;
+      right: 18px;
+      bottom: 110px;
+      z-index: 9;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(31, 92, 83, 0.98), rgba(18, 65, 59, 0.96));
+      color: #f5fbf9;
+      box-shadow: 0 24px 36px rgba(31, 92, 83, 0.28);
+      animation: bubble-float 2.8s ease-in-out infinite;
+    }
+
+    .floating-bubble.manual {
+      background: linear-gradient(135deg, rgba(210, 119, 79, 0.98), rgba(177, 91, 56, 0.96));
+      box-shadow: 0 24px 36px rgba(210, 119, 79, 0.24);
+    }
+
+    @keyframes bubble-float {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
+    }
+
+    .floating-bubble small {
+      color: rgba(245, 251, 249, 0.76);
+      font-size: 0.66rem;
+    }
+
+    .detail-layout {
+      display: grid;
+      gap: 16px;
+    }
+
+    .detail-hero {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+    }
+
+    .detail-cover {
+      height: 154px;
+      border-radius: 22px;
+      box-shadow: 0 18px 28px rgba(34, 24, 14, 0.18);
+    }
+
+    .detail-meta {
+      display: grid;
+      gap: 8px;
+    }
+
+    .detail-meta .screen-title {
+      font-size: 1.28rem;
+    }
+
+    .detail-section-title {
+      margin: 0 0 8px;
+      font-size: 0.92rem;
+      color: var(--ink-2);
+      letter-spacing: 0.03em;
+    }
+
+    .detail-paragraph {
+      margin: 0;
+      color: var(--ink-1);
+      line-height: 1.75;
+      font-size: 0.9rem;
+    }
+
+    .cache-stat {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat-card {
+      padding: 12px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+    }
+
+    .stat-card span {
+      display: block;
+      color: var(--ink-2);
+      font-size: 0.74rem;
+    }
+
+    .stat-card strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 1.1rem;
+    }
+
+    .notice {
+      position: absolute;
+      left: 50%;
+      bottom: 92px;
+      transform: translateX(-50%);
+      z-index: 15;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: rgba(23, 23, 28, 0.86);
+      color: #fff;
+      box-shadow: 0 20px 32px rgba(15, 15, 18, 0.2);
+      font-size: 0.82rem;
+      animation: notice-pop 220ms var(--ease-spring) both;
+      white-space: nowrap;
+    }
+
+    @keyframes notice-pop {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+      }
+    }
+
+    .reader-ghost {
+      position: fixed;
+      z-index: 999;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 28px 60px rgba(21, 18, 16, 0.3);
+      transition:
+        left 420ms var(--ease-spring),
+        top 420ms var(--ease-spring),
+        width 420ms var(--ease-spring),
+        height 420ms var(--ease-spring),
+        border-radius 420ms var(--ease-spring),
+        opacity 420ms ease;
+    }
+
+    .reader-ghost::after {
+      font-size: 1rem;
+    }
+
+    .right-notes {
+      display: grid;
+      gap: 16px;
+      align-self: stretch;
+    }
+
+    .notes-card {
+      padding: 20px;
+    }
+
+    .notes-card h3 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .notes-badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .notes-badge {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(41, 43, 54, 0.06);
+      color: var(--ink-1);
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .legend-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .legend-list li {
+      display: grid;
+      grid-template-columns: 10px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      color: var(--ink-1);
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      margin-top: 5px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.brand {
+      background: var(--brand);
+    }
+
+    .legend-dot.accent {
+      background: var(--accent);
+    }
+
+    .legend-dot.ink {
+      background: #7a7e86;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink-2);
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .empty-divider {
+      height: 1px;
+      margin: 16px 0;
+      background: linear-gradient(90deg, transparent, rgba(41, 43, 54, 0.1), transparent);
+    }
+
+    @media (max-width: 1220px) {
+      .prototype-shell {
+        grid-template-columns: 1fr minmax(340px, 460px);
+      }
+
+      .right-notes {
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 900px) {
+      .prototype-shell {
+        width: min(100% - 20px, 1380px);
+        grid-template-columns: 1fr;
+        padding-top: 18px;
+      }
+
+      .stage {
+        min-height: auto;
+      }
+
+      .phone {
+        position: relative;
+        top: auto;
+      }
+
+      .right-notes {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="prototype-shell">
+    <section class="panel hero">
+      <div class="eyebrow">文文tome · V2 原型</div>
+      <h1>严格按我们刚刚确认的功能边界重画</h1>
+      <p>
+        这个页面不是概念草图，而是给你看交互关系和视觉气质的高保真可点击原型。底部只保留
+        `书架 / 发现 / 我的`，导入收进书架菜单，发现页明确拆成 `书源搜索` 和 `浏览器找书` 两条链路。
+      </p>
+      <div class="hero-grid">
+        <article class="feature-card">
+          <strong>本轮重点</strong>
+          <ul class="feature-list">
+            <li>书架只做书架，不再混同步、AI、发现。</li>
+            <li>发现页顶部双入口，书源搜索和浏览器找书分开。</li>
+            <li>阅读页保留右上角下载和菜单，工具只在需要时呼出。</li>
+            <li>下载缓存统一落到书架右上角菜单内管理。</li>
+          </ul>
+        </article>
+        <article class="feature-card">
+          <strong>动效表达</strong>
+          <ul class="feature-list">
+            <li>点击书架封面时，书从卡片位置展开进阅读页。</li>
+            <li>关闭阅读时，页面收回原来的书架位置。</li>
+            <li>发现页双入口、菜单、搜索引擎切换都带层级转场。</li>
+            <li>浏览器找书保留悬浮优化阅读按钮与自动/手动模式。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="stage">
+      <div class="phone">
+        <div class="phone-screen">
+          <div id="app" class="app"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="right-notes">
+      <article class="notes-card panel">
+        <h3>这版原型包含</h3>
+        <ul class="legend-list">
+          <li><span class="legend-dot brand"></span><span>书架首页、书源搜索、浏览器找书、我的页。</span></li>
+          <li><span class="legend-dot accent"></span><span>书籍详情、阅读页、下载缓存管理、下载方案弹层。</span></li>
+          <li><span class="legend-dot ink"></span><span>发现页右上角联动菜单、搜索引擎切换面板、换源面板。</span></li>
+        </ul>
+        <div class="notes-badge-row">
+          <span class="notes-badge">现代暖纸感</span>
+          <span class="notes-badge">轻玻璃层次</span>
+          <span class="notes-badge">阅读优先</span>
+          <span class="notes-badge">空间转场</span>
+        </div>
+      </article>
+
+      <article class="notes-card panel">
+        <h3>你可以重点点这些</h3>
+        <ul class="notes-list">
+          <li>书架右上角 `···`，看导入书籍和下载缓存管理如何归位。</li>
+          <li>发现页切换到 `浏览器找书`，试试左侧搜索引擎标签和右上角菜单。</li>
+          <li>点任意封面进入阅读，再点右上角下载和菜单看统一规则。</li>
+          <li>在阅读菜单里试 `换源`，看章节失效时如何切到别的源。</li>
+        </ul>
+      </article>
+    </aside>
+  </div>
+
+  <script>
+    const books = [
+      {
+        id: "jiangliu",
+        title: "信江潮生",
+        author: "月舟",
+        source: "本地 TXT",
+        progress: 68,
+        chapter: "第 126 章 雨后回城",
+        coverClass: "cover-c1",
+        description: "一部沿江而生的现实叙事长篇，缓慢铺开人物关系和地域气味，适合沉浸式长时间阅读。",
+        summary: "本地导入后保留章节结构、封面与最近阅读位置。详情页可自动联网补全作者、简介和标签。"
+      },
+      {
+        id: "wushan",
+        title: "雾山灯影",
+        author: "纪砚",
+        source: "本地 EPUB",
+        progress: 31,
+        chapter: "第 42 章 长街余烬",
+        coverClass: "cover-c2",
+        description: "偏悬疑和地方志质感的长篇，章节篇幅短，适合分段缓存。",
+        summary: "EPUB 进入阅读时同样走统一阅读页，右上角保留下载和详情入口。"
+      },
+      {
+        id: "haifeng",
+        title: "海风未落",
+        author: "沈知遇",
+        source: "书源搜索 · 起点镜像",
+        progress: 12,
+        chapter: "第 18 章 暗港潮汐",
+        coverClass: "cover-c3",
+        description: "书源检索得到的连载书籍，进入前先展示作者、简介、来源，再决定加入书架或开始阅读。",
+        summary: "支持章节级换源，遇到单源失效时允许下一章直接切到其他可用来源。"
+      },
+      {
+        id: "chenxiao",
+        title: "尘嚣之外",
+        author: "青岚",
+        source: "浏览器找书 · 全网识别",
+        progress: 7,
+        chapter: "第 11 节 野地晨雾",
+        coverClass: "cover-c4",
+        description: "来自浏览器找书模式，识别目录页后自动抽正文，并支持继续抓取“下一章”。",
+        summary: "浏览器找书不强制先走详情，但进阅读后也能从右上角菜单进入书籍详情。"
+      }
+    ];
+
+    const sourceResults = [
+      {
+        id: "haifeng",
+        title: "海风未落",
+        author: "沈知遇",
+        source: "起点镜像 A",
+        words: "183 万字 · 连载中",
+        tags: ["都市", "群像", "可换源"],
+        coverClass: "cover-c3"
+      },
+      {
+        id: "jiangbei",
+        title: "江北旧梦",
+        author: "北时",
+        source: "番茄镜像 B",
+        words: "96 万字 · 已完结",
+        tags: ["年代", "成长", "已缓存目录"],
+        coverClass: "cover-c5"
+      },
+      {
+        id: "qianchao",
+        title: "浅潮记",
+        author: "阿弥",
+        source: "书源聚合 C",
+        words: "254 万字 · 连载中",
+        tags: ["海岛", "慢热", "多源可读"],
+        coverClass: "cover-c6"
+      }
+    ];
+
+    const cacheItems = [
+      {
+        id: "cache-haifeng",
+        title: "海风未落",
+        source: "书源搜索",
+        range: "已缓存：后续 120 章",
+        progress: 72,
+        coverClass: "cover-c3"
+      },
+      {
+        id: "cache-chenxiao",
+        title: "尘嚣之外",
+        source: "浏览器找书",
+        range: "已缓存：整本抓取至第 248 章",
+        progress: 46,
+        coverClass: "cover-c4"
+      },
+      {
+        id: "cache-jiangliu",
+        title: "信江潮生",
+        source: "本地导入",
+        range: "封面与目录已同步",
+        progress: 100,
+        coverClass: "cover-c1"
+      }
+    ];
+
+    const engines = ["必应", "百度", "搜狗", "搜狐", "神马", "谷歌", "自定义"];
+
+    const sourceAlternatives = [
+      { name: "起点镜像 A", status: "当前章节可读，下一章已失效", tone: "warn" },
+      { name: "书源聚合 C", status: "已定位到第 127 章，可无缝续读", tone: "ok" },
+      { name: "番茄镜像 B", status: "目录较旧，缺少近 6 章", tone: "mute" }
+    ];
+
+    const state = {
+      tab: "shelf",
+      discoverMode: "source",
+      view: "root",
+      sheet: null,
+      activeBookId: "jiangliu",
+      detailBookId: "haifeng",
+      browserEngine: "必应",
+      browserMode: "标准浏览",
+      browserAssist: "auto",
+      readerUiVisible: false,
+      notice: "",
+      noticeTimer: null,
+      readerOrigin: null
+    };
+
+    const app = document.getElementById("app");
+
+    function getBook(id) {
+      return books.find((book) => book.id === id) || books[0];
+    }
+
+    function showNotice(text) {
+      state.notice = text;
+      render();
+      if (state.noticeTimer) {
+        clearTimeout(state.noticeTimer);
+      }
+      state.noticeTimer = window.setTimeout(() => {
+        state.notice = "";
+        render();
+      }, 2200);
+    }
+
+    function headerTitle() {
+      if (state.view === "downloads") {
+        return ["下载缓存管理", "统一管理本地与网络书籍缓存"];
+      }
+      if (state.view === "detail") {
+        return ["书籍详情", "作者、简介、封面与来源信息"];
+      }
+      if (state.view === "reader") {
+        const book = getBook(state.activeBookId);
+        return [book.title, book.chapter];
+      }
+      if (state.tab === "discover") {
+        return ["发现", state.discoverMode === "source" ? "书源搜索" : "浏览器找书"];
+      }
+      if (state.tab === "me") {
+        return ["我的", "AI、同步与偏好设置"];
+      }
+      return ["书架", "继续阅读与统一管理"];
+    }
+
+    function renderHeaderActions() {
+      if (state.view === "reader") {
+        return "";
+      }
+
+      if (state.view === "detail" || state.view === "downloads") {
+        return `
+          <div class="action-row">
+            <button class="icon-btn" data-action="go-root" aria-label="返回首页">←</button>
+          </div>
+        `;
+      }
+
+      if (state.view === "root" && state.tab === "me") {
+        return "";
+      }
+
+      return `
+        <div class="action-row">
+          <button class="icon-btn" data-action="toggle-sheet" data-sheet="${state.tab === "discover" ? "discover-menu" : "shelf-menu"}" aria-label="打开菜单">···</button>
+        </div>
+      `;
+    }
+
+    function renderSegmented() {
+      if (state.view !== "root" || state.tab !== "discover") {
+        return "";
+      }
+
+      return `
+        <div class="segmented" role="tablist" aria-label="发现模式切换">
+          <button class="seg-btn ${state.discoverMode === "source" ? "active" : ""}" data-action="switch-discover" data-mode="source">书源搜索</button>
+          <button class="seg-btn ${state.discoverMode === "browser" ? "active" : ""}" data-action="switch-discover" data-mode="browser">浏览器找书</button>
+        </div>
+      `;
+    }
+
+    function renderShelf() {
+      const activeBook = getBook("jiangliu");
+
+      return `
+        <section class="hero-banner">
+          <span class="banner-kicker">书架首页 · 纯阅读默认态</span>
+          <h2 class="banner-title">${activeBook.title}</h2>
+          <p class="banner-copy">书架首页只放书、阅读进度与管理入口。导入和下载缓存全部收进右上角菜单，不再单独占一个底部 tab。</p>
+          <div class="banner-meta">
+            <div class="metric">
+              <span class="metric-label">已读进度</span>
+              <span class="metric-value">${activeBook.progress}%</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">当前章节</span>
+              <span class="metric-value">126 章</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">阅读状态</span>
+              <span class="metric-value">可继续</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h3>我的书架</h3>
+            <span>纯书架，不混 AI / 同步 / 发现</span>
+          </div>
+          <div class="filter-row">
+            <button class="filter-chip active">全部</button>
+            <button class="filter-chip">本地导入</button>
+            <button class="filter-chip">网文连载</button>
+            <button class="filter-chip">最近更新</button>
+          </div>
+          <div class="section"></div>
+          <div class="book-grid">
+            ${books
+              .map(
+                (book) => `
+                  <button class="book-card" data-action="open-reader" data-book="${book.id}" data-origin="shelf">
+                    <span class="book-cover ${book.coverClass}" data-title="${book.title}"></span>
+                    <span class="book-title">${book.title}</span>
+                    <span class="book-meta">${book.source}<br />${book.chapter}</span>
+                    <div class="progress">
+                      <div class="progress-bar" style="--width:${book.progress}%"><span></span></div>
+                      <span class="progress-value">${book.progress}%</span>
+                    </div>
+                  </button>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderSourceSearch() {
+      return `
+        <section class="search-card">
+          <h3>站内搜索</h3>
+          <p>站内搜索就是基于已导入并启用的书源来搜书。先搜，再进详情页，再决定加入书架或开始阅读。</p>
+          <div class="cta-row">
+            <button class="filter-chip active">已启用 12 个书源</button>
+            <button class="filter-chip">聚合排序</button>
+            <button class="filter-chip">优先最新章节</button>
+          </div>
+          <div class="section"></div>
+          <div class="search-row">
+            <div class="search-input">
+              <span>🔎</span>
+              <span class="search-placeholder">搜索书名、作者、别名……</span>
+            </div>
+            <button class="search-submit" data-action="show-notice" data-text="这里会按已启用书源发起搜索">搜索</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h3>搜索结果</h3>
+            <span>点击先进入书籍详情</span>
+          </div>
+          <div class="result-list">
+            ${sourceResults
+              .map(
+                (item) => `
+                  <div class="result-item">
+                    <div class="mini-cover ${item.coverClass}"></div>
+                    <div>
+                      <span class="item-title">${item.title}</span>
+                      <span class="item-meta">${item.author} · ${item.words}<br />来源：${item.source}</span>
+                      <div class="tag-row">
+                        ${item.tags.map((tag, index) => `<span class="tag ${index === 2 ? "brand" : ""}">${tag}</span>`).join("")}
+                      </div>
+                    </div>
+                    <button class="result-btn" data-action="open-detail" data-book="${item.id}">详情</button>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderBrowserSearch() {
+      return `
+        <section class="browser-card">
+          <h3>浏览器找书</h3>
+          <p>顶部左侧是搜索引擎快速切换标签，右上角菜单负责搜索引擎管理、自定义搜索引擎和浏览器模式设置。</p>
+          <div class="cta-row">
+            <button class="filter-chip active">${state.browserMode}</button>
+            <button class="filter-chip">${state.browserAssist === "auto" ? "自动优化阅读" : "手动长按优化"}</button>
+          </div>
+          <div class="section"></div>
+          <div class="browser-row">
+            <button class="chip-btn" data-action="toggle-sheet" data-sheet="engine-switcher">${state.browserEngine}</button>
+            <div class="browser-input">
+              <span>🔎</span>
+              <span class="search-placeholder">在 ${state.browserEngine} 中搜索：海风未落 最新章节</span>
+            </div>
+            <button class="search-submit" data-action="show-notice" data-text="这里会打开内置浏览器并进入搜索结果页">进入</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h3>网页识别中</h3>
+            <span>内置浏览器 · 自动识别目录与正文</span>
+          </div>
+          <div class="info-card">
+            <div class="tag-row">
+              <span class="tag brand">已识别小说目录页</span>
+              <span class="tag">当前站点：xxxs.example</span>
+            </div>
+            <div class="empty-divider"></div>
+            <p>检测到：书名《尘嚣之外》、目录 248 章、下一章链接、正文块、封面图。</p>
+            <div class="cta-row">
+              <button class="cta-btn primary" data-action="open-reader" data-book="chenxiao" data-origin="browser">优化阅读</button>
+              <button class="cta-btn tertiary" data-action="show-notice" data-text="会继续抓取后续章节并保留封面">加入书架</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h3>浏览器模式</h3>
+            <span>在发现页右上角菜单里管理</span>
+          </div>
+          <div class="filter-row">
+            ${["标准浏览", "沉浸找书", "阅读优化优先"]
+              .map(
+                (mode) => `
+                  <button class="filter-chip ${state.browserMode === mode ? "active" : ""}" data-action="set-browser-mode" data-mode="${mode}">${mode}</button>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
+
+        <button class="floating-bubble ${state.browserAssist === "manual" ? "manual" : ""}" data-action="toggle-sheet" data-sheet="assist-settings" aria-label="优化阅读设置">
+          <span>优化阅读</span>
+          <small>${state.browserAssist === "auto" ? "自动识别后即转换" : "长按悬浮窗手动触发"}</small>
+        </button>
+      `;
+    }
+
+    function renderDiscover() {
+      return state.discoverMode === "source" ? renderSourceSearch() : renderBrowserSearch();
+    }
+
+    function renderMe() {
+      return `
+        <section class="hero-banner">
+          <span class="banner-kicker">我的 · 辅助能力统一收口</span>
+          <h2 class="banner-title">AI 与同步不再挤进首页</h2>
+          <p class="banner-copy">书架页不再混大卡片，这里单独承接 AI、同步、偏好设置、关于与高级功能。</p>
+        </section>
+
+        <section class="section">
+          <div class="result-list">
+            <div class="result-item">
+              <div class="mini-cover cover-c1"></div>
+              <div>
+                <span class="item-title">AI 伴读</span>
+                <span class="item-meta">摘要、角色卡、对白分析、长文问答统一放在这里。</span>
+              </div>
+              <button class="result-btn" data-action="show-notice" data-text="AI 能力后续会重新接回">进入</button>
+            </div>
+            <div class="result-item">
+              <div class="mini-cover cover-c5"></div>
+              <div>
+                <span class="item-title">同步中心</span>
+                <span class="item-meta">GitHub 同步、阅读进度备份、设备迁移放在一个清晰入口。</span>
+              </div>
+              <button class="result-btn" data-action="show-notice" data-text="同步入口保留，但不再干扰书架主链">进入</button>
+            </div>
+            <div class="result-item">
+              <div class="mini-cover cover-c2"></div>
+              <div>
+                <span class="item-title">个性化与高级功能</span>
+                <span class="item-meta">主题、字号、缓存策略、实验室功能与关于信息。</span>
+              </div>
+              <button class="result-btn" data-action="show-notice" data-text="这里承接设置与关于等低频能力">查看</button>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function renderDetail() {
+      const book = getBook(state.detailBookId);
+
+      return `
+        <a class="back-link" href="#" data-action="go-root">← 返回上一层</a>
+        <div class="detail-layout">
+          <section class="detail-card">
+            <div class="detail-hero">
+              <div class="detail-cover ${book.coverClass}"></div>
+              <div class="detail-meta">
+                <h2 class="screen-title">${book.title}</h2>
+                <p class="screen-subtitle">${book.author} · ${book.source}</p>
+                <div class="tag-row">
+                  <span class="tag brand">资料已同步</span>
+                  <span class="tag">可加入书架</span>
+                  <span class="tag">${book.id === "haifeng" ? "支持换源" : "可联网补全资料"}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="detail-card">
+            <h3>简介</h3>
+            <p class="detail-paragraph">${book.description}</p>
+            <div class="empty-divider"></div>
+            <h4 class="detail-section-title">来源说明</h4>
+            <p class="detail-paragraph">${book.summary}</p>
+          </section>
+
+          <section class="detail-card">
+            <h4 class="detail-section-title">统一操作</h4>
+            <div class="cta-row">
+              <button class="cta-btn primary" data-action="open-reader" data-book="${book.id}" data-origin="detail">开始阅读</button>
+              <button class="cta-btn secondary" data-action="show-notice" data-text="加入书架后会和本地书一起统一管理">加入书架</button>
+              <button class="cta-btn tertiary" data-action="open-download-sheet">下载缓存</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function renderDownloads() {
+      return `
+        <a class="back-link" href="#" data-action="go-root">← 返回书架</a>
+        <section class="cache-card">
+          <div class="cache-stat">
+            <div class="stat-card">
+              <span>缓存书籍</span>
+              <strong>18 本</strong>
+            </div>
+            <div class="stat-card">
+              <span>网络缓存</span>
+              <strong>1.8 GB</strong>
+            </div>
+            <div class="stat-card">
+              <span>本地封面</span>
+              <strong>全部保留</strong>
+            </div>
+          </div>
+          <p>这里统一管理书源搜索加入的书、浏览器找书识别的书和本地书籍的缓存，不再分裂成不同入口。</p>
+        </section>
+        <section class="cache-list">
+          ${cacheItems
+            .map(
+              (item) => `
+                <div class="cache-item">
+                  <div class="mini-cover ${item.coverClass}"></div>
+                  <div>
+                    <span class="item-title">${item.title}</span>
+                    <span class="item-meta">${item.source}<br />${item.range}</span>
+                    <div class="progress">
+                      <div class="progress-bar" style="--width:${item.progress}%"><span></span></div>
+                      <span class="progress-value">${item.progress}%</span>
+                    </div>
+                  </div>
+                  <button class="result-btn" data-action="open-download-sheet" data-book="${item.id}">管理</button>
+                </div>
+              `
+            )
+            .join("")}
+        </section>
+      `;
+    }
+
+    function renderReader() {
+      const book = getBook(state.activeBookId);
+      const bookPercent = Math.round((126 / 238) * 100);
+      const chapterPercent = 42;
+
+      return `
+        <div class="reader-shell">
+          <div class="reader-top">
+            <div class="reader-system-bar">
+              <span>9:41</span>
+              <div class="reader-system-right">
+                <span>Wi-Fi</span>
+                <span>电量 82%</span>
+              </div>
+            </div>
+            <div class="reader-toolbar ${state.readerUiVisible ? "" : "hidden"}">
+              <button class="icon-btn ghost" data-action="close-reader" aria-label="关闭阅读">×</button>
+              <div class="title-block">
+                <h2 class="screen-title">${book.title}</h2>
+                <p class="screen-subtitle">${book.chapter}</p>
+              </div>
+              <div class="action-row">
+                <button class="icon-btn" data-action="open-download-sheet" data-book="${book.id}" aria-label="下载">↓</button>
+                <button class="icon-btn" data-action="toggle-sheet" data-sheet="reader-menu" aria-label="阅读菜单">···</button>
+              </div>
+            </div>
+          </div>
+          <div class="reader-inner" data-action="toggle-reader-ui">
+            <div class="reader-hint">轻触正文呼出工具，默认以纯阅读态进入</div>
+            <article class="reader-article">
+              <h2>${book.chapter}</h2>
+              <p>风从信江上游吹来时，河滩还带着昨夜雨水的潮气。堤岸边的芦苇顺着风势一齐伏下去，远处的轮渡像被雾气轻轻抬高，渡口的灯还没灭，白得像一小截还没睡醒的清晨。</p>
+              <p>他沿着旧堤往前走，鞋底踩在还没完全干透的石板上，能听见一点带水声的回响。城里已经开始亮起来了，可这条沿江的路总比别处慢半拍，像故意把清醒往后拖一会儿，让人还能多站在昨天和今天的缝里。</p>
+              <p>手机在口袋里震了两下，是昨晚没回完的消息。屏幕亮起的一刻，他看见自己模糊的影子叠在江面颜色上，像一张迟迟没翻过去的章节页。要是这个时候切到别的书源，系统会先记住当前位置，再去对齐下一章标题，尽量不让阅读被打断。</p>
+              <p>他把手缩回衣袖里，继续往前。风又起了一阵，带着一点铁锈味和水汽，把城市的边缘推得更近，也把他心里那些没说出口的话推到了唇边。路灯一盏一盏灭下去的时候，他忽然觉得，今天可能适合重新开始讲一个很久以前没讲完的故事。</p>
+              <p>这正是新阅读页想保留的感觉：正文尽量完整铺开，工具和管理都退到需要时再出现，不让旁边的功能面板一直挤着文字。下载、详情、换源仍然在右上角，但不会长期占住视觉焦点。</p>
+              <p>如果你从浏览器找书进入，这里同样可以继续下载后续章节、查看联网补全的书籍详情，或者在章节失效时快速切到别的来源。无论书是从本地、书源还是网页识别来的，阅读页的操作结构都保持一致。</p>
+            </article>
+          </div>
+          <div class="reader-bottom-meta">
+            <span>电量 82%</span>
+            <span>全书 ${bookPercent}%</span>
+            <span>章节 ${chapterPercent}%</span>
+          </div>
+          <div class="reader-quick-tools ${state.readerUiVisible ? "" : "hidden"}">
+            <button class="reader-tool-btn" data-action="toggle-sheet" data-sheet="reader-toc">
+              <strong>目录</strong>
+              <span>章节列表</span>
+            </button>
+            <button class="reader-tool-btn" data-action="toggle-sheet" data-sheet="reader-bookmarks">
+              <strong>书签</strong>
+              <span>标记片段</span>
+            </button>
+            <button class="reader-tool-btn" data-action="toggle-sheet" data-sheet="reader-typography">
+              <strong>排版</strong>
+              <span>字体字号</span>
+            </button>
+            <button class="reader-tool-btn" data-action="toggle-sheet" data-sheet="reader-paging">
+              <strong>翻页</strong>
+              <span>方式动画</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRootBody() {
+      if (state.view === "downloads") {
+        return renderDownloads();
+      }
+      if (state.view === "detail") {
+        return renderDetail();
+      }
+      if (state.view === "reader") {
+        return renderReader();
+      }
+      if (state.tab === "discover") {
+        return renderDiscover();
+      }
+      if (state.tab === "me") {
+        return renderMe();
+      }
+      return renderShelf();
+    }
+
+    function renderBottomNav() {
+      if (state.view !== "root") {
+        return "";
+      }
+
+      const items = [
+        { id: "shelf", label: "书架", icon: "▦" },
+        { id: "discover", label: "发现", icon: "⌕" },
+        { id: "me", label: "我的", icon: "◌" }
+      ];
+
+      return `
+        <nav class="bottom-nav" aria-label="底部导航">
+          ${items
+            .map(
+              (item) => `
+                <button class="nav-btn ${state.tab === item.id ? "active" : ""}" data-action="switch-tab" data-tab="${item.id}">
+                  <span class="nav-icon">${item.icon}</span>
+                  <span>${item.label}</span>
+                </button>
+              `
+            )
+            .join("")}
+        </nav>
+      `;
+    }
+
+    function renderOverlay() {
+      if (!state.sheet) {
+        return "";
+      }
+
+      let panel = "";
+
+      if (state.sheet === "shelf-menu") {
+        panel = `
+          <div class="overlay-panel menu-panel">
+            <button class="menu-item" data-action="show-notice" data-text="扫描本地书籍会流式展示：扫到一本显示一本，不必等全盘结束">
+              <div><strong>导入书籍</strong><span>扫描本地书籍 / 按路径手动导入</span></div>
+              <span class="menu-mark">＋</span>
+            </button>
+            <button class="menu-item" data-action="open-downloads">
+              <div><strong>下载缓存管理</strong><span>统一查看书源、浏览器、本地缓存</span></div>
+              <span class="menu-mark">→</span>
+            </button>
+            <button class="menu-item" data-action="show-notice" data-text="这里会做批量加入分组、批量删除和批量缓存策略">
+              <div><strong>批量管理</strong><span>分组、移除、加入缓存任务</span></div>
+              <span class="menu-mark">□</span>
+            </button>
+            <button class="menu-item" data-action="show-notice" data-text="会提供最近阅读、更新时间、来源等排序方式">
+              <div><strong>排序与筛选</strong><span>最近阅读 / 来源 / 类型 / 更新</span></div>
+              <span class="menu-mark">⇅</span>
+            </button>
+          </div>
+        `;
+      } else if (state.sheet === "discover-menu") {
+        panel = state.discoverMode === "source"
+          ? `
+            <div class="overlay-panel menu-panel">
+              <button class="menu-item" data-action="show-notice" data-text="这里统一管理已导入书源、启停状态和删除操作">
+                <div><strong>书源管理</strong><span>查看、启用、禁用、删除书源</span></div>
+                <span class="menu-mark">⚙</span>
+              </button>
+              <button class="menu-item" data-action="show-notice" data-text="导入新的书源 JSON 后会进入统一书源管理页">
+                <div><strong>导入书源</strong><span>JSON 导入与规则校验</span></div>
+                <span class="menu-mark">＋</span>
+              </button>
+              <button class="menu-item" data-action="show-notice" data-text="这里会做启用/禁用批量切换">
+                <div><strong>启用 / 禁用</strong><span>快速调整参与搜索的书源集合</span></div>
+                <span class="menu-mark">◎</span>
+              </button>
+              <button class="menu-item" data-action="show-notice" data-text="删除书源能力会在同一管理页里提供，不再只有导入没有删除">
+                <div><strong>删除书源</strong><span>支持单个删除和批量清理</span></div>
+                <span class="menu-mark">×</span>
+              </button>
+            </div>
+          `
+          : `
+            <div class="overlay-panel menu-panel">
+              <button class="menu-item" data-action="toggle-sheet" data-sheet="engine-switcher">
+                <div><strong>搜索引擎管理</strong><span>切换、排序、自定义搜索引擎</span></div>
+                <span class="menu-mark">⌕</span>
+              </button>
+              <button class="menu-item" data-action="show-notice" data-text="自定义搜索引擎支持名称、域名、查询参数模板">
+                <div><strong>自定义搜索引擎</strong><span>新增站点或修改默认模板</span></div>
+                <span class="menu-mark">＋</span>
+              </button>
+              <button class="menu-item" data-action="toggle-sheet" data-sheet="browser-mode">
+                <div><strong>切换浏览器模式</strong><span>标准浏览 / 沉浸找书 / 阅读优化优先</span></div>
+                <span class="menu-mark">⇄</span>
+              </button>
+              <button class="menu-item" data-action="toggle-sheet" data-sheet="assist-settings">
+                <div><strong>浏览器找书设置</strong><span>自动优化阅读或手动长按触发</span></div>
+                <span class="menu-mark">⚡</span>
+              </button>
+            </div>
+          `;
+      } else if (state.sheet === "engine-switcher") {
+        panel = `
+          <div class="overlay-panel sheet-panel">
+            <div class="sheet-head">
+              <div>
+                <h4>切换搜索引擎</h4>
+                <p>左侧标签用于快速切换，右上角菜单负责管理与新增。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="option-grid">
+              ${engines
+                .map(
+                  (engine) => `
+                    <button class="option-item ${state.browserEngine === engine ? "active" : ""}" data-action="set-engine" data-engine="${engine}">
+                      <strong>${engine}</strong>
+                      <span>${engine === "自定义" ? "用户可自定义名称、域名、搜索模板" : `一键切换为 ${engine} 搜索`}</span>
+                    </button>
+                  `
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      } else if (state.sheet === "assist-settings") {
+        panel = `
+          <div class="overlay-panel sheet-panel">
+            <div class="sheet-head">
+              <div>
+                <h4>优化阅读设置</h4>
+                <p>自动模式进入页面后检测到正文即转换，手动模式通过长按悬浮窗触发。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="option-grid">
+              <button class="option-item ${state.browserAssist === "auto" ? "active" : ""}" data-action="set-assist" data-mode="auto">
+                <strong>自动优化阅读</strong>
+                <span>识别到目录或正文后，自动转为阅读器样式。</span>
+              </button>
+              <button class="option-item ${state.browserAssist === "manual" ? "active" : ""}" data-action="set-assist" data-mode="manual">
+                <strong>手动长按优化</strong>
+                <span>关闭自动转换，长按悬浮窗后再开始正文抽取。</span>
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (state.sheet === "browser-mode") {
+        panel = `
+          <div class="overlay-panel sheet-panel">
+            <div class="sheet-head">
+              <div>
+                <h4>浏览器模式</h4>
+                <p>标准浏览更适合找站点，沉浸找书弱化网页杂项，阅读优化优先会尽快转入阅读器。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="option-grid">
+              ${["标准浏览", "沉浸找书", "阅读优化优先"]
+                .map(
+                  (mode) => `
+                    <button class="option-item ${state.browserMode === mode ? "active" : ""}" data-action="set-browser-mode" data-mode="${mode}">
+                      <strong>${mode}</strong>
+                      <span>${mode === "标准浏览" ? "默认网页结构最完整" : mode === "沉浸找书" ? "优先强化目录、正文与下一章识别" : "一旦识别正文就优先转阅读器"}</span>
+                    </button>
+                  `
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      } else if (state.sheet === "download-sheet") {
+        panel = `
+          <div class="overlay-panel sheet-panel">
+            <div class="sheet-head">
+              <div>
+                <h4>下载缓存</h4>
+                <p>所有来源统一使用同一下载规则，封面与来源信息一并保留。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="option-grid">
+              <button class="option-item" data-action="show-notice" data-text="将从当前位置开始缓存后续 50 章，并展示到统一下载管理页">
+                <strong>下载后续 50 章</strong>
+                <span>适合连载中书籍，快速离线追更。</span>
+              </button>
+              <button class="option-item" data-action="show-notice" data-text="将从当前位置开始抓取后续全部章节，直到目录末尾">
+                <strong>下载后续全部</strong>
+                <span>继续抓取未缓存章节并保留封面。</span>
+              </button>
+              <button class="option-item" data-action="show-notice" data-text="会尝试完整下载整本书，浏览器找书模式下优先识别目录，不行再按下一章连续抓取">
+                <strong>下载整本书</strong>
+                <span>支持书源、浏览器找书与详情页入口统一下载。</span>
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (state.sheet === "reader-menu") {
+        const book = getBook(state.activeBookId);
+        panel = `
+          <div class="overlay-panel menu-panel">
+            <button class="menu-item" data-action="open-detail" data-book="${book.id}" data-from-reader="true">
+              <div><strong>书籍详情</strong><span>进入详情页，必要时自动联网补全作者、简介、封面</span></div>
+              <span class="menu-mark">→</span>
+            </button>
+            <button class="menu-item" data-action="toggle-sheet" data-sheet="reader-toc">
+              <div><strong>目录</strong><span>查看章节目录并快速跳转</span></div>
+              <span class="menu-mark">≡</span>
+            </button>
+            <button class="menu-item" data-action="toggle-sheet" data-sheet="reader-bookmarks">
+              <div><strong>书签</strong><span>管理书签、高亮与最近标记</span></div>
+              <span class="menu-mark">⌑</span>
+            </button>
+            <button class="menu-item" data-action="open-download-sheet" data-book="${book.id}">
+              <div><strong>下载</strong><span>后续 N 章 / 后续全部 / 整本书</span></div>
+              <span class="menu-mark">↓</span>
+            </button>
+            <button class="menu-item" data-action="toggle-sheet" data-sheet="source-switch">
+              <div><strong>换源</strong><span>章节失效时，允许切到其他可用来源继续阅读</span></div>
+              <span class="menu-mark">⇄</span>
+            </button>
+          </div>
+        `;
+      } else if (state.sheet === "reader-toc") {
+        panel = `
+          <div class="overlay-panel drawer-panel left">
+            <div class="drawer-handle"></div>
+            <div class="sheet-head">
+              <div>
+                <h4>目录</h4>
+                <p>左侧抽屉查看目录，支持展开查看小节和侧边拖拽感的交互表达。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="drawer-list">
+              <div class="drawer-item">
+                <div class="drawer-main">
+                  <div>
+                    <span class="drawer-title">第 124 章 渡口灯影</span>
+                    <span class="drawer-meta">已缓存 · 上一章</span>
+                  </div>
+                  <button class="drawer-action" data-action="show-notice" data-text="这里会跳转到上一章">跳转</button>
+                </div>
+              </div>
+              <div class="drawer-item expanded">
+                <div class="drawer-main">
+                  <div>
+                    <span class="drawer-title">第 126 章 雨后回城</span>
+                    <span class="drawer-meta">当前章节</span>
+                  </div>
+                  <button class="drawer-toggle" data-action="show-notice" data-text="展开后可查看本章分段与小节锚点">展开</button>
+                </div>
+                <div class="drawer-children">
+                  1. 渡口晨雾<br />
+                  2. 旧堤回声<br />
+                  3. 小站来信的伏笔
+                </div>
+              </div>
+              <div class="drawer-item">
+                <div class="drawer-main">
+                  <div>
+                    <span class="drawer-title">第 127 章 小站来信</span>
+                    <span class="drawer-meta">可继续阅读 · 可缓存</span>
+                  </div>
+                  <button class="drawer-action" data-action="show-notice" data-text="这里会跳转到下一章">跳转</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (state.sheet === "reader-bookmarks") {
+        panel = `
+          <div class="overlay-panel drawer-panel right">
+            <div class="drawer-handle"></div>
+            <div class="sheet-head">
+              <div>
+                <h4>书签与标记</h4>
+                <p>右侧抽屉用于管理书签和摘录，也可以做侧边拉出的交互落地。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="drawer-list">
+              <div class="drawer-item expanded">
+                <div class="drawer-main">
+                  <div>
+                    <span class="drawer-title">书签 01 · 渡船停靠处</span>
+                    <span class="drawer-meta">第 121 章 · 3 月 25 日</span>
+                  </div>
+                  <button class="drawer-toggle" data-action="show-notice" data-text="这里会展开完整摘录与批注">展开</button>
+                </div>
+                <div class="drawer-children">
+                  “灯影压在水面上像一封没拆的信。”<br />
+                  可继续加批注、改颜色、导出卡片。
+                </div>
+              </div>
+              <div class="drawer-item">
+                <div class="drawer-main">
+                  <div>
+                    <span class="drawer-title">书签 02 · 雨后回城</span>
+                    <span class="drawer-meta">当前章节 · 最近添加</span>
+                  </div>
+                  <button class="drawer-action" data-action="show-notice" data-text="这里会定位到当前书签">定位</button>
+                </div>
+              </div>
+              <div class="drawer-item">
+                <div class="drawer-main">
+                  <div>
+                    <span class="drawer-title">添加书签</span>
+                    <span class="drawer-meta">记录当前阅读位置与片段</span>
+                  </div>
+                  <button class="drawer-action" data-action="show-notice" data-text="会在当前位置新增书签">添加</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (state.sheet === "reader-typography") {
+        panel = `
+          <div class="overlay-panel sheet-panel">
+            <div class="sheet-head">
+              <div>
+                <h4>字体与排版</h4>
+                <p>集中控制字体、字号、行距、字距、背景调色盘和自定义字体导入。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="reader-settings-grid">
+              <div class="setting-group">
+                <h5>字体</h5>
+                <div class="tiny-chip-row">
+                  <span class="tiny-chip active">宋体阅读</span>
+                  <span class="tiny-chip">系统无衬线</span>
+                  <span class="tiny-chip">仿纸楷体</span>
+                  <span class="tiny-chip">导入字体</span>
+                </div>
+              </div>
+              <div class="setting-group">
+                <h5>字号</h5>
+                <div class="tiny-chip-row">
+                  <span class="tiny-chip">小</span>
+                  <span class="tiny-chip active">中</span>
+                  <span class="tiny-chip">大</span>
+                  <span class="tiny-chip">超大</span>
+                </div>
+              </div>
+              <div class="setting-group">
+                <h5>排版</h5>
+                <div class="tiny-chip-row">
+                  <span class="tiny-chip active">标准行距</span>
+                  <span class="tiny-chip">宽松行距</span>
+                  <span class="tiny-chip">紧凑字距</span>
+                  <span class="tiny-chip">宽版页边</span>
+                </div>
+              </div>
+              <div class="setting-group">
+                <h5>阅读背景调色盘</h5>
+                <div class="palette-row">
+                  <span class="palette-swatch" style="background:#f3e8db;"></span>
+                  <span class="palette-swatch" style="background:#efe8d7;"></span>
+                  <span class="palette-swatch" style="background:#dfe6dd;"></span>
+                  <span class="palette-swatch" style="background:#e9e0f1;"></span>
+                  <span class="palette-swatch" style="background:#1f2228;"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (state.sheet === "reader-paging") {
+        panel = `
+          <div class="overlay-panel sheet-panel">
+            <div class="sheet-head">
+              <div>
+                <h4>翻页方式与动画</h4>
+                <p>这里统一放翻页逻辑，不和字体排版混在同一页。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="reader-settings-grid">
+              <div class="setting-group">
+                <h5>翻页方式</h5>
+                <div class="tiny-chip-row">
+                  <span class="tiny-chip active">点击翻页</span>
+                  <span class="tiny-chip">左右滑动</span>
+                  <span class="tiny-chip">上下滚动</span>
+                  <span class="tiny-chip">音量键翻页</span>
+                </div>
+              </div>
+              <div class="setting-group">
+                <h5>翻页动画</h5>
+                <div class="tiny-chip-row">
+                  <span class="tiny-chip active">平移</span>
+                  <span class="tiny-chip">仿真覆盖</span>
+                  <span class="tiny-chip">卷纸</span>
+                  <span class="tiny-chip">无动画</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (state.sheet === "source-switch") {
+        panel = `
+          <div class="overlay-panel sheet-panel">
+            <div class="sheet-head">
+              <div>
+                <h4>章节级换源</h4>
+                <p>当前章节能看、下一章失效时，也允许从下一个可用来源继续接上。</p>
+              </div>
+              <button class="icon-btn" data-action="close-sheet">×</button>
+            </div>
+            <div class="source-list">
+              ${sourceAlternatives
+                .map(
+                  (item) => `
+                    <div class="source-item">
+                      <div class="mini-cover ${item.tone === "ok" ? "cover-c6" : item.tone === "warn" ? "cover-c2" : "cover-c5"}"></div>
+                      <div>
+                        <span class="item-title">${item.name}</span>
+                        <span class="item-meta">${item.status}</span>
+                      </div>
+                      <button class="result-btn" data-action="show-notice" data-text="${item.name} 已设为当前来源，系统会继续对齐到下一章">切换</button>
+                    </div>
+                  `
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="overlay-layer">
+          <button class="scrim" data-action="close-sheet" aria-label="关闭弹层"></button>
+          ${panel}
+        </div>
+      `;
+    }
+
+    function renderNotice() {
+      return state.notice ? `<div class="notice">${state.notice}</div>` : "";
+    }
+
+    function render() {
+      const [title, subtitle] = headerTitle();
+      const isReader = state.view === "reader";
+      app.className = isReader ? "app reader-app-mode" : "app";
+
+      app.innerHTML = `
+        ${isReader ? "" : `
+          <div class="status-bar">
+            <span>9:41</span>
+            <div class="status-right">
+              <span>文文tome 原型</span>
+              <span class="status-dot"></span>
+            </div>
+          </div>
+        `}
+        <section class="screen-card ${isReader ? "reader-mode" : ""}">
+          ${isReader
+            ? renderRootBody()
+            : `
+              <header class="screen-top">
+                <div class="top-row">
+                  <div class="title-block">
+                    <h2 class="screen-title">${title}</h2>
+                    <p class="screen-subtitle">${subtitle}</p>
+                  </div>
+                  ${renderHeaderActions()}
+                </div>
+                ${renderSegmented()}
+              </header>
+              <main class="screen-body">${renderRootBody()}</main>
+            `}
+          ${renderBottomNav()}
+          ${renderOverlay()}
+          ${renderNotice()}
+        </section>
+      `;
+    }
+
+    function createGhost(book, rect) {
+      const ghost = document.createElement("div");
+      ghost.className = `reader-ghost ${book.coverClass}`;
+      ghost.setAttribute("data-title", book.title);
+      ghost.style.left = `${rect.left}px`;
+      ghost.style.top = `${rect.top}px`;
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
+      ghost.style.borderRadius = "20px";
+      document.body.appendChild(ghost);
+      return ghost;
+    }
+
+    function openReaderWithAnimation(bookId, trigger) {
+      const book = getBook(bookId);
+      const screen = app.closest(".phone-screen");
+      const screenRect = screen.getBoundingClientRect();
+      const startRect = trigger ? trigger.getBoundingClientRect() : screenRect;
+      const ghost = createGhost(book, startRect);
+
+      state.readerOrigin = trigger ? { left: startRect.left, top: startRect.top, width: startRect.width, height: startRect.height, from: state.tab, bookId } : null;
+      state.activeBookId = bookId;
+      state.sheet = null;
+
+      requestAnimationFrame(() => {
+        ghost.style.left = `${screenRect.left}px`;
+        ghost.style.top = `${screenRect.top}px`;
+        ghost.style.width = `${screenRect.width}px`;
+        ghost.style.height = `${screenRect.height}px`;
+        ghost.style.borderRadius = "32px";
+      });
+
+      window.setTimeout(() => {
+        state.view = "reader";
+        state.readerUiVisible = true;
+        render();
+        window.setTimeout(() => {
+          state.readerUiVisible = false;
+          render();
+        }, 1300);
+        ghost.remove();
+      }, 430);
+    }
+
+    function closeReaderWithAnimation() {
+      const origin = state.readerOrigin;
+      if (!origin || origin.from !== "shelf") {
+        state.view = "root";
+        state.sheet = null;
+        state.readerUiVisible = false;
+        render();
+        return;
+      }
+
+      const book = getBook(state.activeBookId);
+      const screen = app.closest(".phone-screen");
+      const screenRect = screen.getBoundingClientRect();
+      const ghost = createGhost(book, screenRect);
+
+      state.view = "root";
+      state.tab = "shelf";
+      state.sheet = null;
+      state.readerUiVisible = false;
+      render();
+
+      requestAnimationFrame(() => {
+        ghost.style.left = `${origin.left}px`;
+        ghost.style.top = `${origin.top}px`;
+        ghost.style.width = `${origin.width}px`;
+        ghost.style.height = `${origin.height}px`;
+        ghost.style.borderRadius = "20px";
+      });
+
+      window.setTimeout(() => {
+        ghost.remove();
+      }, 430);
+    }
+
+    function goRoot() {
+      state.view = "root";
+      state.sheet = null;
+      render();
+    }
+
+    app.addEventListener("click", (event) => {
+      const control = event.target.closest("[data-action]");
+      if (!control) {
+        return;
+      }
+
+      const action = control.dataset.action;
+
+      if (action === "switch-tab") {
+        state.tab = control.dataset.tab;
+        state.view = "root";
+        state.sheet = null;
+        render();
+        return;
+      }
+
+      if (action === "switch-discover") {
+        state.discoverMode = control.dataset.mode;
+        state.sheet = null;
+        render();
+        return;
+      }
+
+      if (action === "toggle-sheet") {
+        const nextSheet = control.dataset.sheet;
+        state.sheet = state.sheet === nextSheet ? null : nextSheet;
+        render();
+        return;
+      }
+
+      if (action === "close-sheet") {
+        state.sheet = null;
+        render();
+        return;
+      }
+
+      if (action === "open-detail") {
+        state.detailBookId = control.dataset.book;
+        state.view = "detail";
+        state.sheet = null;
+        render();
+        return;
+      }
+
+      if (action === "open-downloads") {
+        state.view = "downloads";
+        state.sheet = null;
+        render();
+        return;
+      }
+
+      if (action === "open-download-sheet") {
+        state.sheet = "download-sheet";
+        render();
+        return;
+      }
+
+      if (action === "set-engine") {
+        state.browserEngine = control.dataset.engine;
+        state.sheet = null;
+        render();
+        return;
+      }
+
+      if (action === "set-browser-mode") {
+        state.browserMode = control.dataset.mode;
+        state.sheet = null;
+        render();
+        return;
+      }
+
+      if (action === "set-assist") {
+        state.browserAssist = control.dataset.mode;
+        state.sheet = null;
+        render();
+        return;
+      }
+
+      if (action === "show-notice") {
+        state.sheet = null;
+        showNotice(control.dataset.text);
+        return;
+      }
+
+      if (action === "open-reader") {
+        event.preventDefault();
+        const trigger =
+          event.target.closest(".book-cover, .mini-cover") ||
+          control.querySelector(".book-cover, .mini-cover") ||
+          control.closest(".book-card, .cta-btn, .result-btn") ||
+          control;
+        openReaderWithAnimation(control.dataset.book, trigger);
+        return;
+      }
+
+      if (action === "close-reader") {
+        closeReaderWithAnimation();
+        return;
+      }
+
+      if (action === "go-root") {
+        event.preventDefault();
+        goRoot();
+        return;
+      }
+
+      if (action === "toggle-reader-ui") {
+        if (state.view === "reader") {
+          state.readerUiVisible = !state.readerUiVisible;
+          render();
+        }
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

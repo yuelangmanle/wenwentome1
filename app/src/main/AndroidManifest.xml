@@ -152,6 +152,26 @@
         <activity
             android:name=".ui.book.info.BookInfoActivity"
             android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.wenwen.WenwenBookDetailActivity"
+            android:launchMode="singleTop"
+            android:screenOrientation="behind" />
+        <activity
+            android:name=".ui.wenwen.WenwenApiHubActivity"
+            android:launchMode="singleTop"
+            android:screenOrientation="behind" />
+        <activity
+            android:name=".ui.wenwen.WenwenDiscoverSettingsActivity"
+            android:launchMode="singleTop"
+            android:screenOrientation="behind" />
+        <activity
+            android:name=".ui.wenwen.WenwenReaderActivity"
+            android:launchMode="singleTask"
+            android:screenOrientation="behind" />
+        <activity
+            android:name=".ui.wenwen.WenwenBrowserReaderActivity"
+            android:launchMode="singleTop"
+            android:screenOrientation="behind" />
         <!-- 书籍信息编辑 -->
         <activity
             android:name=".ui.book.info.edit.BookInfoEditActivity"
@@ -459,6 +479,9 @@
             android:name=".service.CacheBookService"
             android:foregroundServiceType="dataSync" />
         <service
+            android:name=".service.WenwenBrowserCacheService"
+            android:foregroundServiceType="dataSync" />
+        <service
             android:name=".service.ExportBookService"
             android:foregroundServiceType="dataSync" />
         <service
@@ -469,7 +492,7 @@
             android:exported="true"
             android:foregroundServiceType="dataSync"
             android:icon="@drawable/ic_web_service_noti"
-            android:label="WenwenToMe Web Service"
+            android:label="文文tome Web Service"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             tools:targetApi="24">
             <intent-filter>

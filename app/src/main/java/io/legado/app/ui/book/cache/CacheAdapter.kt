@@ -13,6 +13,7 @@ import io.legado.app.data.entities.Book
 import io.legado.app.databinding.ItemDownloadBinding
 import io.legado.app.help.book.isLocal
 import io.legado.app.model.CacheBook
+import io.legado.app.ui.wenwen.WENWEN_BROWSER_BOOK_ORIGIN
 import io.legado.app.utils.gone
 import io.legado.app.utils.visible
 
@@ -79,14 +80,16 @@ class CacheAdapter(context: Context, private val callBack: CallBack) :
         binding.run {
             ivDownload.setOnClickListener {
                 getItem(holder.layoutPosition)?.let { book ->
-                    CacheBook.cacheBookMap[book.bookUrl]?.let {
-                        if (!it.isStop()) {
-                            CacheBook.remove(context, book.bookUrl)
-                        } else {
-                            CacheBook.start(context, book, 0, book.lastChapterIndex)
-                        }
-                    } ?: let {
-                        CacheBook.start(context, book, 0, book.lastChapterIndex)
+                    if (CacheBook.isDownloading(book.bookUrl)) {
+                        CacheBook.remove(context, book.bookUrl)
+                    } else {
+                        val endIndex =
+                            if (book.origin.startsWith(WENWEN_BROWSER_BOOK_ORIGIN)) {
+                                -1
+                            } else {
+                                book.lastChapterIndex
+                            }
+                        CacheBook.start(context, book, 0, endIndex)
                     }
                 }
             }
@@ -101,13 +104,9 @@ class CacheAdapter(context: Context, private val callBack: CallBack) :
             iv.gone()
         } else {
             iv.visible()
-            CacheBook.cacheBookMap[book.bookUrl]?.let {
-                if (!it.isStop()) {
-                    iv.setImageResource(R.drawable.ic_stop_black_24dp)
-                } else {
-                    iv.setImageResource(R.drawable.ic_play_24dp)
-                }
-            } ?: let {
+            if (CacheBook.isDownloading(book.bookUrl)) {
+                iv.setImageResource(R.drawable.ic_stop_black_24dp)
+            } else {
                 iv.setImageResource(R.drawable.ic_play_24dp)
             }
         }

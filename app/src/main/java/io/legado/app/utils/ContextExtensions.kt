@@ -40,13 +40,8 @@ import io.legado.app.R
 import io.legado.app.constant.AppConst
 import io.legado.app.data.entities.Book
 import io.legado.app.help.IntentHelp
-import io.legado.app.help.book.isAudio
-import io.legado.app.help.book.isImage
-import io.legado.app.help.book.isLocal
-import io.legado.app.help.config.AppConfig
-import io.legado.app.ui.book.audio.AudioPlayActivity
-import io.legado.app.ui.book.manga.ReadMangaActivity
-import io.legado.app.ui.book.read.ReadBookActivity
+import io.legado.app.ui.wenwen.WenwenReaderDestination
+import io.legado.app.ui.wenwen.WenwenReaderRouting
 import splitties.systemservices.clipboardManager
 import splitties.systemservices.connectivityManager
 import splitties.systemservices.uiModeManager
@@ -56,7 +51,9 @@ import kotlin.system.exitProcess
 
 inline fun <reified A : Activity> Context.startActivity(configIntent: Intent.() -> Unit = {}) {
     val intent = Intent(this, A::class.java)
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    if (this !is Activity) {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
     intent.apply(configIntent)
     startActivity(intent)
 }
@@ -65,16 +62,27 @@ fun Context.startActivityForBook(
     book: Book,
     configIntent: Intent.() -> Unit = {},
 ) {
-    val cls = when {
-        book.isAudio -> AudioPlayActivity::class.java
-        !book.isLocal && book.isImage && AppConfig.showMangaUi -> ReadMangaActivity::class.java
-        else -> ReadBookActivity::class.java
+    val intent = WenwenReaderRouting.createIntent(this, book, configIntent = configIntent)
+    if (this !is Activity) {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
-    val intent = Intent(this, cls)
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    intent.putExtra("bookUrl", book.bookUrl)
-    intent.apply(configIntent)
     startActivity(intent)
+    if (this is Activity && shouldApplyWenwenBookMotion(book)) {
+        overridePendingTransition(R.anim.wenwen_book_open_enter, R.anim.wenwen_book_open_exit)
+    }
+}
+
+fun Activity.applyWenwenBookCloseTransition() {
+    overridePendingTransition(R.anim.wenwen_book_close_enter, R.anim.wenwen_book_close_exit)
+}
+
+private fun shouldApplyWenwenBookMotion(book: Book): Boolean {
+    return when (WenwenReaderRouting.resolveDestination(book)) {
+        WenwenReaderDestination.WenwenReader,
+        WenwenReaderDestination.MangaReader,
+        WenwenReaderDestination.LegacyReader -> true
+        WenwenReaderDestination.AudioPlayer -> false
+    }
 }
 
 

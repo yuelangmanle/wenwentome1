@@ -1,9 +1,9 @@
 <resources>
     <!--App-->
-    <string name="app_name">WenwenToMe</string>
-    <string name="app_name_a">WenwenToMe·A</string>
-    <string name="receiving_shared_label">WenwenToMe·搜尋</string>
-    <string name="tip_perm_request_storage">WenwenToMe 需要訪問存儲卡權限，請前往「設定」-「應用程式權限」開啟所需要的權限</string>
+    <string name="app_name">文文tome</string>
+    <string name="app_name_a">文文tome·A</string>
+    <string name="receiving_shared_label">文文tome·搜尋</string>
+    <string name="tip_perm_request_storage">文文tome 需要訪問存儲卡權限，請前往「設定」-「應用程式權限」開啟所需要的權限</string>
 
     <!--Other-->
     <string name="menu_backup">Home</string>
@@ -90,10 +90,10 @@
     <string name="offline_cache_s">緩存已選擇的章節到本地</string>
     <string name="change_origin">換源</string>
     <string name="about_description">
-        \u3000\u3000WenwenToMe 是一個基於 Legado 底座演進的開源閲讀應用，專注本地 TXT/EPUB、網文探索與後續 AI 擴展能力。
+        \u3000\u3000文文tome 是一個基於 Legado 底座演進的開源閲讀應用，專注本地 TXT/EPUB、網文探索與後續 AI 擴展能力。
     </string>
     <string name="app_share_description">
-        WenwenToMe 下載地址：\nhttps://github.com/yuelangmanle/wenwentome1/releases
+        文文tome 下載地址：\nhttps://github.com/yuelangmanle/wenwentome1/releases
     </string>
     <string name="version_name">Version %s</string>
     <string name="pt_background_verification">後臺校驗書源</string>
@@ -689,7 +689,7 @@
     <string name="follow_official_account">關注公眾號</string>
     <string name="wechat">WeChat</string>
     <string name="thanks">你的支持是我更新的動力</string>
-    <string name="about_official_account">項目[WenwenToMe]</string>
+    <string name="about_official_account">項目[文文tome]</string>
     <string name="source_auto_changing">正在自動換源</string>
     <string name="click_to_apply">點擊加入</string>
     <string name="middle">中</string>
@@ -720,7 +720,7 @@
     <string name="text_font_weight_converter">文章字體轉換</string>
     <string name="select_backup_path">請選擇備份路徑</string>
     <string name="other">其它</string>
-    <string name="official_account">WenwenToMe</string>
+    <string name="official_account">文文tome</string>
     <string name="backup_summary">本地和WebDav壹起備份</string>
     <string name="restore_summary">優先從WebDav恢復,長按從本地恢復</string>
     <string name="import_old_summary">選擇舊版備份文件夾</string>
@@ -740,7 +740,7 @@
     <string name="alipay_red_envelope_qr_code">支付寶紅包二維碼</string>
     <string name="alipay_payment_qr_code">支付寶收款二維碼</string>
     <string name="qq_collection_qr_code">QQ收款二維碼</string>
-    <string name="contributors_summary">WenwenToMe 與 Legado 貢獻者，詳情請在 GitHub 中查看</string>
+    <string name="contributors_summary">文文tome 與 Legado 貢獻者，詳情請在 GitHub 中查看</string>
     <string name="clear_cache_summary">清除已下載書籍和字體緩存</string>
     <string name="default_cover">默認封面</string>
     <string name="restore_ignore">恢復忽略列表</string>
@@ -967,9 +967,9 @@
     <string name="welcome_style">启动界面样式</string>
     <string name="welcome_style_summary">启动界面图片和是否显示文字等</string>
     <string name="show_welcome_text">显示文字</string>
-    <string name="welcome_text">WenwenToMe|把正文留给阅读</string>
+    <string name="welcome_text">文文tome|把正文留给阅读</string>
     <string name="welcome_slogan">把正文留给阅读</string>
-    <string name="welcome_support_text">基于 Legado 底座重构，面向 WenwenToMe 演进</string>
+    <string name="welcome_support_text">基于 Legado 底座重构，面向 文文tome 演进</string>
     <string name="custom_welcome">自定义欢迎页</string>
     <string name="custom_welcome_summary">是否使用自定义欢迎页</string>
     <string name="show_icon">显示图标</string>

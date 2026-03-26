@@ -40,7 +40,8 @@ import io.legado.app.ui.main.bookshelf.style1.BookshelfFragment1
 import io.legado.app.ui.main.bookshelf.style2.BookshelfFragment2
 import io.legado.app.ui.main.explore.ExploreFragment
 import io.legado.app.ui.main.my.MyFragment
-import io.legado.app.ui.main.rss.RssFragment
+import io.legado.app.ui.main.wenwen.WenwenDiscoverFragment
+import io.legado.app.ui.main.wenwen.WenwenLibraryFragment
 import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.ui.widget.text.BadgeView
 import io.legado.app.utils.isCreated
@@ -72,16 +73,14 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     private val idBookshelf1 = 11
     private val idBookshelf2 = 12
     private val idExplore = 1
-    private val idRss = 2
-    private val idMy = 3
+    private val idMy = 2
     private var exitTime: Long = 0
     private var bookshelfReselected: Long = 0
     private var exploreReselected: Long = 0
     private var pagePosition = 0
     private val fragmentMap = hashMapOf<Int, Fragment>()
-    private var bottomMenuCount = 4
     private val EXIT_INTERVAL = 2000L
-    private val realPositions = arrayOf(idBookshelf, idExplore, idRss, idMy)
+    private val pageIds = intArrayOf(idBookshelf, idExplore, idMy)
     private val adapter by lazy {
         TabFragmentPageAdapter(supportFragmentManager)
     }
@@ -145,13 +144,10 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
                 viewPagerMain.setCurrentItem(0, false)
 
             R.id.menu_discovery ->
-                viewPagerMain.setCurrentItem(realPositions.indexOf(idExplore), false)
-
-            R.id.menu_rss ->
-                viewPagerMain.setCurrentItem(realPositions.indexOf(idRss), false)
+                viewPagerMain.setCurrentItem(1, false)
 
             R.id.menu_my_config ->
-                viewPagerMain.setCurrentItem(realPositions.indexOf(idMy), false)
+                viewPagerMain.setCurrentItem(2, false)
         }
         return false
     }
@@ -178,7 +174,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
 
     private fun initView() = binding.run {
         viewPagerMain.setEdgeEffectColor(primaryColor)
-        viewPagerMain.offscreenPageLimit = 3
+        viewPagerMain.offscreenPageLimit = 2
         viewPagerMain.adapter = adapter
         viewPagerMain.addOnPageChangeListener(PageChangeCallback())
         bottomNavigationView.elevation = elevation
@@ -351,7 +347,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
                 }
                 upBottomMenu()
                 if (it) {
-                    viewPagerMain.setCurrentItem(bottomMenuCount - 1, false)
+                    viewPagerMain.setCurrentItem(pageIds.lastIndex, false)
                 }
             }
         }
@@ -361,44 +357,25 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     }
 
     private fun upBottomMenu() {
-        val showDiscovery = AppConfig.showDiscovery
-        val showRss = AppConfig.showRSS
         binding.bottomNavigationView.menu.let { menu ->
-            menu.findItem(R.id.menu_discovery).isVisible = showDiscovery
-            menu.findItem(R.id.menu_rss).isVisible = showRss
+            menu.findItem(R.id.menu_bookshelf).isVisible = true
+            menu.findItem(R.id.menu_discovery).isVisible = true
+            menu.findItem(R.id.menu_my_config).isVisible = true
         }
-        var index = 0
-        if (showDiscovery) {
-            index++
-            realPositions[index] = idExplore
-        }
-        if (showRss) {
-            index++
-            realPositions[index] = idRss
-        }
-        index++
-        realPositions[index] = idMy
-        bottomMenuCount = index + 1
         adapter.notifyDataSetChanged()
     }
 
     private fun upHomePage() {
         when (AppConfig.defaultHomePage) {
             "bookshelf" -> {}
-            "explore" -> if (AppConfig.showDiscovery) {
-                binding.viewPagerMain.setCurrentItem(realPositions.indexOf(idExplore), false)
-            }
-
-            "rss" -> if (AppConfig.showRSS) {
-                binding.viewPagerMain.setCurrentItem(realPositions.indexOf(idRss), false)
-            }
-
-            "my" -> binding.viewPagerMain.setCurrentItem(realPositions.indexOf(idMy), false)
+            "explore" -> binding.viewPagerMain.setCurrentItem(1, false)
+            "rss" -> binding.viewPagerMain.setCurrentItem(1, false)
+            "my" -> binding.viewPagerMain.setCurrentItem(2, false)
         }
     }
 
     private fun getFragmentId(position: Int): Int {
-        val id = realPositions[position]
+        val id = pageIds[position]
         if (id == idBookshelf) {
             return if (AppConfig.bookGroupStyle == 1) idBookshelf2 else idBookshelf1
         }
@@ -409,7 +386,13 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
 
         override fun onPageSelected(position: Int) {
             pagePosition = position
-            binding.bottomNavigationView.menu[realPositions[position]].isChecked = true
+            val itemId =
+                when (position) {
+                    0 -> R.id.menu_bookshelf
+                    1 -> R.id.menu_discovery
+                    else -> R.id.menu_my_config
+                }
+            binding.bottomNavigationView.menu.findItem(itemId)?.isChecked = true
         }
 
     }
@@ -428,8 +411,9 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             val fragmentId = getId(position)
             if ((fragmentId == idBookshelf1 && any is BookshelfFragment1)
                 || (fragmentId == idBookshelf2 && any is BookshelfFragment2)
+                || ((fragmentId == idBookshelf1 || fragmentId == idBookshelf2) && any is WenwenLibraryFragment)
                 || (fragmentId == idExplore && any is ExploreFragment)
-                || (fragmentId == idRss && any is RssFragment)
+                || (fragmentId == idExplore && any is WenwenDiscoverFragment)
                 || (fragmentId == idMy && any is MyFragment)
             ) {
                 return POSITION_UNCHANGED
@@ -439,16 +423,15 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
 
         override fun getItem(position: Int): Fragment {
             return when (getId(position)) {
-                idBookshelf1 -> BookshelfFragment1(position)
-                idBookshelf2 -> BookshelfFragment2(position)
-                idExplore -> ExploreFragment(position)
-                idRss -> RssFragment(position)
+                idBookshelf1 -> WenwenLibraryFragment(position)
+                idBookshelf2 -> WenwenLibraryFragment(position)
+                idExplore -> WenwenDiscoverFragment(position)
                 else -> MyFragment(position)
             }
         }
 
         override fun getCount(): Int {
-            return bottomMenuCount
+            return pageIds.size
         }
 
         override fun instantiateItem(container: ViewGroup, position: Int): Any {

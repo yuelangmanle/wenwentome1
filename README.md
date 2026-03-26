@@ -1,4 +1,4 @@
-# WenwenToMe
+# 文文tome
 
 本地书籍阅读器和网文阅读器二合一的 Android 应用。
 
@@ -12,15 +12,15 @@
   - 不再继续扩展自研 TXT / EPUB / 书源 / 阅读器内核
 - `2.x` 新线：
   - 迁移到 Legado 作为阅读与书源底座
-  - 保留 WenwenToMe 的 GitHub 仓库、包名、发版链路与品牌
-  - 后续把 WenwenToMe 的 AI Hub 与 GitHub 同步能力接回新底座
+  - 保留 文文tome 的 GitHub 仓库、包名、发版链路与品牌
+  - 后续把 文文tome 的 AI Hub 与 GitHub 同步能力接回新底座
 
 ## 迁移决策
 
 - 继续使用当前 GitHub 仓库：`https://github.com/yuelangmanle/wenwentome1`
 - 仓库 License 改为 `GPL-3.0`
 - 上游底座采用 `Legado`
-- 当前主迁移目标版本为 `2.0.0`
+- 当前主迁移目标版本为 `2.0.1`
 - 旧线冻结说明见：`docs/migration/legacy-line-freeze.md`
 
 ## 下载
@@ -29,12 +29,12 @@
 - Release 页面：`https://github.com/yuelangmanle/wenwentome1/releases`
 - 发布页：`https://yuelangmanle.github.io/wenwentome1/`
 - 旧线正式版：`v1.6`
-- 新底座当前正式版：`v2.0.0`
+- 新底座当前正式版：`v2.0.1`
 
 ## 版本信息
 
 - 当前稳定旧版：`1.6`
-- 当前新底座版本：`2.0.0`
+- 当前新底座版本：`2.0.1`
 - 作者：`月亮满了`
 - 项目地址：`https://github.com/yuelangmanle/wenwentome1`
 - 上游来源：`https://github.com/gedoor/legado`
@@ -75,3 +75,21 @@
 - API Hub 路线图见 [docs/api-hub-roadmap.md](docs/api-hub-roadmap.md)
 - GitHub Pages 发布页源文件位于 `site/`
 - 旧线冻结说明见 [docs/migration/legacy-line-freeze.md](docs/migration/legacy-line-freeze.md)
+
+### GitHub Actions 云端构建
+
+- `android-ci`
+  - 在 `push / pull_request / workflow_dispatch` 时触发
+  - 执行 `:app:testDebugUnitTest` 与 `:app:assembleAppDebug`
+  - 产出调试包工件：`wenwentome-debug-apk`
+- `android-release`
+  - 在 `v*` tag 或手动 `workflow_dispatch` 时触发
+  - 校验版本号、更新日志、签名密钥
+  - 产出正式包工件：`wenwentome-release-apk`
+  - 自动创建 GitHub Release 并上传 APK
+
+### 本地与云端的当前约束
+
+- 本仓库可以完全走云端打包，不依赖本地 Android 环境出正式包。
+- 如果本地缺少 Java 或 Android SDK，建议把“最终编译是否通过”的判断交给 GitHub Actions。
+- 浏览器找书、统一缓存、新阅读 UI 的主链改动完成后，优先用 `android-ci` 看集成结果。

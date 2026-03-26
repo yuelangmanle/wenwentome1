@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,7 +54,9 @@ fun BookCoverCard(
                 LibraryBookCover(
                     title = item.book.title,
                     coverUri = item.effectiveCover,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(sharedBookCoverTag(item.book.id)),
                     shape = RoundedCornerShape(22.dp),
                     realCoverTag = "book-cover-real-cover-${item.book.id}",
                     placeholderTag = "book-cover-placeholder-${item.book.id}",
@@ -183,3 +186,5 @@ internal fun progressLabel(item: LibraryBookItem): String =
     } else {
         "未开始"
     }
+
+private fun sharedBookCoverTag(bookId: String): String = "book-cover-shared-$bookId"

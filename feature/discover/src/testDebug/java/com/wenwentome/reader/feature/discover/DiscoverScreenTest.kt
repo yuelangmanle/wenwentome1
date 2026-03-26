@@ -4,6 +4,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertExists
 import com.wenwentome.reader.bridge.source.model.RemoteBookDetail
 import com.wenwentome.reader.bridge.source.model.RemoteSearchResult
 import org.junit.Assert.assertEquals
@@ -38,12 +39,17 @@ class DiscoverScreenTest {
                     ),
                 ),
                 onQueryChange = {},
+                onBrowserQueryChange = {},
                 onSubmitSearch = {},
+                onOpenBrowserSearch = {},
                 onPreview = {},
                 onAddToShelf = { added = it },
                 onRefreshSelected = {},
                 onReadLatest = {},
                 onManageSources = {},
+                onManageSearchEngines = {},
+                onOpenBrowserSettings = {},
+                onQuickSwitchEngine = {},
             )
         }
 
@@ -70,12 +76,17 @@ class DiscoverScreenTest {
                     ),
                 ),
                 onQueryChange = {},
+                onBrowserQueryChange = {},
                 onSubmitSearch = {},
+                onOpenBrowserSearch = {},
                 onPreview = {},
                 onAddToShelf = {},
                 onRefreshSelected = {},
                 onReadLatest = {},
                 onManageSources = {},
+                onManageSearchEngines = {},
+                onOpenBrowserSettings = {},
+                onQuickSwitchEngine = {},
             )
         }
 
@@ -90,18 +101,82 @@ class DiscoverScreenTest {
             DiscoverScreen(
                 state = DiscoverUiState(draftQuery = "雪中"),
                 onQueryChange = {},
+                onBrowserQueryChange = {},
                 onSubmitSearch = { submitCount++ },
+                onOpenBrowserSearch = {},
                 onPreview = {},
                 onAddToShelf = {},
                 onRefreshSelected = {},
                 onReadLatest = {},
                 onManageSources = {},
+                onManageSearchEngines = {},
+                onOpenBrowserSettings = {},
+                onQuickSwitchEngine = {},
             )
         }
 
         composeTestRule.onNodeWithTag("discover-search-submit").performClick()
 
         assertEquals(1, submitCount)
+    }
+
+    @Test
+    fun discoverScreen_exposesDualEntrancesAndUnifiedOverflowMenu() {
+        composeTestRule.setContent {
+            DiscoverScreen(
+                state = DiscoverUiState(draftQuery = "雪中"),
+                onQueryChange = {},
+                onBrowserQueryChange = {},
+                onSubmitSearch = {},
+                onOpenBrowserSearch = {},
+                onPreview = {},
+                onAddToShelf = {},
+                onRefreshSelected = {},
+                onReadLatest = {},
+                onManageSources = {},
+                onManageSearchEngines = {},
+                onOpenBrowserSettings = {},
+                onQuickSwitchEngine = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("书源搜索").assertExists()
+        composeTestRule.onNodeWithText("浏览器找书").assertExists()
+        composeTestRule.onNodeWithTag("discover-overflow-menu").performClick()
+        composeTestRule.onNodeWithText("书源管理").assertExists()
+        composeTestRule.onNodeWithText("搜索引擎管理").assertExists()
+        composeTestRule.onNodeWithText("浏览器模式").assertExists()
+    }
+
+    @Test
+    fun browserFindSearchButtonInvokesBrowserSearchCallback() {
+        var browserSearchCount = 0
+
+        composeTestRule.setContent {
+            DiscoverScreen(
+                state = DiscoverUiState(
+                    draftQuery = "雪中",
+                    browserDraftQuery = "雪中悍刀行 最新章节",
+                ),
+                onQueryChange = {},
+                onBrowserQueryChange = {},
+                onSubmitSearch = {},
+                onOpenBrowserSearch = { browserSearchCount++ },
+                onPreview = {},
+                onAddToShelf = {},
+                onRefreshSelected = {},
+                onReadLatest = {},
+                onManageSources = {},
+                onManageSearchEngines = {},
+                onOpenBrowserSettings = {},
+                onQuickSwitchEngine = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("浏览器找书").performClick()
+        composeTestRule.onNodeWithTag("discover-browser-search-submit").performClick()
+
+        assertEquals(1, browserSearchCount)
     }
 }
 

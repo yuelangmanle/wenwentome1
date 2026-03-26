@@ -25,7 +25,7 @@ import io.legado.app.databinding.FragmentBooksBinding
 import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.primaryColor
-import io.legado.app.ui.book.info.BookInfoActivity
+import io.legado.app.ui.wenwen.startWenwenBookDetailActivity
 import io.legado.app.ui.main.MainViewModel
 import io.legado.app.utils.cnCompare
 import io.legado.app.utils.flowWithLifecycleAndDatabaseChangeFirst
@@ -243,10 +243,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     }
 
     override fun openBookInfo(book: Book) {
-        startActivity<BookInfoActivity> {
-            putExtra("name", book.name)
-            putExtra("author", book.author)
-        }
+        requireContext().startWenwenBookDetailActivity(book)
     }
 
     override fun isUpdate(bookUrl: String): Boolean {

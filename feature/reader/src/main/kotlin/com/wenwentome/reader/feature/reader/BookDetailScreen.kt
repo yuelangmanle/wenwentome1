@@ -258,6 +258,7 @@ private fun HeroSection(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             BookCoverArt(
+                bookId = state.book?.id,
                 title = title,
                 coverUri = coverUri,
                 modifier = Modifier.width(176.dp),
@@ -544,6 +545,7 @@ private fun CatalogList(
 
 @Composable
 private fun BookCoverArt(
+    bookId: String?,
     title: String,
     coverUri: String?,
     modifier: Modifier = Modifier,
@@ -554,7 +556,9 @@ private fun BookCoverArt(
     }
 
     Card(
-        modifier = modifier.aspectRatio(0.68f),
+        modifier = modifier
+            .aspectRatio(0.68f)
+            .then(bookId?.let { Modifier.testTag(sharedBookCoverTag(it)) } ?: Modifier),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
     ) {

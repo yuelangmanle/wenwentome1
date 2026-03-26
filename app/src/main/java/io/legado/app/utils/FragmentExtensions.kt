@@ -15,13 +15,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import io.legado.app.R
 import io.legado.app.data.entities.Book
-import io.legado.app.help.book.isAudio
-import io.legado.app.help.book.isImage
-import io.legado.app.help.book.isLocal
-import io.legado.app.help.config.AppConfig
-import io.legado.app.ui.book.audio.AudioPlayActivity
-import io.legado.app.ui.book.manga.ReadMangaActivity
-import io.legado.app.ui.book.read.ReadBookActivity
+import io.legado.app.ui.wenwen.WenwenReaderDestination
+import io.legado.app.ui.wenwen.WenwenReaderRouting
 import io.legado.app.ui.widget.dialog.TextDialog
 
 inline fun <reified T : DialogFragment> Fragment.showDialogFragment(
@@ -93,16 +88,19 @@ fun Fragment.startActivityForBook(
     book: Book,
     configIntent: Intent.() -> Unit = {},
 ) {
-    val cls = when {
-        book.isAudio -> AudioPlayActivity::class.java
-        !book.isLocal && book.isImage && AppConfig.showMangaUi -> ReadMangaActivity::class.java
-        else -> ReadBookActivity::class.java
-    }
-    val intent = Intent(requireActivity(), cls)
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    intent.putExtra("bookUrl", book.bookUrl)
-    intent.apply(configIntent)
+    val intent = WenwenReaderRouting.createIntent(requireActivity(), book, configIntent = configIntent)
     startActivity(intent)
+    when (WenwenReaderRouting.resolveDestination(book)) {
+        WenwenReaderDestination.WenwenReader,
+        WenwenReaderDestination.MangaReader,
+        WenwenReaderDestination.LegacyReader ->
+            requireActivity().overridePendingTransition(
+                R.anim.wenwen_book_open_enter,
+                R.anim.wenwen_book_open_exit,
+            )
+
+        WenwenReaderDestination.AudioPlayer -> Unit
+    }
 }
 
 fun Fragment.showHelp(fileName: String) {

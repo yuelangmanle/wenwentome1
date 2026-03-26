@@ -1,6 +1,7 @@
 package com.wenwentome.reader.feature.reader
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -51,6 +54,7 @@ import kotlinx.coroutines.launch
 private enum class ReaderOverlayPanel {
     MODE,
     TOC,
+    BOOKMARKS,
     SETTINGS,
     ASSISTANT,
 }
@@ -61,14 +65,23 @@ fun ReaderScreen(
     onLocatorChanged: (String, Float) -> Unit,
     onReaderModeChange: (ReaderMode) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
-    onFontSizeChange: (Int) -> Unit,
+    onFontSizeChange: (Float) -> Unit,
+    onAutoFitFontSizeChange: (Boolean) -> Unit = {},
     onLineHeightChange: (Float) -> Unit,
+    onLetterSpacingChange: (Float) -> Unit = {},
+    onParagraphSpacingChange: (Float) -> Unit = {},
+    onSidePaddingChange: (Int) -> Unit = {},
+    onBackgroundPaletteChange: (String) -> Unit = {},
+    onImportFontClick: () -> Unit = {},
     onBrightnessChange: (Int) -> Unit,
     onChapterSelected: (String) -> Unit,
     onSummarizeChapter: () -> Unit,
     onExplainParagraph: () -> Unit,
     onTranslateParagraph: () -> Unit,
     onSpeakChapter: () -> Unit,
+    onBookDetailClick: () -> Unit = {},
+    onDownloadClick: () -> Unit = {},
+    onSwitchSourceClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val palette = state.readerPalette()
@@ -116,6 +129,7 @@ fun ReaderScreen(
     )
     val pagerScope = rememberCoroutineScope()
     var activePanel by remember { mutableStateOf<ReaderOverlayPanel?>(null) }
+    var topMenuExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.locator, state.readerMode, readerPages.size) {
         val targetPage = pageIndexFromLocator(
@@ -163,6 +177,84 @@ fun ReaderScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("reader-system-bar"),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "09:41",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = palette.text.copy(alpha = 0.76f),
+                )
+                Text(
+                    text = state.book?.title ?: "文文tome",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = palette.text.copy(alpha = 0.7f),
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "82%",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = palette.text.copy(alpha = 0.76f),
+                    )
+                    Box {
+                        Text(
+                            text = "...",
+                            modifier = Modifier
+                                .testTag("reader-top-menu")
+                                .clickable { topMenuExpanded = true },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = palette.text.copy(alpha = 0.82f),
+                        )
+                        DropdownMenu(
+                            expanded = topMenuExpanded,
+                            onDismissRequest = { topMenuExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("书籍详情") },
+                                onClick = {
+                                    topMenuExpanded = false
+                                    onBookDetailClick()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("目录") },
+                                onClick = {
+                                    topMenuExpanded = false
+                                    activePanel = ReaderOverlayPanel.TOC
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("书签") },
+                                onClick = {
+                                    topMenuExpanded = false
+                                    activePanel = ReaderOverlayPanel.BOOKMARKS
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("下载") },
+                                onClick = {
+                                    topMenuExpanded = false
+                                    onDownloadClick()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("换源") },
+                                onClick = {
+                                    topMenuExpanded = false
+                                    onSwitchSourceClick()
+                                },
+                            )
+                        }
+                    }
+                }
+            }
             Text(
                 text = state.chapterTitle ?: state.book?.title.orEmpty(),
                 style = MaterialTheme.typography.titleLarge,
@@ -184,7 +276,10 @@ fun ReaderScreen(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .then(
+                    state.book?.id?.let { Modifier.testTag(sharedReaderContainerTag(it)) } ?: Modifier
+                ),
         ) {
             when (state.readerMode) {
                 ReaderMode.SIMULATED_PAGE_TURN ->
@@ -226,57 +321,88 @@ fun ReaderScreen(
         }
 
         if (activePanel != null) {
-            Card(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 12.dp)
                     .testTag("reader-overlay-panel"),
-                colors = CardDefaults.cardColors(containerColor = palette.background.copy(alpha = 0.98f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
             ) {
-                Column(
-                    modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    when (activePanel) {
-                        ReaderOverlayPanel.MODE ->
+                when (activePanel) {
+                    ReaderOverlayPanel.MODE ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = palette.background.copy(alpha = 0.98f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        ) {
                             ReaderModePicker(
                                 selectedMode = state.readerMode,
                                 onModeSelected = { mode ->
                                     onReaderModeChange(mode)
                                     activePanel = null
                                 },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
                             )
+                        }
 
-                        ReaderOverlayPanel.SETTINGS ->
+                    ReaderOverlayPanel.SETTINGS ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = palette.background.copy(alpha = 0.98f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        ) {
                             ReaderSettingsSheet(
                                 presentation = state.presentation,
                                 progressLabel = displayProgressLabel,
                                 onThemeChange = onThemeChange,
                                 onFontSizeChange = onFontSizeChange,
+                                onAutoFitFontSizeChange = onAutoFitFontSizeChange,
                                 onLineHeightChange = onLineHeightChange,
+                                onLetterSpacingChange = onLetterSpacingChange,
+                                onParagraphSpacingChange = onParagraphSpacingChange,
+                                onSidePaddingChange = onSidePaddingChange,
+                                onBackgroundPaletteChange = onBackgroundPaletteChange,
+                                onImportFontClick = onImportFontClick,
                                 onBrightnessChange = onBrightnessChange,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                        }
 
-                        ReaderOverlayPanel.TOC ->
-                            ReaderTocSheet(
-                                chapters = state.chapters,
-                                currentChapterRef = state.tocHighlightedChapterRef ?: state.chapterRef,
-                                latestChapterRef = state.latestChapterRef,
-                                initialScrollChapterRef = state.chapterRef ?: state.latestChapterRef,
-                                progressLabel = displayProgressLabel,
-                                onChapterClick = { chapter ->
-                                    onChapterSelected(chapter.chapterRef)
-                                    activePanel = null
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 280.dp),
-                            )
+                    ReaderOverlayPanel.TOC ->
+                        ReaderTocSheet(
+                            chapters = state.chapters,
+                            currentChapterRef = state.tocHighlightedChapterRef ?: state.chapterRef,
+                            latestChapterRef = state.latestChapterRef,
+                            initialScrollChapterRef = state.chapterRef ?: state.latestChapterRef,
+                            progressLabel = displayProgressLabel,
+                            onChapterClick = { chapter ->
+                                onChapterSelected(chapter.chapterRef)
+                                activePanel = null
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth(0.82f)
+                                .heightIn(max = 360.dp)
+                                .align(Alignment.CenterStart)
+                                .testTag("reader-toc-drawer"),
+                        )
 
-                        ReaderOverlayPanel.ASSISTANT ->
+                    ReaderOverlayPanel.BOOKMARKS ->
+                        ReaderBookmarkDrawer(
+                            bookmarks = state.bookmarks,
+                            currentLocator = state.locator,
+                            modifier = Modifier
+                                .fillMaxWidth(0.78f)
+                                .heightIn(max = 340.dp)
+                                .align(Alignment.CenterEnd),
+                        )
+
+                    ReaderOverlayPanel.ASSISTANT ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = palette.background.copy(alpha = 0.98f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        ) {
                             ReaderAssistantSheet(
                                 state = state.assistant,
                                 onSummarizeChapter = onSummarizeChapter,
@@ -285,9 +411,9 @@ fun ReaderScreen(
                                 onSpeakChapter = onSpeakChapter,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                        }
 
-                        null -> Unit
-                    }
+                    null -> Unit
                 }
             }
         }
@@ -309,6 +435,12 @@ fun ReaderScreen(
                     if (activePanel == ReaderOverlayPanel.TOC) null else ReaderOverlayPanel.TOC
             }) {
                 Text("目录")
+            }
+            TextButton(onClick = {
+                activePanel =
+                    if (activePanel == ReaderOverlayPanel.BOOKMARKS) null else ReaderOverlayPanel.BOOKMARKS
+            }) {
+                Text("书签")
             }
             TextButton(onClick = {
                 activePanel =
@@ -354,6 +486,31 @@ fun ReaderScreen(
             ) {
                 Text("保存进度")
             }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+                .testTag("reader-bottom-meta"),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "电量 82%",
+                color = palette.text.copy(alpha = 0.76f),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Text(
+                text = "全书 ${state.progressLabel}",
+                color = palette.text.copy(alpha = 0.76f),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Text(
+                text = "章节 $displayProgressLabel",
+                color = palette.text.copy(alpha = 0.76f),
+                style = MaterialTheme.typography.labelMedium,
+            )
         }
     }
 }

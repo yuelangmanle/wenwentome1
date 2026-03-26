@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--App-->
-    <string name="app_name">WenwenToMe</string>
-    <string name="app_name_a">WenwenToMe·A</string>
-    <string name="receiving_shared_label">WenwenToMe Search</string>
-    <string name="tip_perm_request_storage">WenwenToMe needs storage access to find and read books. Please go to "App Settings" to allow "Storage permission".</string>
+    <string name="app_name">文文tome</string>
+    <string name="app_name_a">文文tome·A</string>
+    <string name="receiving_shared_label">文文tome Search</string>
+    <string name="tip_perm_request_storage">文文tome needs storage access to find and read books. Please go to "App Settings" to allow "Storage permission".</string>
 
     <!--Other-->
     <string name="menu_backup">Home</string>
@@ -98,10 +98,10 @@
     <string name="offline_cache_s">cache the selected chapter(s) to Storage</string>
     <string name="change_origin">Change Origin</string>
     <string name="about_description">
-        \u3000\u3000 WenwenToMe is an open-source reading app built on the Legado baseline and tailored for local reading, web novel discovery, and future AI extensions.
+        \u3000\u3000 文文tome is an open-source reading app built on the Legado baseline and tailored for local reading, web novel discovery, and future AI extensions.
     </string>
     <string name="app_share_description">
-        WenwenToMe releases:\nhttps://github.com/yuelangmanle/wenwentome1/releases
+        文文tome releases:\nhttps://github.com/yuelangmanle/wenwentome1/releases
     </string>
     <string name="version_name">Version %s</string>
     <string name="pt_background_verification">Background-verification</string>
@@ -703,11 +703,11 @@
     <string name="contact">Contact</string>
     <string name="license">License</string>
     <string name="other">Other</string>
-    <string name="official_account">WenwenToMe</string>
+    <string name="official_account">文文tome</string>
     <string name="follow_official_account">Project homepage</string>
     <string name="wechat">WeChat</string>
     <string name="thanks">Supporting me will be appreciated</string>
-    <string name="about_official_account">Project [WenwenToMe]</string>
+    <string name="about_official_account">Project [文文tome]</string>
     <string name="source_auto_changing">Changing source</string>
     <string name="click_to_apply">Tap to join</string>
     <string name="middle">Middle</string>
@@ -755,7 +755,7 @@
     <string name="alipay_red_envelope_qr_code">AliPay red envelope QR code</string>
     <string name="alipay_payment_qr_code">AliPay QR code</string>
     <string name="qq_collection_qr_code">QQ Collection QR code</string>
-    <string name="contributors_summary">WenwenToMe and Legado contributors. See GitHub for details</string>
+    <string name="contributors_summary">文文tome and Legado contributors. See GitHub for details</string>
     <string name="clear_cache_summary">Clear the cache of the downloaded books and fonts</string>
     <string name="default_cover">Default cover</string>
     <string name="restore_ignore">Bypass list</string>
@@ -978,9 +978,9 @@
     <string name="welcome_style">Launch interface style</string>
     <string name="welcome_style_summary">Startup screen image and whether to display text, etc.</string>
     <string name="show_welcome_text">Display text</string>
-    <string name="welcome_text">WenwenToMe | Read what matters</string>
+    <string name="welcome_text">文文tome | Read what matters</string>
     <string name="welcome_slogan">Read what matters</string>
-    <string name="welcome_support_text">Built on Legado and adapted by WenwenToMe</string>
+    <string name="welcome_support_text">Built on Legado and adapted by 文文tome</string>
     <string name="custom_welcome">Customize the welcome page</string>
     <string name="custom_welcome_summary">Whether to use a customized welcome page</string>
     <string name="show_icon">Show icon</string>

@@ -6,6 +6,7 @@ import com.wenwentome.reader.core.model.SourceDefinition
 
 data class DiscoverUiState(
     val draftQuery: String = "",
+    val browserDraftQuery: String = "",
     val query: String = "",
     val results: List<DiscoverSearchResult> = emptyList(),
     val selectedResultId: String? = null,
@@ -16,7 +17,29 @@ data class DiscoverUiState(
     val lastAddedTitle: String? = null,
     val enhancementHint: String? = null,
     val lastRefreshHint: String? = null,
+    val browserSearchEngineLabel: String = "必应",
+    val browserModeLabel: String = "智能阅读",
+    val autoOptimizeReadingLabel: String = "自动识别正文",
+    val browserAvailableEngines: List<DiscoverBrowserEngine> = DiscoverBrowserEngine.defaults(),
 )
+
+data class DiscoverBrowserEngine(
+    val id: String,
+    val label: String,
+) {
+    companion object {
+        fun defaults(): List<DiscoverBrowserEngine> =
+            listOf(
+                DiscoverBrowserEngine(id = "bing", label = "必应"),
+                DiscoverBrowserEngine(id = "baidu", label = "百度"),
+                DiscoverBrowserEngine(id = "sogou", label = "搜狗"),
+                DiscoverBrowserEngine(id = "sohu", label = "搜狐"),
+                DiscoverBrowserEngine(id = "shenma", label = "神马"),
+                DiscoverBrowserEngine(id = "google", label = "谷歌"),
+                DiscoverBrowserEngine(id = "custom", label = "自定义"),
+            )
+    }
+}
 
 data class DiscoverSearchResult(
     val result: RemoteSearchResult,

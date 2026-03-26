@@ -2,10 +2,16 @@ package com.wenwentome.reader.core.database.datastore
 
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.test.core.app.ApplicationProvider
 import com.wenwentome.reader.core.model.ReaderMode
 import com.wenwentome.reader.core.model.ReaderPresentationPrefs
 import com.wenwentome.reader.core.model.ReaderTheme
+import com.wenwentome.reader.core.model.BrowserFindPreferences
+import com.wenwentome.reader.core.model.BrowserMode
+import com.wenwentome.reader.core.model.BrowserSearchEnginePreset
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.first
@@ -27,9 +33,15 @@ class ReaderPreferencesStoreTest {
         val expectedPresentationPrefs =
             ReaderPresentationPrefs(
                 theme = ReaderTheme.SEPIA,
-                fontSizeSp = 20,
+                fontSizeSp = 20f,
+                autoFitFontSize = false,
                 lineHeightMultiplier = 1.7f,
+                letterSpacingEm = 0.02f,
+                paragraphSpacingEm = 0.5f,
+                sidePaddingDp = 22,
                 brightnessPercent = 72,
+                fontFamilyKey = "serif-compact",
+                backgroundPaletteKey = "night-paper",
             )
 
         store.saveReaderMode(ReaderMode.HORIZONTAL_PAGING)
@@ -73,6 +85,38 @@ class ReaderPreferencesStoreTest {
         assertNotEquals(generatedDeviceId, restored.deviceId)
     }
 
+    @Test
+    fun presentationPrefs_readsLegacyIntegerFontSizeWhenV2ValueAbsent() = runTest {
+        val context = isolatedContext()
+        context.testDataStore.edit { prefs ->
+            prefs[intPreferencesKey("reader_font_size_sp")] = 21
+        }
+
+        val presentation = ReaderPreferencesStore(context).presentationPrefs.first()
+
+        assertEquals(21f, presentation.fontSizeSp, 0.0001f)
+        assertEquals(true, presentation.autoFitFontSize)
+    }
+
+    @Test
+    fun browserFindPrefs_roundTripSearchEngineAndModeSettings() = runTest {
+        val context = isolatedContext()
+        val store = ReaderPreferencesStore(context)
+        val expected =
+            BrowserFindPreferences(
+                defaultSearchEngineId = BrowserSearchEnginePreset.SOGOU.id,
+                customSearchEngineName = "站内搜",
+                customSearchUrlTemplate = "https://example.com/search?q={query}",
+                browserMode = BrowserMode.IMMERSIVE,
+                autoOptimizeReading = false,
+                showManualOptimizeFloatingButton = true,
+            )
+
+        store.saveBrowserFindPrefs(expected)
+
+        assertEquals(expected, store.browserFindPrefs.first())
+    }
+
     private fun isolatedContext(): Context {
         val base = ApplicationProvider.getApplicationContext<Context>()
         val root =
@@ -89,3 +133,5 @@ class ReaderPreferencesStoreTest {
         }
     }
 }
+
+private val Context.testDataStore by preferencesDataStore(name = "reader_prefs")

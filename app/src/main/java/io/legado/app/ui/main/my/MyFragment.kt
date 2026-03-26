@@ -11,6 +11,7 @@ import io.legado.app.base.BaseFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.FragmentMyConfigBinding
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ThemeConfig
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.prefs.NameListPreference
@@ -29,6 +30,7 @@ import io.legado.app.ui.dict.rule.DictRuleActivity
 import io.legado.app.ui.file.FileManageActivity
 import io.legado.app.ui.main.MainFragmentInterface
 import io.legado.app.ui.replace.ReplaceRuleActivity
+import io.legado.app.ui.wenwen.WenwenApiHubActivity
 import io.legado.app.utils.LogUtils
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.observeEventSticky
@@ -54,11 +56,17 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         setSupportToolbar(binding.titleBar.toolbar)
+        bindQuickActions()
         val fragmentTag = "prefFragment"
         var preferenceFragment = childFragmentManager.findFragmentByTag(fragmentTag)
         if (preferenceFragment == null) preferenceFragment = MyPreferenceFragment()
         childFragmentManager.beginTransaction()
             .replace(R.id.pre_fragment, preferenceFragment, fragmentTag).commit()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshQuickEntrySummary()
     }
 
     override fun onCompatCreateOptionsMenu(menu: Menu) {
@@ -68,6 +76,27 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
     override fun onCompatOptionsItemSelected(item: MenuItem) {
         when (item.itemId) {
             R.id.menu_help -> showHelp("appHelp")
+        }
+    }
+
+    private fun bindQuickActions() = binding.run {
+        quickAiCard.setOnClickListener {
+            startActivity<WenwenApiHubActivity>()
+        }
+        quickSyncCard.setOnClickListener {
+            startActivity<ConfigActivity> {
+                putExtra("configTag", ConfigTag.BACKUP_CONFIG)
+            }
+        }
+        refreshQuickEntrySummary()
+    }
+
+    private fun refreshQuickEntrySummary() = binding.run {
+        quickAiStatus.text = "接口配置、能力绑定、预算策略"
+        quickSyncStatus.text = if (AppConfig.syncBookProgress) {
+            "WebDav、备份恢复、阅读进度已开启同步"
+        } else {
+            "WebDav、备份恢复、阅读进度同步未开启"
         }
     }
 

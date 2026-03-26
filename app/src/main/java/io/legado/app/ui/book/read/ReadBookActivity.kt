@@ -71,7 +71,6 @@ import io.legado.app.ui.about.AppLogDialog
 import io.legado.app.ui.book.bookmark.BookmarkDialog
 import io.legado.app.ui.book.changesource.ChangeBookSourceDialog
 import io.legado.app.ui.book.changesource.ChangeChapterSourceDialog
-import io.legado.app.ui.book.info.BookInfoActivity
 import io.legado.app.ui.book.read.config.AutoReadDialog
 import io.legado.app.ui.book.read.config.BgTextConfigDialog.Companion.BG_COLOR
 import io.legado.app.ui.book.read.config.BgTextConfigDialog.Companion.TEXT_COLOR
@@ -99,6 +98,7 @@ import io.legado.app.ui.replace.ReplaceRuleActivity
 import io.legado.app.ui.replace.edit.ReplaceEditActivity
 import io.legado.app.ui.widget.PopupAction
 import io.legado.app.ui.widget.dialog.PhotoDialog
+import io.legado.app.ui.wenwen.WenwenUiBridge
 import io.legado.app.utils.ACache
 import io.legado.app.utils.Debounce
 import io.legado.app.utils.LogUtils
@@ -196,7 +196,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
         }
     private val bookInfoActivity =
-        registerForActivityResult(StartActivityContract(BookInfoActivity::class.java)) {
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == RESULT_OK) {
                 setResult(RESULT_DELETED)
                 super.finish()
@@ -1155,10 +1155,14 @@ class ReadBookActivity : BaseReadBookActivity(),
 
     override fun openBookInfoActivity() {
         ReadBook.book?.let {
-            bookInfoActivity.launch {
-                putExtra("name", it.name)
-                putExtra("author", it.author)
-            }
+            bookInfoActivity.launch(
+                WenwenUiBridge.detailIntent(
+                    context = this,
+                    bookUrl = it.bookUrl,
+                    name = it.name,
+                    author = it.author,
+                )
+            )
         }
     }
 

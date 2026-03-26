@@ -34,6 +34,8 @@ class LibraryScreenTest {
             LibraryScreen(
                 state = state,
                 onImportClick = {},
+                onOpenCacheManager = {},
+                onOpenBatchManage = {},
                 onContinueReadingClick = {},
                 onBookClick = {},
                 onRefreshCatalog = {},
@@ -52,6 +54,7 @@ class LibraryScreenTest {
             book1Index
         )
         composeTestRule.onNodeWithTag("book-cover-card-book-1").assertExistsCompat()
+        composeTestRule.onNodeWithTag("book-cover-shared-book-1").assertExistsCompat()
         composeTestRule.onNodeWithTag("book-cover-card-book-1").performTouchInput { longClick() }
         composeTestRule.onNodeWithText("书籍操作").assertExistsCompat()
     }
@@ -63,6 +66,8 @@ class LibraryScreenTest {
             LibraryScreen(
                 state = state,
                 onImportClick = {},
+                onOpenCacheManager = {},
+                onOpenBatchManage = {},
                 onContinueReadingClick = {},
                 onBookClick = {},
                 onRefreshCatalog = {},
@@ -101,6 +106,8 @@ class LibraryScreenTest {
             LibraryScreen(
                 state = state,
                 onImportClick = {},
+                onOpenCacheManager = {},
+                onOpenBatchManage = {},
                 onContinueReadingClick = {},
                 onBookClick = {},
                 onRefreshCatalog = {},
@@ -137,6 +144,8 @@ class LibraryScreenTest {
                     sort = LibrarySort.LAST_READ_DESC,
                 ),
                 onImportClick = {},
+                onOpenCacheManager = {},
+                onOpenBatchManage = {},
                 onContinueReadingClick = {},
                 onBookClick = {},
                 onRefreshCatalog = {},
@@ -152,6 +161,34 @@ class LibraryScreenTest {
         composeTestRule.onNodeWithText("本地").assertExistsCompat()
         composeTestRule.onNodeWithText("网文").assertExistsCompat()
         composeTestRule.onNodeWithText("最近阅读").assertExistsCompat()
+    }
+
+    @Test
+    fun libraryScreen_usesOverflowMenuForImportAndDownloadManagement() {
+        composeTestRule.setContent {
+            LibraryScreen(
+                state = sampleState(),
+                onImportClick = {},
+                onOpenCacheManager = {},
+                onOpenBatchManage = {},
+                onContinueReadingClick = {},
+                onBookClick = {},
+                onRefreshCatalog = {},
+                onRefreshCover = {},
+                onImportPhoto = {},
+                onRestoreAutomaticCover = {},
+                onFilterChange = {},
+                onSortChange = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("library-import-fab").assertDoesNotExistCompat()
+        composeTestRule.onNodeWithText("下载缓存管理").assertDoesNotExistCompat()
+        composeTestRule.onNodeWithTag("library-overflow-menu").performClick()
+        composeTestRule.onNodeWithText("导入书籍").assertExistsCompat()
+        composeTestRule.onNodeWithText("下载缓存管理").assertExistsCompat()
+        composeTestRule.onNodeWithText("批量管理").assertExistsCompat()
+        composeTestRule.onNodeWithText("排序与筛选").assertExistsCompat()
     }
 
     @Test

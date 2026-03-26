@@ -273,7 +273,7 @@ class ReaderViewModelTest {
         viewModel.updatePresentation(
             ReaderPresentationPrefs(
                 theme = ReaderTheme.NIGHT,
-                fontSizeSp = 22,
+                fontSizeSp = 22f,
                 lineHeightMultiplier = 1.8f,
                 brightnessPercent = 60,
             )
@@ -281,9 +281,52 @@ class ReaderViewModelTest {
         advanceUntilIdle()
 
         assertEquals(ReaderTheme.NIGHT, viewModel.uiState.value.presentation.theme)
-        assertEquals(22, viewModel.uiState.value.presentation.fontSizeSp)
+        assertEquals(22f, viewModel.uiState.value.presentation.fontSizeSp, 0.0001f)
         assertEquals(1.8f, viewModel.uiState.value.presentation.lineHeightMultiplier)
         assertEquals(60, persistedPresentation?.brightnessPercent)
+    }
+
+    @Test
+    fun advancedPresentationControls_persistTypographyAndPalette() = runTest {
+        val presentation = MutableStateFlow(ReaderPresentationPrefs())
+        var persistedPresentation: ReaderPresentationPrefs? = null
+        val viewModel = ReaderViewModel(
+            bookId = "book-1",
+            observeReadingState = flowOf(ReadingState(bookId = "book-1")),
+            observeBook = flowOf(readerBook()),
+            observeContent = flowOf(
+                ReaderContent(
+                    chapterTitle = "第三章",
+                    paragraphs = listOf("正文第一段"),
+                    chapterRef = "chapter-3",
+                )
+            ),
+            observeReaderMode = MutableStateFlow(ReaderMode.SIMULATED_PAGE_TURN),
+            observePresentationPrefs = presentation,
+            observeChapters = flowOf(readerChapters()),
+            observeLatestChapterRef = flowOf("chapter-8"),
+            saveReaderMode = {},
+            savePresentationPrefs = { prefs ->
+                persistedPresentation = prefs
+                presentation.value = prefs
+            },
+            updateReadingState = {},
+        )
+
+        viewModel.uiState.first { it.book != null }
+        viewModel.setAutoFitFontSize(false)
+        viewModel.setLetterSpacing(0.08f)
+        viewModel.setParagraphSpacing(0.6f)
+        viewModel.setSidePaddingDp(26)
+        viewModel.setBackgroundPalette("paper-green")
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.presentation.autoFitFontSize)
+        assertEquals(0.08f, viewModel.uiState.value.presentation.letterSpacingEm, 0.0001f)
+        assertEquals(0.6f, viewModel.uiState.value.presentation.paragraphSpacingEm, 0.0001f)
+        assertEquals(26, viewModel.uiState.value.presentation.sidePaddingDp)
+        assertEquals("paper-green", viewModel.uiState.value.presentation.backgroundPaletteKey)
+        assertEquals("paper-green", persistedPresentation?.backgroundPaletteKey)
     }
 
     @Test

@@ -27,6 +27,7 @@ import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.databinding.DialogSelectSectionExportBinding
 import io.legado.app.help.book.getExportFileName
 import io.legado.app.help.book.isAudio
+import io.legado.app.help.book.isNotShelf
 import io.legado.app.help.book.tryParesExportFileName
 import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.SelectItem
@@ -36,6 +37,7 @@ import io.legado.app.model.CacheBook
 import io.legado.app.service.ExportBookService
 import io.legado.app.ui.about.AppLogDialog
 import io.legado.app.ui.file.HandleFileContract
+import io.legado.app.ui.wenwen.WENWEN_BROWSER_BOOK_ORIGIN
 import io.legado.app.utils.ACache
 import io.legado.app.utils.FileDoc
 import io.legado.app.utils.applyNavigationBarPadding
@@ -121,6 +123,7 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
         initRecyclerView()
         initGroupData()
         initBookData()
+        syncAllTransientDownloadBooks()
     }
 
     override fun onCompatCreateOptionsMenu(menu: Menu): Boolean {
@@ -174,12 +177,7 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
             R.id.menu_download_after -> {
                 if (!CacheBook.isRun) sureCacheBook {
                     adapter.getItems().forEach { book ->
-                        CacheBook.start(
-                            this@CacheActivity,
-                            book,
-                            book.durChapterIndex,
-                            book.lastChapterIndex
-                        )
+                        enqueueCacheDownload(book, fromCurrent = true)
                     }
                 } else {
                     CacheBook.stop(this@CacheActivity)
@@ -189,12 +187,7 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
             R.id.menu_download_all -> {
                 if (!CacheBook.isRun) sureCacheBook {
                     adapter.getItems().forEach { book ->
-                        CacheBook.start(
-                            this@CacheActivity,
-                            book,
-                            0,
-                            book.lastChapterIndex
-                        )
+                        enqueueCacheDownload(book, fromCurrent = false)
                     }
                 } else {
                     CacheBook.stop(this@CacheActivity)
@@ -236,6 +229,17 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
         binding.recyclerView.applyNavigationBarPadding()
     }
 
+    private fun enqueueCacheDownload(book: Book, fromCurrent: Boolean) {
+        val startIndex = if (fromCurrent) book.durChapterIndex else 0
+        val endIndex =
+            if (book.origin.startsWith(WENWEN_BROWSER_BOOK_ORIGIN)) {
+                -1
+            } else {
+                book.lastChapterIndex
+            }
+        CacheBook.start(this, book, startIndex, endIndex)
+    }
+
     private fun initBookData() {
         booksFlowJob?.cancel()
         booksFlowJob = lifecycleScope.launch {
@@ -263,6 +267,7 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
             }.flowOn(IO).conflate().collect { books ->
                 adapter.setItems(books)
                 viewModel.loadCacheFiles(books)
+                syncAllTransientDownloadBooks()
             }
         }
     }
@@ -292,6 +297,53 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
         }
     }
 
+    private fun syncTransientDownloadBook(bookUrl: String) {
+        val books = adapter.getItems()
+        val index = books.indexOfFirst { it.bookUrl == bookUrl }
+        val isActive = CacheBook.activeBookUrls().contains(bookUrl)
+        if (isActive && index >= 0) return
+        lifecycleScope.launch {
+            val book = withContext(IO) { appDb.bookDao.getBook(bookUrl) } ?: return@launch
+            if (isActive && book.isNotShelf) {
+                val mergedBooks = buildList {
+                    add(book)
+                    addAll(books.filterNot { it.bookUrl == bookUrl })
+                }
+                adapter.setItems(mergedBooks)
+                viewModel.loadCacheFiles(mergedBooks)
+            } else if (index >= 0 && book.isNotShelf) {
+                val filteredBooks = books.filterNot { it.bookUrl == bookUrl }
+                adapter.setItems(filteredBooks)
+                viewModel.loadCacheFiles(filteredBooks)
+            }
+        }
+    }
+
+    private fun syncAllTransientDownloadBooks() {
+        lifecycleScope.launch {
+            val books = adapter.getItems()
+            val activeBookUrls = CacheBook.activeBookUrls()
+            val missingUrls =
+                activeBookUrls.filter { bookUrl ->
+                    books.none { it.bookUrl == bookUrl }
+                }
+            if (missingUrls.isEmpty()) return@launch
+            val transientBooks = withContext(IO) {
+                missingUrls.mapNotNull { appDb.bookDao.getBook(it) }
+            }
+            if (transientBooks.isEmpty()) return@launch
+            val mergedBooks = buildList {
+                addAll(transientBooks.filter { it.isNotShelf })
+                addAll(books.filterNot { book ->
+                    transientBooks.any { it.bookUrl == book.bookUrl }
+                })
+            }
+            if (mergedBooks.map { it.bookUrl } == books.map { it.bookUrl }) return@launch
+            adapter.setItems(mergedBooks)
+            viewModel.loadCacheFiles(mergedBooks)
+        }
+    }
+
     override fun observeLiveBus() {
         viewModel.upAdapterLiveData.observe(this) {
             notifyItemChanged(it)
@@ -301,6 +353,11 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
         }
         observeEvent<String>(EventBus.UP_DOWNLOAD) {
             notifyItemChanged(it)
+            if (it.isBlank()) {
+                syncAllTransientDownloadBooks()
+            } else {
+                syncTransientDownloadBook(it)
+            }
         }
         observeEvent<String>(EventBus.UP_DOWNLOAD_STATE) {
             if (!CacheBook.isRun) {

@@ -37,7 +37,7 @@ fun ReaderTocSheet(
     }
 
     Surface(
-        modifier = modifier.testTag("reader-toc-sheet"),
+        modifier = modifier,
         tonalElevation = 2.dp,
         shape = MaterialTheme.shapes.large,
     ) {
@@ -63,7 +63,7 @@ fun ReaderTocSheet(
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     state = listState,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     items(chapters, key = { it.chapterRef }) { chapter ->
                         val tag =
@@ -80,14 +80,22 @@ fun ReaderTocSheet(
                                     if (tag != null) Modifier.testTag(tag) else Modifier
                                 ),
                         ) {
-                            Text(
-                                text = chapter.title,
-                                color = if (chapter.chapterRef == currentChapterRef) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                            )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = chapter.title,
+                                    color = if (chapter.chapterRef == currentChapterRef) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                Text(
+                                    text = "第 ${chapter.orderIndex + 1} 节",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }

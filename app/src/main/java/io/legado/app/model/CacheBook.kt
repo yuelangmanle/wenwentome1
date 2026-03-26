@@ -88,6 +88,11 @@ object CacheBook {
     }
 
     fun start(context: Context, book: Book, start: Int, end: Int) {
+        if (book.isLocal) return
+        if (WenwenBrowserCache.isBrowserBook(book)) {
+            WenwenBrowserCache.start(context, book, start, end)
+            return
+        }
         if (!book.isLocal) {
             context.startService<CacheBookService> {
                 action = IntentAction.start
@@ -99,6 +104,10 @@ object CacheBook {
     }
 
     fun remove(context: Context, bookUrl: String) {
+        if (isBrowserBookUrl(bookUrl)) {
+            WenwenBrowserCache.remove(context, bookUrl)
+            return
+        }
         context.startService<CacheBookService> {
             action = IntentAction.remove
             putExtra("bookUrl", bookUrl)
@@ -111,6 +120,7 @@ object CacheBook {
                 action = IntentAction.stop
             }
         }
+        WenwenBrowserCache.stop(context)
     }
 
     fun close() {
@@ -156,7 +166,7 @@ object CacheBook {
 
     val downloadSummary: String
         get() {
-            return "正在下载:${onDownloadCount}|等待中:${waitCount}|失败:${errorDownloadMap.count()}|成功:${successDownloadSet.size}"
+            return "正在下载:${onDownloadCount}|等待中:${waitCount}|失败:${errorCount()}|成功:${successCount()}"
         }
 
     val isRun: Boolean
@@ -166,7 +176,7 @@ object CacheBook {
                     return true
                 }
             }
-            return false
+            return WenwenBrowserCache.isRun
         }
 
     private val waitCount: Int
@@ -175,7 +185,7 @@ object CacheBook {
             cacheBookMap.forEach {
                 count += it.value.waitCount
             }
-            return count
+            return count + WenwenBrowserCache.waitCount
         }
 
     val onDownloadCount: Int
@@ -184,11 +194,56 @@ object CacheBook {
             cacheBookMap.forEach {
                 count += it.value.onDownloadCount
             }
-            return count
+            return count + WenwenBrowserCache.onDownloadCount
         }
 
     val successDownloadSet = linkedSetOf<String>()
     val errorDownloadMap = hashMapOf<String, Int>()
+
+    fun activeBookUrls(): Set<String> {
+        return buildSet {
+            addAll(cacheBookMap.keys)
+            addAll(WenwenBrowserCache.cacheBookMap.keys)
+        }
+    }
+
+    fun isDownloading(bookUrl: String): Boolean {
+        val normalDownloading = cacheBookMap[bookUrl]?.let { !it.isStop() } == true
+        val browserDownloading = WenwenBrowserCache.cacheBookMap[bookUrl]?.let { !it.isStop() } == true
+        return normalDownloading || browserDownloading
+    }
+
+    fun waitCount(bookUrl: String): Int {
+        return (cacheBookMap[bookUrl]?.waitCount ?: 0) + (WenwenBrowserCache.cacheBookMap[bookUrl]?.waitCount ?: 0)
+    }
+
+    fun onDownloadCount(bookUrl: String): Int {
+        return (cacheBookMap[bookUrl]?.onDownloadCount ?: 0) +
+            (WenwenBrowserCache.cacheBookMap[bookUrl]?.onDownloadCount ?: 0)
+    }
+
+    fun successCount(bookUrl: String): Int {
+        return successDownloadSet.count { it.startsWith(bookUrl) } +
+            WenwenBrowserCache.successDownloadSet.count { it.startsWith(bookUrl) }
+    }
+
+    fun errorCount(bookUrl: String): Int {
+        return errorDownloadMap.keys.count { it.startsWith(bookUrl) } +
+            WenwenBrowserCache.errorDownloadMap.keys.count { it.startsWith(bookUrl) }
+    }
+
+    private fun successCount(): Int {
+        return successDownloadSet.size + WenwenBrowserCache.successDownloadSet.size
+    }
+
+    private fun errorCount(): Int {
+        return errorDownloadMap.size + WenwenBrowserCache.errorDownloadMap.size
+    }
+
+    private fun isBrowserBookUrl(bookUrl: String): Boolean {
+        if (bookUrl.startsWith("wenwentome-browser://")) return true
+        return WenwenBrowserCache.cacheBookMap.containsKey(bookUrl)
+    }
 
     class CacheBookModel(var bookSource: BookSource, var book: Book) {
 

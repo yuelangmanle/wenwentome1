@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--App-->
-    <string name="app_name">WenwenToMe</string>
-    <string name="app_name_a">WenwenToMe·A</string>
-    <string name="receiving_shared_label">WenwenToMe·buscador</string>
-    <string name="tip_perm_request_storage">WenwenToMe necesita acceso al almacenamiento para buscar y leer libros. Por favor, diríjase a los "Ajustes de la aplicación" para conceder el "Permiso de almacenamiento".</string>
+    <string name="app_name">文文tome</string>
+    <string name="app_name_a">文文tome·A</string>
+    <string name="receiving_shared_label">文文tome·buscador</string>
+    <string name="tip_perm_request_storage">文文tome necesita acceso al almacenamiento para buscar y leer libros. Por favor, diríjase a los "Ajustes de la aplicación" para conceder el "Permiso de almacenamiento".</string>
 
     <!--Other-->
     <string name="menu_backup">Inicio</string>

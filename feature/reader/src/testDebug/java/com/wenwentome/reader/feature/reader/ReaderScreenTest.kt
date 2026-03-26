@@ -16,6 +16,7 @@ import com.wenwentome.reader.core.model.OriginType
 import com.wenwentome.reader.core.model.ReaderChapter
 import com.wenwentome.reader.core.model.ReaderMode
 import com.wenwentome.reader.core.model.ReaderPresentationPrefs
+import com.wenwentome.reader.core.model.ReadingBookmark
 import com.wenwentome.reader.core.model.buildReaderParagraphLocator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -77,6 +78,168 @@ class ReaderScreenTest {
         composeTestRule.assertTagDoesNotExist("reader-mode-picker")
         composeTestRule.assertTagDoesNotExist("reader-settings-sheet")
         composeTestRule.assertTagDoesNotExist("reader-overlay-panel")
+    }
+
+    @Test
+    fun readerScreen_exposesImmersiveSystemBarAndBottomMeta() {
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.assertTagExists("reader-system-bar")
+        composeTestRule.assertTagExists("reader-bottom-meta")
+        composeTestRule.assertTextExists("全书")
+        composeTestRule.assertTextExists("章节")
+    }
+
+    @Test
+    fun readerScreen_topMenuShowsReadingActions() {
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.onNodeWithTag("reader-top-menu").performClick()
+        composeTestRule.assertTextExists("书籍详情")
+        composeTestRule.assertTextExists("下载")
+        composeTestRule.assertTextExists("换源")
+    }
+
+    @Test
+    fun readerScreen_exposesSharedReaderContainerTag() {
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.assertTagExists("reader-shared-container-book-1")
+    }
+
+    @Test
+    fun readerScreen_opensTocAndBookmarkDrawers() {
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("目录").performClick()
+        composeTestRule.assertTagExists("reader-toc-drawer")
+        composeTestRule.onNodeWithText("书签").performClick()
+        composeTestRule.assertTagExists("reader-bookmark-drawer")
+        composeTestRule.assertTextExists("摘录预览")
+    }
+
+    @Test
+    fun readerScreen_settingsShowAdvancedTypographyControls() {
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onLineHeightChange = {},
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("设置").performClick()
+        composeTestRule.assertTextExists("自动适配字号")
+        composeTestRule.assertTextExists("字距")
+        composeTestRule.assertTextExists("段落间距")
+        composeTestRule.assertTextExists("页边距")
+        composeTestRule.assertTextExists("阅读背景调色盘")
+        composeTestRule.assertTextExists("导入字体")
+    }
+
+    @Test
+    fun readerScreen_settingsCallbacksCanBeTriggered() {
+        val autoFitChanges = mutableListOf<Boolean>()
+        var importedFont = false
+
+        composeTestRule.setContent {
+            ReaderScreen(
+                state = sampleState(),
+                onLocatorChanged = { _, _ -> },
+                onReaderModeChange = {},
+                onThemeChange = {},
+                onFontSizeChange = {},
+                onAutoFitFontSizeChange = { autoFitChanges += it },
+                onLineHeightChange = {},
+                onLetterSpacingChange = {},
+                onParagraphSpacingChange = {},
+                onSidePaddingChange = {},
+                onBackgroundPaletteChange = {},
+                onImportFontClick = { importedFont = true },
+                onBrightnessChange = {},
+                onChapterSelected = {},
+                onSummarizeChapter = {},
+                onExplainParagraph = {},
+                onTranslateParagraph = {},
+                onSpeakChapter = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("设置").performClick()
+        composeTestRule.onNodeWithText("已开启").performClick()
+        composeTestRule.onNodeWithText("导入字体").performClick()
+
+        assertEquals(listOf(false), autoFitChanges)
+        assertTrue(importedFont)
     }
 
     @Test
@@ -209,7 +372,7 @@ class ReaderScreenTest {
                 locator = "chapter:chapter-3#paragraph:0",
                 progressPercent = 0f,
                 progressLabel = "0%",
-                presentation = ReaderPresentationPrefs(fontSizeSp = 28),
+                presentation = ReaderPresentationPrefs(fontSizeSp = 28f),
                 paragraphs = (1..12).map { index -> "正文第${index}段" },
                 totalParagraphCount = 12,
             )
@@ -247,7 +410,7 @@ class ReaderScreenTest {
                 locator = "chapter:chapter-3#paragraph:60",
                 progressPercent = 0f,
                 progressLabel = "0%",
-                presentation = ReaderPresentationPrefs(fontSizeSp = 20),
+                presentation = ReaderPresentationPrefs(fontSizeSp = 20f),
                 paragraphs = (1..60).map { index -> "正文窗口第${index}段" },
                 windowStartParagraphIndex = 60,
                 totalParagraphCount = 120,
@@ -284,7 +447,7 @@ class ReaderScreenTest {
                 locator = "chapter:chapter-3#paragraph:0",
                 progressPercent = 0f,
                 progressLabel = "0%",
-                presentation = ReaderPresentationPrefs(fontSizeSp = 28),
+                presentation = ReaderPresentationPrefs(fontSizeSp = 28f),
                 paragraphs = (1..12).map { index -> "正文第${index}段" },
                 totalParagraphCount = 12,
             )
@@ -428,6 +591,13 @@ class ReaderScreenTest {
                 "正文第五段",
             ),
             totalParagraphCount = 5,
+            bookmarks = listOf(
+                ReadingBookmark(
+                    chapterRef = "chapter-3",
+                    locator = "chapter:chapter-3#paragraph:2",
+                    label = "第三章关键转折",
+                )
+            ),
             assistant = ReaderAssistantUiState(),
         )
 }

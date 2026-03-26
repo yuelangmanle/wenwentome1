@@ -9,9 +9,9 @@ import io.legado.app.base.VMBaseActivity
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.databinding.ActivityExploreShowBinding
 import io.legado.app.databinding.ViewLoadMoreBinding
-import io.legado.app.ui.book.info.BookInfoActivity
 import io.legado.app.ui.widget.recycler.LoadMoreView
 import io.legado.app.ui.widget.recycler.VerticalDivider
+import io.legado.app.ui.wenwen.startWenwenBookDetailActivity
 import io.legado.app.utils.applyNavigationBarPadding
 import io.legado.app.utils.startActivity
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -86,10 +86,10 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
     }
 
     override fun showBookInfo(book: SearchBook) {
-        startActivity<BookInfoActivity> {
-            putExtra("name", book.name)
-            putExtra("author", book.author)
-            putExtra("bookUrl", book.bookUrl)
-        }
+        startWenwenBookDetailActivity(
+            bookUrl = book.bookUrl,
+            name = book.name,
+            author = book.author,
+        )
     }
 }

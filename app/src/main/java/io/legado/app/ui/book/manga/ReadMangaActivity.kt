@@ -39,7 +39,6 @@ import io.legado.app.lib.dialogs.alert
 import io.legado.app.model.ReadManga
 import io.legado.app.receiver.NetworkChangedListener
 import io.legado.app.ui.book.changesource.ChangeBookSourceDialog
-import io.legado.app.ui.book.info.BookInfoActivity
 import io.legado.app.ui.book.manga.config.MangaColorFilterConfig
 import io.legado.app.ui.book.manga.config.MangaColorFilterDialog
 import io.legado.app.ui.book.manga.config.MangaEpaperDialog
@@ -53,6 +52,7 @@ import io.legado.app.ui.book.manga.recyclerview.ScrollTimer
 import io.legado.app.ui.book.read.MangaMenu
 import io.legado.app.ui.book.read.ReadBookActivity.Companion.RESULT_DELETED
 import io.legado.app.ui.book.toc.TocActivityResult
+import io.legado.app.ui.wenwen.WenwenUiBridge
 import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.ui.widget.recycler.LoadMoreView
 import io.legado.app.utils.GSON
@@ -134,7 +134,7 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
         }
     }
     private val bookInfoActivity =
-        registerForActivityResult(StartActivityContract(BookInfoActivity::class.java)) {
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == RESULT_OK) {
                 setResult(RESULT_DELETED)
                 super.finish()
@@ -626,10 +626,14 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
 
     override fun openBookInfoActivity() {
         ReadManga.book?.let {
-            bookInfoActivity.launch {
-                putExtra("name", it.name)
-                putExtra("author", it.author)
-            }
+            bookInfoActivity.launch(
+                WenwenUiBridge.detailIntent(
+                    context = this,
+                    bookUrl = it.bookUrl,
+                    name = it.name,
+                    author = it.author,
+                )
+            )
         }
     }
 
