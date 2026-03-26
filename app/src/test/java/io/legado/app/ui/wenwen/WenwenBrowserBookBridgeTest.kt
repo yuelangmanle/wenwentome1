@@ -1,6 +1,7 @@
 package io.legado.app.ui.wenwen
 
 import io.legado.app.constant.BookType
+import io.legado.app.help.book.isType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
