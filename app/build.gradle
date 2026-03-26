@@ -59,7 +59,7 @@ android {
     }
     defaultConfig {
         applicationId "com.wenwentome.reader"
-        minSdk 21
+        minSdk 26
         targetSdk 36
         versionCode 20000 + gitCommits
         versionName version
