@@ -3,84 +3,121 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WenwenToMe / 文文tome 迁移公告</title>
-  <meta name="description" content="WenwenToMe / 文文tome 正在从 1.x 旧线迁移到基于 Legado 的 2.0 底座，仓库与发布链路保持不变。" />
-  <link rel="stylesheet" href="./styles.css" />
+  <title>WenwenToMe / 文文tome 原型预览</title>
+  <meta name="description" content="文文tome 2.0 可点击交互原型，包含书架、发现、我的与阅读器界面方案。" />
+  <meta http-equiv="refresh" content="0; url=./wenwentome-v2-prototype.html" />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f2ede3;
+      --panel: rgba(255, 252, 245, 0.88);
+      --text: #231815;
+      --muted: #6d6257;
+      --accent: #b85c38;
+      --accent-strong: #8d3f1e;
+      --border: rgba(35, 24, 21, 0.08);
+      --shadow: 0 24px 80px rgba(82, 45, 27, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(255, 206, 159, 0.48), transparent 38%),
+        radial-gradient(circle at bottom right, rgba(195, 110, 73, 0.24), transparent 32%),
+        linear-gradient(160deg, #f7f2ea 0%, #efe3d4 52%, #e9dbc8 100%);
+      color: var(--text);
+      font-family: "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    .panel {
+      width: min(100%, 560px);
+      padding: 32px 28px;
+      border-radius: 28px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-strong);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 40px);
+      line-height: 1.08;
+    }
+
+    p {
+      margin: 14px 0 0;
+      line-height: 1.7;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 18px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .button.primary {
+      color: #fffaf4;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+      box-shadow: 0 14px 30px rgba(141, 63, 30, 0.22);
+    }
+
+    .button.secondary {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid var(--border);
+    }
+  </style>
+  <script>
+    window.location.replace("./wenwentome-v2-prototype.html");
+  </script>
 </head>
 <body>
-  <div class="page-shell">
-    <header class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">月亮满了 · WenwenToMe / 文文tome</p>
-        <h1>WenwenToMe / 文文tome 正在迁移到新的阅读底座</h1>
-        <p class="hero-text">
-          当前仓库已经确认切换到 GPL-3.0 路线，并启动基于 Legado 的 2.0 底座迁移。GitHub 仓库、正式包签名链路和 文文tome 品牌继续保留，1.x 旧线冻结在 v1.6。
-        </p>
-        <div class="hero-actions">
-          <a class="button primary" href="https://github.com/yuelangmanle/wenwentome1/releases">查看 Releases</a>
-          <a class="button secondary" href="https://github.com/yuelangmanle/wenwentome1">查看 GitHub 项目</a>
-        </div>
-      </div>
-      <section class="hero-panel">
-        <p class="panel-label">当前新底座版本</p>
-        <p class="panel-version">2.0.1</p>
-        <dl class="panel-meta">
-          <div>
-            <dt>作者</dt>
-            <dd>月亮满了</dd>
-          </div>
-          <div>
-            <dt>底座路线</dt>
-            <dd>Legado 基线迁移</dd>
-          </div>
-          <div>
-            <dt>License</dt>
-            <dd>GPL-3.0</dd>
-          </div>
-          <div>
-            <dt>项目地址</dt>
-            <dd>yuelangmanle/wenwentome1</dd>
-          </div>
-        </dl>
-      </section>
-    </header>
-
-    <main class="content-grid">
-      <section class="card">
-        <p class="section-kicker">当前决定</p>
-        <ul class="feature-list">
-          <li>继续使用原 GitHub 仓库，不新开仓库、不丢历史版本。</li>
-          <li>旧版 1.x 冻结在 v1.6，保留下载入口作为回退版本。</li>
-          <li>新的 2.x 将直接采用 Legado 作为阅读与书源底座，不再继续修旧自研内核。</li>
-        </ul>
-      </section>
-
-      <section class="card accent">
-        <p class="section-kicker">迁移目标</p>
-        <ol class="step-list">
-          <li>恢复稳定的 TXT / EPUB 导入、打开速度与阅读体验。</li>
-          <li>直接使用成熟书源与网文搜索能力，补齐书源删除、搜索、阅读主链路。</li>
-          <li>在新底座上重新接回 文文tome 的 AI Hub 与 GitHub 同步能力。</li>
-        </ol>
-      </section>
-
-      <section class="card">
-        <p class="section-kicker">项目与来源</p>
-        <div class="link-stack">
-          <a href="https://github.com/yuelangmanle/wenwentome1/releases">GitHub Releases</a>
-          <a href="https://github.com/yuelangmanle/wenwentome1/actions">GitHub Actions</a>
-          <a href="https://github.com/yuelangmanle/wenwentome1">源码仓库</a>
-          <a href="https://github.com/gedoor/legado">Legado 上游项目</a>
-        </div>
-      </section>
-
-      <section class="card">
-        <p class="section-kicker">迁移说明</p>
-        <p class="body-text">
-          文文tome `2.0.1` 已作为当前新底座迭代版本准备发布。仓库继续保留 GPL-3.0 路线、第三方来源说明、GitHub Releases 与云端正式发版链路，旧版本 `v1.6` 继续保留以便回退。
-        </p>
-      </section>
-    </main>
-  </div>
+  <main class="panel">
+    <p class="eyebrow">WenwenToMe / 文文tome</p>
+    <h1>正在进入可点击原型页</h1>
+    <p>
+      发布站首页已切换为文文tome 2.0 原型预览入口。如果浏览器没有自动跳转，可以手动打开原型页或查看迁移公告。
+    </p>
+    <div class="actions">
+      <a class="button primary" href="./wenwentome-v2-prototype.html">打开原型页</a>
+      <a class="button secondary" href="./migration-notice.html">查看迁移公告</a>
+    </div>
+  </main>
 </body>
 </html>
