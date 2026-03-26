@@ -818,6 +818,7 @@ private fun WenwenReaderScreen(
                         ReaderContent(
                             state = state,
                             scrollState = scrollState,
+                            bookProgress = bookProgress,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(padding)
@@ -937,6 +938,7 @@ private fun WenwenReaderScreen(
 private fun ReaderContent(
     state: WenwenReaderUiState,
     scrollState: androidx.compose.foundation.ScrollState,
+    bookProgress: Float,
     modifier: Modifier = Modifier,
 ) {
     val palette = state.activePalette
@@ -949,7 +951,7 @@ private fun ReaderContent(
         verticalArrangement = Arrangement.spacedBy(state.paragraphSpacingDp.dp),
     ) {
         LinearProgressIndicator(
-            progress = { normalizedBookProgress(state) },
+            progress = { bookProgress },
             modifier = Modifier.fillMaxWidth(),
         )
         Text(

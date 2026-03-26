@@ -24,9 +24,10 @@ fun ApiHubOverviewScreen(
     onOpenBudgets: () -> Unit,
     onOpenPrices: () -> Unit,
     onOpenUsageLogs: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp)

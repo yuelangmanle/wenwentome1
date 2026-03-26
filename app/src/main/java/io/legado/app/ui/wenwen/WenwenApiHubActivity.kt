@@ -89,7 +89,6 @@ private fun WenwenApiHubScreen(
                     onOpenBudgets = onOpenBudgets,
                     onOpenPrices = onOpenPrices,
                     onOpenUsageLogs = onOpenUsageLogs,
-                    modifier = Modifier.weight(1f),
                 )
             }
         }

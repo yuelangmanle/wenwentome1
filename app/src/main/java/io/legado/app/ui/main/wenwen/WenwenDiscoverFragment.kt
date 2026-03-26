@@ -21,6 +21,7 @@ import io.legado.app.utils.toastOnUi
 import com.wenwentome.reader.feature.discover.DiscoverScreen
 import com.wenwentome.reader.feature.discover.DiscoverBrowserEngine
 import com.wenwentome.reader.feature.discover.DiscoverUiState
+import io.legado.app.ui.wenwen.WenwenDiscoverSettingsActivity
 import io.legado.app.ui.wenwen.startWenwenBrowserSearch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch

@@ -241,6 +241,7 @@ dependencies {
     implementation(libs.jsoupxpath)
     implementation(project(path: ':modules:book'))
     implementation(project(path: ':modules:rhino'))
+    implementation(project(path: ':bridge:source'))
     implementation(project(path: ':core:model'))
     implementation(project(path: ':core:database'))
     implementation(project(path: ':feature:library'))
