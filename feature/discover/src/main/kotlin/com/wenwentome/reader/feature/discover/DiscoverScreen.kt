@@ -300,7 +300,7 @@ private fun BrowserFindPane(
                     modifier = Modifier.testTag("discover-browser-search-submit"),
                 ) {
                     Text("前往")
-                )
+                }
             }
             Text(
                 text = "进入网页后可识别正文区域，并切换为优化阅读视图。",
